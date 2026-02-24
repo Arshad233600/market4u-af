@@ -1,4 +1,3 @@
-
 export type Currency = 'AFN';
 
 export enum AdStatus {
