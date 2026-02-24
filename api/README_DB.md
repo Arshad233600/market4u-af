@@ -3,7 +3,6 @@
 ## Prerequisites
 - Azure SQL Database provisioned
 - SQL Server Management Studio, Azure Data Studio, or sqlcmd installed
-
 ## Environment Variables
 
 Add these to your Azure Static Web Apps configuration or local `.env` file:
