@@ -399,6 +399,16 @@ export const azureService = {
   
   getSellerReviews: async (id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : apiClient.get(`/users/${id}/reviews`),
   
+  getProductById: async (id: string): Promise<Product | null> => {
+      if (USE_MOCK_DATA) {
+          const products = db.get<Product[]>('products', []);
+          return products.find(p => p.id === id) || null;
+      }
+      try {
+          return await apiClient.get<Product>(`/ads/${id}`);
+      } catch { return null; }
+  },
+
   getRelatedProducts: async (cat: string, id: string) => {
       if (USE_MOCK_DATA) {
           const products = db.get<Product[]>('products', []);

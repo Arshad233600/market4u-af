@@ -14,6 +14,8 @@ import { Page, Product, User } from './types';
 import { authService } from './services/authService';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { errorLogger } from './utils/errorLogger';
+import { azureService } from './services/azureService';
+import { toastService } from './services/toastService';
 
 // Lazy Load Pages
 const PostAd = lazy(() => import('./pages/PostAd'));
@@ -60,6 +62,26 @@ const AppContent: React.FC = () => {
   // Initialize error logger on app start
   useEffect(() => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
+  }, []);
+
+  // Deep-link: navigate to product when ?product=<id> is present in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('product');
+    if (productId) {
+      // Clean the query param from the URL so it doesn't persist on remount
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      azureService.getProductById(productId).then((product) => {
+        if (product) {
+          setSelectedProduct(product);
+          setCurrentPage(Page.DETAIL);
+        } else {
+          toastService.error('آگهی مورد نظر یافت نشد یا حذف شده است.');
+        }
+      }).catch(() => {
+        toastService.error('خطا در بارگذاری آگهی. لطفاً دوباره تلاش کنید.');
+      });
+    }
   }, []);
 
   const navigateTo = (page: Page | 'ADMIN_PANEL') => {

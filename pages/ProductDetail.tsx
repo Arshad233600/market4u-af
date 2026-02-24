@@ -95,16 +95,19 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
   };
 
   const handleShare = () => {
+      const shareUrl = `${window.location.origin}${window.location.pathname}?product=${product.id}`;
       if (navigator.share) {
           navigator.share({
               title: product.title,
-              text: `Check out this ${product.title} on Bazar Afghanistan`,
-              url: window.location.href,
+              text: `${product.title} - بازار افغان`,
+              url: shareUrl,
           }).catch(console.error);
       } else {
-          // Copy to clipboard fallback
-          navigator.clipboard.writeText(window.location.href);
-          alert('لینک آگهی کپی شد!');
+          navigator.clipboard.writeText(shareUrl).then(() => {
+              alert('لینک آگهی کپی شد!');
+          }).catch(() => {
+              alert(shareUrl);
+          });
       }
   };
 
