@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="fa-AF" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#059669" />
+    
+    <!-- SEO & Social Meta Tags -->
+    <title>Market4U - بازار آنلاین افغانستان | خرید و فروش امن</title>
+    <meta name="description" content="اولین و بزرگترین پلتفرم خرید و فروش آنلاین در افغانستان. خرید موتر، خانه، موبایل و لوازم منزل با امنیت کامل. پشتیبانی از زبان‌های دری و پشتو." />
+    <meta name="keywords" content="افغانستان, خرید آنلاین, فروش اینترنتی, کابل, موتر فروشی, املاک افغانستان, market4u, bazar, afghanistan" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://market4u.af/" />
+    <meta property="og:title" content="Market4U - بازار آنلاین افغانستان" />
+    <meta property="og:description" content="خرید و فروش بی‌واسطه موتر، املاک و لوازم در سراسر افغانستان." />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1519638399535-1b036603ac77?auto=format&fit=crop&w=1200&q=80" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Market4U - بازار آنلاین افغانستان" />
+    <meta property="twitter:description" content="خرید و فروش امن و سریع در ۳۴ ولایت افغانستان." />
+    <meta property="twitter:image" content="https://images.unsplash.com/photo-1519638399535-1b036603ac77?auto=format&fit=crop&w=1200&q=80" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+      // Polyfill for process.env to avoid runtime crashes in browser environments (Azure Static Web Apps)
+      window.process = window.process || { env: { NODE_ENV: 'production' } };
+    </script>
+    <style>
+      body {
+        font-family: 'Vazirmatn', sans-serif;
+        background-color: #f3f4f6;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+      /* Leaflet RTL Fixes */
+      .leaflet-control-zoom {
+        left: 10px;
+        right: auto;
+      }
+    </style>
+    <link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>

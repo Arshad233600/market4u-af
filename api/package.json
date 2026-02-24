@@ -1,0 +1,36 @@
+{
+  "name": "market4u-api",
+  "version": "1.0.0",
+  "description": "Azure Functions Backend for Market4U",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -p . -w",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "start": "func start --javascript --script-root dist",
+    "lint:types": "tsc -p . --noEmit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.7.0",
+    "@azure/identity": "^4.8.0",
+    "@azure/storage-blob": "^12.26.0",
+    "@google/genai": "^1.1.0",
+    "@types/bcrypt": "^6.0.0",
+    "applicationinsights": "3.13.0",
+    "bcrypt": "^6.0.0",
+    "mssql": "^12.2.0"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.5",
+    "@types/node": "^20.17.30",
+    "azure-functions-core-tools": "^4.0.6517",
+    "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "glob": "11.0.0"
+  }
+}

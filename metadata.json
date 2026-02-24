@@ -1,0 +1,9 @@
+{
+  "name": "Market4U",
+  "description": "A comprehensive marketplace connecting buyers and sellers securely.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Diagnostics Test - Market4U</title>
+    <style>
+        body {
+            font-family: Tahoma, Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        .result {
+            background: #f9f9f9;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            border-left-color: #f44336;
+            color: #f44336;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            color: #4CAF50;
+        }
+        .info {
+            border-left-color: #2196F3;
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Market4U PWA & Error Diagnostics Test</h1>
+
+    <div class="test-section">
+        <h2>1. Service Worker Test</h2>
+        <button onclick="testServiceWorker()">Check SW Status</button>
+        <button onclick="unregisterSW()">Unregister SW</button>
+        <button onclick="updateSW()">Force Update</button>
+        <div id="sw-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Version Info Test</h2>
+        <button onclick="fetchVersionInfo()">Get Version</button>
+        <button onclick="checkCacheVersion()">Check Cache Version</button>
+        <div id="version-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Error Logger Test</h2>
+        <button onclick="testErrorLogger()">Test Error Logger</button>
+        <button onclick="triggerTestError()" class="danger">Trigger Test Error</button>
+        <button onclick="viewStoredLogs()">View Stored Logs</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+        <div id="error-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Cache Test</h2>
+        <button onclick="listCaches()">List All Caches</button>
+        <button onclick="clearOldCaches()">Clear Old Caches</button>
+        <button onclick="testCacheStrategy()">Test Cache Strategy</button>
+        <div id="cache-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Network Test</h2>
+        <button onclick="testOnline()">Test Online Status</button>
+        <button onclick="simulateOffline()">Simulate Offline</button>
+        <button onclick="testAPICall()">Test API Call</button>
+        <div id="network-result" class="result"></div>
+    </div>
+
+    <script>
+        // Service Worker Tests
+        async function testServiceWorker() {
+            const result = document.getElementById('sw-result');
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        const info = {
+                            active: !!registration.active,
+                            waiting: !!registration.waiting,
+                            installing: !!registration.installing,
+                            scope: registration.scope,
+                            updateViaCache: registration.updateViaCache
+                        };
+                        result.className = 'result success';
+                        result.textContent = '✅ Service Worker Registered:\n' + JSON.stringify(info, null, 2);
+                    } else {
+                        result.className = 'result error';
+                        result.textContent = '❌ No Service Worker registered';
+                    }
+                } catch (error) {
+                    result.className = 'result error';
+                    result.textContent = '❌ Error: ' + error.message;
+                }
+            } else {
+                result.className = 'result error';
+                result.textContent = '❌ Service Worker not supported';
+            }
+        }
+
+        async function unregisterSW() {
+            const result = document.getElementById('sw-result');
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.unregister();
+                    result.className = 'result success';
+                    result.textContent = '✅ Service Worker unregistered. Reload page to re-register.';
+                } else {
+                    result.className = 'result info';
+                    result.textContent = 'ℹ️ No Service Worker to unregister';
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function updateSW() {
+            const result = document.getElementById('sw-result');
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.update();
+                    result.className = 'result success';
+                    result.textContent = '✅ Update check triggered';
+                } else {
+                    result.className = 'result error';
+                    result.textContent = '❌ No Service Worker registered';
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        // Version Tests
+        async function fetchVersionInfo() {
+            const result = document.getElementById('version-result');
+            try {
+                const response = await fetch('/version.json');
+                const version = await response.json();
+                result.className = 'result success';
+                result.textContent = '✅ Version Info:\n' + JSON.stringify(version, null, 2);
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error fetching version: ' + error.message;
+            }
+        }
+
+        async function checkCacheVersion() {
+            const result = document.getElementById('version-result');
+            try {
+                const cacheNames = await caches.keys();
+                const market4uCaches = cacheNames.filter(name => name.startsWith('market4u-'));
+                result.className = 'result info';
+                result.textContent = '📦 Active Market4U Caches:\n' + market4uCaches.join('\n');
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        // Error Logger Tests
+        function testErrorLogger() {
+            const result = document.getElementById('error-result');
+            const logs = localStorage.getItem('market4u_error_logs');
+            if (logs) {
+                const parsed = JSON.parse(logs);
+                result.className = 'result info';
+                result.textContent = `📊 Found ${parsed.length} error logs:\n` + 
+                    JSON.stringify(parsed, null, 2);
+            } else {
+                result.className = 'result info';
+                result.textContent = 'ℹ️ No error logs found in localStorage';
+            }
+        }
+
+        function triggerTestError() {
+            const result = document.getElementById('error-result');
+            try {
+                // This will trigger an error
+                throw new Error('TEST ERROR: This is a deliberate test error for diagnostics');
+            } catch (error) {
+                result.className = 'result success';
+                result.textContent = '✅ Test error triggered. Check console and error logs.';
+                // Re-throw to let global handler catch it
+                setTimeout(() => { throw error; }, 0);
+            }
+        }
+
+        function viewStoredLogs() {
+            testErrorLogger();
+        }
+
+        function clearLogs() {
+            const result = document.getElementById('error-result');
+            localStorage.removeItem('market4u_error_logs');
+            result.className = 'result success';
+            result.textContent = '✅ Error logs cleared from localStorage';
+        }
+
+        // Cache Tests
+        async function listCaches() {
+            const result = document.getElementById('cache-result');
+            try {
+                const cacheNames = await caches.keys();
+                result.className = 'result info';
+                result.textContent = `📦 All Caches (${cacheNames.length}):\n` + cacheNames.join('\n');
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function clearOldCaches() {
+            const result = document.getElementById('cache-result');
+            try {
+                const cacheNames = await caches.keys();
+                const deleted = [];
+                for (const cacheName of cacheNames) {
+                    if (cacheName.startsWith('market4u-')) {
+                        await caches.delete(cacheName);
+                        deleted.push(cacheName);
+                    }
+                }
+                result.className = 'result success';
+                result.textContent = `✅ Deleted ${deleted.length} caches:\n` + deleted.join('\n');
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        async function testCacheStrategy() {
+            const result = document.getElementById('cache-result');
+            try {
+                // Test if version.json is cached
+                const cache = await caches.open('test-cache');
+                await cache.add('/version.json');
+                const cachedResponse = await cache.match('/version.json');
+                if (cachedResponse) {
+                    const data = await cachedResponse.json();
+                    result.className = 'result success';
+                    result.textContent = '✅ Cache Strategy Working:\n' + JSON.stringify(data, null, 2);
+                } else {
+                    result.className = 'result error';
+                    result.textContent = '❌ Failed to cache version.json';
+                }
+                await caches.delete('test-cache');
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ Error: ' + error.message;
+            }
+        }
+
+        // Network Tests
+        function testOnline() {
+            const result = document.getElementById('network-result');
+            const isOnline = navigator.onLine;
+            result.className = isOnline ? 'result success' : 'result error';
+            result.textContent = isOnline ? '✅ Online' : '❌ Offline';
+        }
+
+        function simulateOffline() {
+            const result = document.getElementById('network-result');
+            result.className = 'result info';
+            result.textContent = 'ℹ️ Open DevTools → Network tab → Set to "Offline" to test offline mode';
+        }
+
+        async function testAPICall() {
+            const result = document.getElementById('network-result');
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                result.className = 'result success';
+                result.textContent = '✅ API Response:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.className = 'result error';
+                result.textContent = '❌ API Error: ' + error.message;
+            }
+        }
+
+        // Global error handler to test error logger
+        window.addEventListener('error', (event) => {
+            console.log('🔴 Global error caught:', event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.log('🔴 Unhandled rejection caught:', event.reason);
+        });
+
+        // Initial status check
+        window.addEventListener('load', () => {
+            testServiceWorker();
+            fetchVersionInfo();
+        });
+    </script>
+</body>
+</html>
