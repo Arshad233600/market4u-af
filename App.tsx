@@ -208,6 +208,7 @@ const AppContent: React.FC = () => {
             onBack={handleBackFromDetail}
             onNavigate={navigateTo}
             onSellerClick={handleSellerClick}
+            onProductClick={handleProductClick}
           />
         ) : (
           <Home onProductClick={handleProductClick} searchQuery={searchQuery} />

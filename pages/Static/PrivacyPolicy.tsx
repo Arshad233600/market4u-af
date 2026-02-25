@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { UserX } from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 
 const PrivacyPolicy: React.FC = () => {

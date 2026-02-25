@@ -79,7 +79,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Cache-first strategy for static assets (JS, CSS, images)
-  const url = new URL(event.request.url);
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|ico)$/)
   ) {

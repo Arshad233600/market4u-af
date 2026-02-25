@@ -1,5 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  CreditCard, Wallet, Plus, Download, ArrowDownLeft, ArrowUpRight,
+  History, Lock
+} from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { WalletTransaction } from '../../types';

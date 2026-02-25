@@ -49,7 +49,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng,
       onLocationSelect(position.lat, position.lng);
     });
 
-    map.on('click', function(e: L.LeafletMouseEvent) {
+    map.on('click', function(e: any) {
        marker.setLatLng(e.latlng);
        onLocationSelect(e.latlng.lat, e.latlng.lng);
     });

@@ -1,5 +1,9 @@
 
 import React, { useState } from 'react';
+import {
+  User, FileCheck, CheckCircle, Lock, Bell, Camera,
+  Loader2, Save, Shield, AlertTriangle, Trash2
+} from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 import { authService } from '../../services/authService';
 import { azureService } from '../../services/azureService';

@@ -1,5 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
+import {
+  CheckCircle, Clock, XCircle, Filter, TrendingUp, Rocket,
+  MoreVertical, Eye, MousePointerClick, AlertCircle, Edit,
+  Loader2, Trash2, X
+} from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { Product, AdStatus } from '../../types';

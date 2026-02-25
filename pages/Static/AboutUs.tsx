@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Heart } from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 import { Page } from '../../types';
 

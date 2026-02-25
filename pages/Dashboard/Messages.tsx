@@ -1,5 +1,9 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import {
+  WifiOff, Search, MessageSquare, ArrowRight, MoreVertical,
+  Trash2, CheckCheck, AlertCircle, Clock, Plus, Send, StopCircle, Mic
+} from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { realtimeService } from '../../services/realtimeService';
