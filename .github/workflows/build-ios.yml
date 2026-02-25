@@ -1,0 +1,68 @@
+name: Build iOS App
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets
+        run: npm run build
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Build iOS app
+        run: |
+          xcodebuild build \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath ios/DerivedData
+
+      - name: Upload iOS simulator build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market4u-ios-debug
+          path: ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          retention-days: 30
+
+      - name: Create release notes (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Market4U ${{ github.ref_name }}
+          body: |
+            ## Market4U ${{ github.ref_name }} 🎉
+
+            ### 📥 نصب روی اندرید
+            1. فایل `app-debug.apk` را دانلود کنید
+            2. در تنظیمات گوشی، **"منابع ناشناس"** را فعال کنید
+            3. فایل APK را باز کرده و نصب کنید
+
+            ### 📱 نصب روی آیفون (Safari)
+            1. سایت [market4u.af](https://market4u.af) را در Safari باز کنید
+            2. دکمه Share را بزنید ← **Add to Home Screen**
