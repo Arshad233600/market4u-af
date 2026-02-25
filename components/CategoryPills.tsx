@@ -25,7 +25,7 @@ const CategoryPills: React.FC<CategoryPillsProps> = ({ selectedId, onSelect }) =
             <button
               key={cat.id}
               onClick={() => onSelect(cat.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-200 border press whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all duration-200 border press whitespace-nowrap ${
                 isSelected
                   ? 'bg-brand-gradient text-white border-transparent shadow-glow'
                   : 'bg-ui-surface2 text-ui-muted border-ui-border hover:bg-ui-surface3 hover:text-ui-text hover:border-ui-border2'
@@ -33,7 +33,7 @@ const CategoryPills: React.FC<CategoryPillsProps> = ({ selectedId, onSelect }) =
             >
               <Icon
                 name={(cat.icon || 'MoreHorizontal') as IconName}
-                size={15}
+                size={17}
                 strokeWidth={isSelected ? 2.5 : 2}
                 className={isSelected ? 'text-white' : ''}
               />

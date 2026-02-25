@@ -32,7 +32,7 @@ const FilterSection: React.FC<{
             >
                 <span className="font-bold text-ui-text text-sm group-hover:text-brand-400 transition-colors flex items-center gap-2">
                     {title}
-                    {count ? <span className="bg-brand-900/40 text-brand-300 text-[10px] px-1.5 py-0.5 rounded-full">{count}</span> : null}
+                    {count ? <span className="bg-brand-900/40 text-brand-300 text-xs px-1.5 py-0.5 rounded-full">{count}</span> : null}
                 </span>
                 <Icon name="ChevronDown" size={18} strokeWidth={1.8} className={`text-ui-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
             </button>
@@ -234,16 +234,16 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           </div>
           <button
             onClick={() => setAppliedFilters(prev => ({ ...prev, province: 'all' }))}
-            className="text-brand-400 hover:text-brand-200 text-[11px] font-bold flex items-center gap-1 transition-colors"
+            className="text-brand-400 hover:text-brand-200 text-xs font-bold flex items-center gap-1 transition-colors"
           >
-            <Icon name="X" size={12} strokeWidth={2.5} />
+            <Icon name="X" size={14} strokeWidth={2.5} />
             همه شهرها
           </button>
         </div>
       )}
 
       {/* Category & Filter Bar */}
-      <div className="sticky top-[60px] z-20 glass border-b border-ui-border">
+      <div className="sticky top-[64px] z-20 glass border-b border-ui-border">
         <div className="flex items-center pl-3 pr-1">
           <div className="flex-1 overflow-hidden">
             <CategoryPills
@@ -264,7 +264,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
             <span className="hidden sm:inline">{t('filter_btn')}</span>
             <span className="sm:hidden">فیلتر</span>
             {activeCount > 0 && (
-              <span className="w-4 h-4 flex items-center justify-center bg-white/20 text-white text-[9px] font-black rounded-full">
+              <span className="w-5 h-5 flex items-center justify-center bg-white/20 text-white text-xs font-black rounded-full">
                 {activeCount}
               </span>
             )}
@@ -292,7 +292,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
         <div className="flex justify-between items-center mb-5 px-1">
           <h2 className="text-base font-bold text-ui-text flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-brand-gradient flex items-center justify-center shrink-0">
-              <Icon name="LayoutGrid" size={13} strokeWidth={2.5} className="text-white" />
+              <Icon name="LayoutGrid" size={14} strokeWidth={2.5} className="text-white" />
             </span>
             {t('hero_title')}
             {selectedCategory !== 'all' && (
@@ -303,7 +303,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           </h2>
           {/* Sort - Desktop */}
           <div className="hidden md:flex items-center gap-2 text-xs text-ui-muted bg-ui-surface2 px-3 py-2 rounded-xl border border-ui-border">
-            <Icon name="ArrowUpDown" size={13} strokeWidth={2} className="text-ui-subtle" />
+            <Icon name="ArrowUpDown" size={14} strokeWidth={2} className="text-ui-subtle" />
             <span>{t('sort_label')}</span>
             <select
               value={appliedFilters.sort}
@@ -516,7 +516,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                       onChange={(e) => setTempMinPrice(e.target.value)}
                       className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-2xl focus:ring-2 focus:ring-brand-500/40 outline-none text-center text-sm font-bold dir-ltr text-ui-text placeholder:text-ui-subtle"
                     />
-                    <span className="absolute right-3 top-3.5 text-[10px] text-ui-subtle">از</span>
+                    <span className="absolute right-3 top-3.5 text-xs text-ui-subtle">از</span>
                   </div>
                   <div className="w-4 h-px bg-ui-border shrink-0" />
                   <div className="relative flex-1">
@@ -527,10 +527,10 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                       onChange={(e) => setTempMaxPrice(e.target.value)}
                       className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-2xl focus:ring-2 focus:ring-brand-500/40 outline-none text-center text-sm font-bold dir-ltr text-ui-text placeholder:text-ui-subtle"
                     />
-                    <span className="absolute right-3 top-3.5 text-[10px] text-ui-subtle">تا</span>
+                    <span className="absolute right-3 top-3.5 text-xs text-ui-subtle">تا</span>
                   </div>
                 </div>
-                <p className="text-center text-[11px] text-ui-subtle mt-2">قیمت‌ها به افغانی (؋) هستند</p>
+                <p className="text-center text-xs text-ui-subtle mt-2">قیمت‌ها به افغانی (؋) هستند</p>
               </FilterSection>
 
               {/* Condition Section */}
