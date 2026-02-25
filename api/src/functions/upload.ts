@@ -5,7 +5,7 @@ import { BlobServiceClient } from "@azure/storage-blob";
 export async function upload(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     try {
         const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
-        const containerName = process.env.STORAGE_CONTAINER_NAME || "ads-images";
+        const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
 
         if (!conn) {
             return { status: 500, body: "Missing AZURE_STORAGE_CONNECTION_STRING" };

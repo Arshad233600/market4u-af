@@ -20,7 +20,7 @@ if (connectionString && (!accountName || !accountKey)) {
     if (keyMatch && !accountKey) accountKey = keyMatch[1];
 }
 
-const containerName = process.env.STORAGE_CONTAINER_NAME || "ads-images";
+const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 

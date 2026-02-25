@@ -15,6 +15,9 @@ dist-ssr
 # Auto-generated build artifacts
 public/version.json
 
+# Azure Functions local settings (contains secrets)
+api/local.settings.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
