@@ -4,7 +4,7 @@ import sql, { ConnectionPool, config as SqlConfig } from "mssql";
 let poolPromise: Promise<ConnectionPool> | null = null;
 
 function buildConfig(): SqlConfig | string {
-    const connectionString = process.env.SqlConnectionString;
+    const connectionString = process.env.SqlConnectionString || process.env.AZURE_SQL_CONNECTION_STRING;
 
     if (connectionString && connectionString.trim().length > 0) {
         return connectionString;
@@ -14,7 +14,8 @@ function buildConfig(): SqlConfig | string {
 
     if (!DB_SERVER || !DB_NAME || !DB_USER || !DB_PASSWORD) {
         throw new Error(
-            "Database configuration missing. Provide SqlConnectionString or DB_SERVER/DB_NAME/DB_USER/DB_PASSWORD."
+            "Database not configured. Add SqlConnectionString to Azure Static Web App environment variables. " +
+            "See AZURE_DEPLOY_GUIDE.md for setup instructions."
         );
     }
 
