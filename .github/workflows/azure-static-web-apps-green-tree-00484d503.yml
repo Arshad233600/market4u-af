@@ -45,6 +45,7 @@ jobs:
           api_location: "api"      # api folder
           output_location: "dist"  # Vite output
           github_id_token: ${{ steps.idtoken.outputs.result }}
+          skip_deploy_on_missing_secrets: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -57,3 +58,4 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GREEN_TREE_00484D503 }}
           action: "close"
+          skip_deploy_on_missing_secrets: true
