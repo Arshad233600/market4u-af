@@ -8,6 +8,7 @@ import ProductCard from '../components/ProductCard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { authService } from '../services/authService';
 import OptimizedImage from '../components/OptimizedImage';
+import { toastService } from '../services/toastService';
 
 const CONDITION_LABELS: Record<ProductCondition, { label: string; color: string; icon: string }> = {
   new: { label: 'نو', color: 'bg-ui-success/20 text-ui-success border-ui-success/30', icon: 'Sparkles' },
@@ -111,9 +112,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
           }).catch(console.error);
       } else {
           navigator.clipboard.writeText(shareUrl).then(() => {
-              alert('لینک آگهی کپی شد!');
+              toastService.success('لینک آگهی کپی شد!');
           }).catch(() => {
-              alert(shareUrl);
+              toastService.info(shareUrl);
           });
       }
   };
@@ -140,7 +141,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
           setOfferPrice('');
           onNavigate(Page.DASHBOARD_CHAT);
       } else {
-          alert('خطا در ارسال پیشنهاد.');
+          toastService.error('خطا در ارسال پیشنهاد. لطفاً دوباره امتحان کنید.');
       }
   };
 

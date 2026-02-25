@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Icon from '../src/components/ui/Icon';
+import { toastService } from '../services/toastService';
 
 interface PaymentGatewayModalProps {
   amount: number;
@@ -32,7 +33,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, onSuc
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if(phone.length < 9 || pin.length < 4) {
-          alert("لطفاً اطلاعات معتبر وارد کنید.");
+          toastService.warning('لطفاً اطلاعات معتبر وارد کنید.');
           return;
       }
       setStep('PROCESSING');

@@ -5,7 +5,6 @@ import {
   MoreVertical, Eye, MousePointerClick, AlertCircle, Edit,
   Loader2, Trash2, X
 } from 'lucide-react';
-import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { Product, AdStatus } from '../../types';
 import { APP_STRINGS } from '../../constants';
@@ -20,6 +19,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
   const [filter, setFilter] = useState<'ALL' | AdStatus>('ALL');
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
   const [promoteModalAd, setPromoteModalAd] = useState<Product | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ adId: string; action: 'delete' | 'sold' } | null>(null);
 
   useEffect(() => {
     const loadAds = async () => {
@@ -30,11 +30,10 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
   }, []);
 
   const handleStatusChange = async (adId: string, newStatus: AdStatus) => {
-      if (!window.confirm('آیا از انجام این عملیات مطمئن هستید؟')) return;
-      
       setLoadingActionId(adId);
       const success = await azureService.updateAdStatus(adId, newStatus);
       setLoadingActionId(null);
+      setConfirmAction(null);
 
       if (success) {
            setAds(prev => prev.map(ad => ad.id === adId ? { ...ad, status: newStatus } : ad));
@@ -45,17 +44,25 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
   };
 
   const handleDelete = async (adId: string) => {
-      if (!window.confirm('آیا مطمئن هستید که می‌خواهید این آگهی را حذف کنید؟ این عملیات قابل بازگشت نیست.')) return;
-
       setLoadingActionId(adId);
       const success = await azureService.deleteAd(adId);
       setLoadingActionId(null);
+      setConfirmAction(null);
 
       if (success) {
           setAds(prev => prev.filter(ad => ad.id !== adId));
           toastService.success('آگهی با موفقیت حذف شد.');
       } else {
           toastService.error('خطا در حذف آگهی.');
+      }
+  };
+
+  const handleConfirmAction = () => {
+      if (!confirmAction) return;
+      if (confirmAction.action === 'delete') {
+          handleDelete(confirmAction.adId);
+      } else if (confirmAction.action === 'sold') {
+          handleStatusChange(confirmAction.adId, AdStatus.SOLD);
       }
   };
 
@@ -191,6 +198,26 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-50 mt-1">
                     {getStatusBadge(ad.status)}
                     
+                    {confirmAction?.adId === ad.id ? (
+                        <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
+                            <span className="text-xs text-ui-muted">
+                                {confirmAction.action === 'delete' ? 'حذف این آگهی؟' : 'آیا فروخته شد؟'}
+                            </span>
+                            <button
+                                onClick={handleConfirmAction}
+                                disabled={loadingActionId === ad.id}
+                                className="text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {loadingActionId === ad.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'بله، مطمئنم'}
+                            </button>
+                            <button
+                                onClick={() => setConfirmAction(null)}
+                                className="text-xs font-bold text-ui-muted hover:bg-ui-surface2 px-3 py-1.5 rounded-lg transition-colors border border-ui-border"
+                            >
+                                انصراف
+                            </button>
+                        </div>
+                    ) : (
                     <div className="flex gap-2">
                         {ad.status === AdStatus.ACTIVE && (
                         <>
@@ -202,7 +229,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                                 افزایش بازدید
                             </button>
                             <button 
-                                onClick={() => handleStatusChange(ad.id, AdStatus.SOLD)}
+                                onClick={() => setConfirmAction({ adId: ad.id, action: 'sold' })}
                                 className="flex items-center gap-1.5 text-xs font-bold text-ui-muted bg-ui-surface border border-ui-border hover:bg-ui-surface2 px-4 py-2 rounded-xl transition-colors"
                             >
                                 فروختم
@@ -218,13 +245,14 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                             ویرایش
                         </button>
                         <button 
-                            onClick={() => handleDelete(ad.id)}
+                            onClick={() => setConfirmAction({ adId: ad.id, action: 'delete' })}
                             disabled={loadingActionId === ad.id}
                             className="flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
                         >
                             {loadingActionId === ad.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
                     </div>
+                    )}
                </div>
             </div>
             )

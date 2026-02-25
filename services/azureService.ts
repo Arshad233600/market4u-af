@@ -7,6 +7,7 @@ import { authService } from './authService';
 import { cacheService } from './cacheService';
 import { compressImage } from './imageCompression';
 import { generateChatReply } from './geminiService';
+import { toastService } from './toastService';
 
 const CURRENT_USER_ID = 'user_123'; 
 const DB_PREFIX = 'bazar_db_';
@@ -54,7 +55,7 @@ const db = {
             localStorage.setItem(DB_PREFIX + table, JSON.stringify(data));
         } catch (e) {
             console.error("Local DB Full", e);
-            alert("حافظه مرورگر پر شده است. لطفاً برخی از آگهی‌ها یا تصاویر را پاک کنید.");
+            toastService.error('حافظه مرورگر پر شده است. لطفاً برخی از آگهی‌ها یا تصاویر را پاک کنید.');
         }
     },
     init: () => {
@@ -572,7 +573,7 @@ export const azureService = {
           
           if (!product) return 'error';
           if (product.userId === CURRENT_USER_ID) {
-              alert("شما نمی‌توانید با خودتان چت کنید!");
+              toastService.warning('شما نمی‌توانید با خودتان چت کنید!');
               return '';
           }
 

@@ -4,7 +4,6 @@ import {
   TrendingUp, Wallet, Plus, AlertTriangle, Eye, MousePointerClick,
   MessageSquare, Zap, Activity, Clock
 } from 'lucide-react';
-import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { DashboardStats, Page } from '../../types';
 import { authService } from '../../services/authService';

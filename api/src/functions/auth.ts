@@ -21,19 +21,6 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
   return await bcrypt.compare(password, hash);
 };
 
-// Legacy helper - remove after full migration to standardized responses
-function json(status: number, body: Record<string, unknown>): HttpResponseInit {
-  return {
-    status,
-    headers: { "Content-Type": "application/json" },
-    jsonBody: body
-  };
-}
-
-function errMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "unknown";
-}
-
 /** Signed token: base64(payload).base64(signature) */
 function signToken(payload: object): string {
   const payloadJson = JSON.stringify(payload);

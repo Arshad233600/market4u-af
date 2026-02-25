@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Icon from '../../src/components/ui/Icon';
 import { Page } from '../../types';
 import { authService } from '../../services/authService';
+import { toastService } from '../../services/toastService';
 
 interface LoginProps {
   onNavigate: (page: Page) => void;
@@ -21,7 +22,7 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
       await authService.login(email, password);
       onLoginSuccess();
     } catch {
-      alert('ورود ناموفق بود. لطفا دوباره تلاش کنید.');
+      toastService.error('ورود ناموفق بود. لطفاً اطلاعات خود را بررسی کنید.');
     } finally {
       setIsLoading(false);
     }
@@ -33,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
       await authService.loginWithGoogle();
       onLoginSuccess();
     } catch {
-      alert('خطا در اتصال به گوگل.');
+      toastService.error('خطا در اتصال به گوگل. لطفاً دوباره امتحان کنید.');
     } finally {
       setIsGoogleLoading(false);
     }

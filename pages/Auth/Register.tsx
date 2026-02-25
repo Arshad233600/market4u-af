@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Icon from '../../src/components/ui/Icon';
 import { Page } from '../../types';
 import { authService } from '../../services/authService';
+import { toastService } from '../../services/toastService';
 
 interface RegisterProps {
   onNavigate: (page: Page) => void;
@@ -21,7 +22,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onLoginSuccess }) => {
       await authService.register(name, email, password);
       onLoginSuccess();
     } catch {
-      alert('ثبت‌نام ناموفق بود.');
+      toastService.error('ثبت‌نام ناموفق بود. لطفاً دوباره امتحان کنید.');
     } finally {
       setIsLoading(false);
     }

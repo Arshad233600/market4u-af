@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import Icon from '../src/components/ui/Icon';
+import { toastService } from '../services/toastService';
 
 interface LocationPickerProps {
   initialLat?: number;
@@ -99,7 +100,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng,
         onLocationSelect(latitude, longitude);
       });
     } else {
-        alert('دسترسی به موقعیت مکانی امکان‌پذیر نیست.');
+        toastService.warning('دسترسی به موقعیت مکانی امکان‌پذیر نیست.');
     }
   };
 
