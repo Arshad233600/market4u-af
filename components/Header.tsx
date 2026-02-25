@@ -90,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   return (
     <header className="w-full">
       {/* Main Header Row */}
-      <div className="max-w-7xl mx-auto px-4 h-[60px] flex items-center gap-3">
+      <div className="max-w-7xl mx-auto px-4 h-[64px] flex items-center gap-3">
 
         {/* Logo */}
         <button
@@ -158,7 +158,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
             onClick={toggleLanguage}
             className="flex items-center gap-1 text-xs font-bold text-brand-400 bg-brand-950/60 hover:bg-brand-950/80 px-2.5 py-1.5 rounded-xl transition-colors border border-brand-800/50"
           >
-            <Icon name="Globe" size={13} strokeWidth={2} />
+            <Icon name="Globe" size={15} strokeWidth={2} />
             <span className="hidden xs:inline">{t('lang_switch')}</span>
           </button>
 
@@ -201,12 +201,12 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                     <Icon name="Bell" size={15} strokeWidth={2} className="text-brand-400" />
                     اعلان‌ها
                     {unreadCount > 0 && (
-                      <span className="bg-ui-danger text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+                      <span className="bg-ui-danger text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
                     )}
                   </h4>
                   {unreadCount > 0 && (
-                    <button onClick={markAllRead} className="text-[11px] text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors">
-                      <Icon name="CheckCircle" size={12} strokeWidth={2} />
+                    <button onClick={markAllRead} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors">
+                      <Icon name="CheckCircle" size={14} strokeWidth={2} />
                       خواندن همه
                     </button>
                   )}
@@ -238,7 +238,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                           <div className="min-w-0">
                             <h5 className={`text-sm leading-tight ${!notif.isRead ? 'font-bold text-ui-text' : 'text-ui-muted'}`}>{notif.title}</h5>
                             <p className="text-xs text-ui-muted mt-1 leading-relaxed line-clamp-2">{notif.message}</p>
-                            <span className="text-[10px] text-ui-subtle mt-1.5 block">{notif.date}</span>
+                            <span className="text-xs text-ui-subtle mt-1.5 block">{notif.date}</span>
                           </div>
                         </div>
                       </div>
@@ -265,7 +265,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                   onClick={() => onNavigate('ADMIN_PANEL')}
                   className="hidden md:flex items-center gap-1.5 bg-ui-surface2 text-ui-text px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-ui-surface3 border border-ui-border transition-colors"
                 >
-                  <Icon name="Shield" size={13} strokeWidth={2} className="text-brand-400" />
+                  <Icon name="Shield" size={15} strokeWidth={2} className="text-brand-400" />
                   <span>مدیریت</span>
                 </button>
               )}

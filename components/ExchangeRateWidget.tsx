@@ -15,7 +15,7 @@ const ExchangeRateWidget: React.FC = () => {
                 <span className="w-2 h-2 bg-ui-success rounded-full animate-pulse"></span>
                 {t('rates_title')}
             </h3>
-            <span className="text-[10px] text-ui-muted/60">بروزرسانی: ۱۰ دقیقه پیش</span>
+            <span className="text-xs text-ui-muted/60">بروزرسانی: ۱۰ دقیقه پیش</span>
         </div>
         
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
@@ -25,9 +25,9 @@ const ExchangeRateWidget: React.FC = () => {
                         <span className="font-bold text-ui-text text-sm flex items-center gap-1">
                             {rate.flag} {rate.currency}
                         </span>
-                        {rate.trend === 'up' && <Icon name="TrendingUp" size={12} strokeWidth={1.8} className="text-ui-success" />}
-                        {rate.trend === 'down' && <Icon name="TrendingDown" size={12} strokeWidth={1.8} className="text-ui-danger" />}
-                        {rate.trend === 'stable' && <Icon name="Minus" size={12} strokeWidth={1.8} className="text-ui-muted" />}
+                        {rate.trend === 'up' && <Icon name="TrendingUp" size={14} strokeWidth={1.8} className="text-ui-success" />}
+                        {rate.trend === 'down' && <Icon name="TrendingDown" size={14} strokeWidth={1.8} className="text-ui-danger" />}
+                        {rate.trend === 'stable' && <Icon name="Minus" size={14} strokeWidth={1.8} className="text-ui-muted" />}
                     </div>
                     <div className="flex justify-between items-center text-xs">
                         <div className="text-ui-muted">{t('rates_buy')}: <span className="text-ui-text font-bold dir-ltr">{rate.buy}</span></div>

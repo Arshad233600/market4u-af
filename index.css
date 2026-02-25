@@ -42,7 +42,8 @@
   body {
     background-color: var(--color-ui-bg);
     color: var(--color-ui-text);
-    line-height: 1.6;
+    font-size: 15px;
+    line-height: 1.65;
   }
 
   /* Premium Scrollbar */

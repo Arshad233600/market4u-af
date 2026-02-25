@@ -66,16 +66,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
 
         {/* Promoted badge */}
         {product.isPromoted && (
-          <span className="absolute top-2.5 right-2.5 bg-ui-warning text-black text-[10px] font-black px-2 py-0.5 rounded-lg z-10 flex items-center gap-1">
-            <Icon name="Zap" size={10} strokeWidth={2.5} />
+          <span className="absolute top-2.5 right-2.5 bg-ui-warning text-black text-xs font-black px-2 py-0.5 rounded-lg z-10 flex items-center gap-1">
+            <Icon name="Zap" size={13} strokeWidth={2.5} />
             ویژه
           </span>
         )}
 
         {/* Delivery badge */}
         {product.deliveryAvailable && (
-          <span className="absolute bottom-2.5 right-2.5 glass-sm text-ui-info text-[10px] font-bold px-2 py-0.5 rounded-lg z-10 flex items-center gap-1">
-            <Icon name="Truck" size={10} strokeWidth={2} />
+          <span className="absolute bottom-2.5 right-2.5 glass-sm text-ui-info text-xs font-bold px-2 py-0.5 rounded-lg z-10 flex items-center gap-1">
+            <Icon name="Truck" size={13} strokeWidth={2} />
             ارسال
           </span>
         )}
@@ -90,7 +90,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
             <span className="text-xs font-bold text-brand-500 mr-1">{APP_STRINGS.currency}</span>
           </span>
           {product.isNegotiable && (
-            <span className="text-[10px] font-bold bg-brand-950/60 text-brand-400 px-1.5 py-0.5 rounded-lg border border-brand-800/40 whitespace-nowrap shrink-0">
+            <span className="text-xs font-bold bg-brand-950/60 text-brand-400 px-1.5 py-0.5 rounded-lg border border-brand-800/40 whitespace-nowrap shrink-0">
               قابل معامله
             </span>
           )}
@@ -101,14 +101,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
 
         {/* Condition */}
         {product.condition && (
-          <span className={`self-start text-[10px] font-bold px-2 py-0.5 rounded-lg ${CONDITION_LABELS[product.condition].color}`}>
+          <span className={`self-start text-xs font-bold px-2 py-0.5 rounded-lg ${CONDITION_LABELS[product.condition].color}`}>
             {CONDITION_LABELS[product.condition].label}
           </span>
         )}
 
         {/* Footer */}
-        <div className="flex items-center text-ui-subtle text-[11px] gap-1 pt-1 border-t border-ui-border mt-auto">
-          <Icon name="MapPin" size={11} strokeWidth={2} className="text-ui-muted shrink-0" />
+        <div className="flex items-center text-ui-subtle text-xs gap-1 pt-1 border-t border-ui-border mt-auto">
+          <Icon name="MapPin" size={13} strokeWidth={2} className="text-ui-muted shrink-0" />
           <span className="truncate text-ui-muted">{product.location}</span>
           <span className="mx-0.5 text-ui-border">•</span>
           <span className="shrink-0">{displayDate}</span>

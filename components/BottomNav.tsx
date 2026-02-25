@@ -21,7 +21,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
 
   return (
     <nav className="md:hidden pb-safe">
-      <div className="flex justify-around items-center h-16 px-2">
+      <div className="flex justify-around items-center h-[70px] px-2">
         {navItems.map((item) => {
           const isActive = activePage === item.id;
 
@@ -33,8 +33,8 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
                 className="flex flex-col items-center justify-center w-full h-full"
                 aria-label={item.label}
               >
-                <div className="btn-brand w-12 h-12 rounded-2xl flex items-center justify-center -mt-5 shadow-glow-lg press">
-                  <Icon name={item.icon} size={24} strokeWidth={2.5} className="text-white" />
+                <div className="btn-brand w-14 h-14 rounded-2xl flex items-center justify-center -mt-6 shadow-glow-lg press">
+                  <Icon name={item.icon} size={26} strokeWidth={2.5} className="text-white" />
                 </div>
               </button>
             );
@@ -44,23 +44,23 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className="flex flex-col items-center justify-center w-full h-full gap-0.5 press"
+              className="flex flex-col items-center justify-center w-full h-full gap-1 press"
               aria-label={item.label}
             >
-              <div className={`relative w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200 ${
+              <div className={`relative w-11 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
                 isActive ? 'bg-brand-500/15' : ''
               }`}>
                 <Icon
                   name={item.icon}
-                  size={22}
+                  size={24}
                   strokeWidth={isActive ? 2.5 : 1.8}
                   className={`transition-all duration-200 ${isActive ? 'text-brand-400' : 'text-ui-subtle'}`}
                 />
                 {isActive && (
-                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-400" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-400" />
                 )}
               </div>
-              <span className={`text-[10px] font-medium transition-colors duration-200 ${
+              <span className={`text-xs font-medium transition-colors duration-200 ${
                 isActive ? 'text-brand-400' : 'text-ui-subtle'
               }`}>
                 {item.label}

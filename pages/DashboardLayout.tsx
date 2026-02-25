@@ -43,7 +43,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
              <h3 className="font-bold text-ui-text text-sm truncate">{user?.name || 'کاربر بازار'}</h3>
              <p className="text-xs text-ui-muted font-medium mt-0.5 dir-ltr text-right">{user?.phone || ''}</p>
              <div className="flex items-center gap-1 mt-1.5">
-               <span className="text-[10px] bg-brand-900/40 text-brand-300 px-2 py-0.5 rounded-full font-bold border border-brand-700/30">فروشنده تایید شده</span>
+               <span className="text-xs bg-brand-900/40 text-brand-300 px-2 py-0.5 rounded-full font-bold border border-brand-700/30">فروشنده تایید شده</span>
              </div>
            </div>
         </div>
@@ -67,7 +67,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
                   <span>{item.label}</span>
                 </div>
                 {item.badge ? (
-                   <span className="bg-ui-danger text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
+                   <span className="bg-ui-danger text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
                      {item.badge}
                    </span>
                 ) : null}
