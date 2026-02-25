@@ -40,12 +40,19 @@ jobs:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
         run: |
-          if [ -n "$BUILD_CERTIFICATE_BASE64" ] && [ -n "$P12_PASSWORD" ] && [ -n "$KEYCHAIN_PASSWORD" ]; then
+          if [ -n "$BUILD_CERTIFICATE_BASE64" ] && [ -n "$P12_PASSWORD" ] && [ -n "$KEYCHAIN_PASSWORD" ] && \
+             [ -n "$BUILD_PROVISION_PROFILE_BASE64" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$PROVISIONING_PROFILE_NAME" ]; then
             echo "has_signing_secrets=true" >> $GITHUB_OUTPUT
           else
             echo "has_signing_secrets=false" >> $GITHUB_OUTPUT
-            echo "INFO: Apple signing secrets (BUILD_CERTIFICATE_BASE64, P12_PASSWORD, KEYCHAIN_PASSWORD) are not set. Skipping code signing and IPA export. To enable iOS builds, add the required secrets to the repository."
+            echo "INFO: One or more required Apple signing secrets are missing."
+            echo "Required secrets: BUILD_CERTIFICATE_BASE64, P12_PASSWORD, KEYCHAIN_PASSWORD,"
+            echo "                  BUILD_PROVISION_PROFILE_BASE64, APPLE_TEAM_ID, PROVISIONING_PROFILE_NAME"
+            echo "Skipping code signing and IPA export. Add all required secrets to the repository to enable iOS builds."
           fi
 
       - name: Install Apple signing certificate
@@ -97,19 +104,48 @@ jobs:
 
       - name: Export IPA
         if: steps.check-secrets.outputs.has_signing_secrets == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROVISIONING_PROFILE_NAME: ${{ secrets.PROVISIONING_PROFILE_NAME }}
         run: |
+          cat > $RUNNER_TEMP/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>ad-hoc</string>
+              <key>teamID</key>
+              <string>${APPLE_TEAM_ID}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>af.market4u.app</key>
+                  <string>${PROVISIONING_PROFILE_NAME}</string>
+              </dict>
+              <key>compileBitcode</key>
+              <false/>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>thinning</key>
+              <string>&lt;none&gt;</string>
+          </dict>
+          </plist>
+          EOF
           xcodebuild -exportArchive \
             -archivePath $RUNNER_TEMP/App.xcarchive \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -exportPath $RUNNER_TEMP/ipa \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }}
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/ipa
 
       - name: Upload IPA artifact
         if: steps.check-secrets.outputs.has_signing_secrets == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: market4u-ios-ipa
-          path: ${{ runner.temp }}/ipa/App.ipa
+          path: ${{ runner.temp }}/ipa/*.ipa
           retention-days: 30
 
       - name: Clean up keychain
@@ -122,20 +158,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Market4U ${{ github.ref_name }}
-          files: ${{ runner.temp }}/ipa/App.ipa
-          body: |
-            ## Market4U ${{ github.ref_name }} 🎉
-
-            ### 📱 نصب روی آیفون (Ad-Hoc)
-            1. فایل `App.ipa` را دانلود کنید
-            2. با استفاده از **Apple Configurator 2** یا **AltStore** فایل IPA را روی آیفون نصب کنید
-            3. در تنظیمات ← عمومی ← مدیریت دستگاه، برنامه را تأیید کنید
-
-            ### 📥 نصب روی اندروید
-            1. فایل `app-debug.apk` را دانلود کنید
-            2. در تنظیمات گوشی، **"منابع ناشناس"** را فعال کنید
-            3. فایل APK را باز کرده و نصب کنید
-
-            ### 🌐 نصب به عنوان PWA روی آیفون (Safari)
-            1. سایت [market4u.af](https://market4u.af) را در Safari باز کنید
-            2. دکمه Share را بزنید ← **Add to Home Screen**
+          files: ${{ runner.temp }}/ipa/*.ipa

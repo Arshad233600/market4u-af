@@ -4,12 +4,19 @@
 <dict>
     <key>method</key>
     <string>ad-hoc</string>
+    <key>teamID</key>
+    <string>$(APPLE_TEAM_ID)</string>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>af.market4u.app</key>
+        <string>$(PROVISIONING_PROFILE_NAME)</string>
+    </dict>
     <key>compileBitcode</key>
     <false/>
     <key>uploadSymbols</key>
     <true/>
-    <key>signingStyle</key>
-    <string>manual</string>
     <key>stripSwiftSymbols</key>
     <true/>
     <key>thinning</key>
