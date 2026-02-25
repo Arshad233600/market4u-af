@@ -5,7 +5,7 @@ import CategoryPills from '../components/CategoryPills';
 import ProductCard from '../components/ProductCard';
 import ExchangeRateWidget from '../components/ExchangeRateWidget';
 import { PROVINCES, DISTRICTS, SORT_OPTIONS, CATEGORIES } from '../constants';
-import { Product } from '../types';
+import { Product, Page } from '../types';
 import { azureService, SearchFilters } from '../services/azureService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { toastService } from '../services/toastService';
@@ -14,7 +14,34 @@ import { findClosestProvince } from '../utils/locationUtils';
 interface HomeProps {
   onProductClick: (product: Product) => void;
   searchQuery: string;
+  onNavigate?: (page: Page) => void;
 }
+
+// --- Featured Category Card ---
+const FeaturedCategoryCard: React.FC<{
+  icon: string;
+  label: string;
+  color: string;
+  bgColor: string;
+  isSelected: boolean;
+  onClick: () => void;
+}> = ({ icon, label, color, bgColor, isSelected, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all duration-200 press ${
+      isSelected
+        ? 'border-brand-500/60 bg-brand-950/60 shadow-glow'
+        : 'border-ui-border bg-ui-surface hover:border-ui-border2 hover:bg-ui-surface2'
+    }`}
+  >
+    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${bgColor}`}>
+      <Icon name={icon as any} size={22} strokeWidth={isSelected ? 2.5 : 2} className={color} />
+    </div>
+    <span className={`text-xs font-bold leading-tight text-center ${isSelected ? 'text-brand-300' : 'text-ui-muted'}`}>
+      {label}
+    </span>
+  </button>
+);
 
 // --- Helper Component: Filter Accordion Section ---
 const FilterSection: React.FC<{ 
@@ -45,7 +72,18 @@ const FilterSection: React.FC<{
     );
 };
 
-const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
+const FEATURED_CATEGORIES = [
+  { id: 'all',         icon: 'LayoutGrid',   label: 'همه آگهی‌ها', color: 'text-brand-400', bgColor: 'bg-brand-950/60' },
+  { id: 'real_estate', icon: 'Home',          label: 'ملک و مسکن',  color: 'text-amber-400', bgColor: 'bg-amber-950/60' },
+  { id: 'vehicles',    icon: 'Car',           label: 'موترها',      color: 'text-blue-400',  bgColor: 'bg-blue-950/60' },
+  { id: 'electronics', icon: 'Smartphone',    label: 'الکترونیک',   color: 'text-purple-400',bgColor: 'bg-purple-950/60' },
+  { id: 'jobs',        icon: 'Briefcase',     label: 'کار و استخدام',color: 'text-rose-400',  bgColor: 'bg-rose-950/60' },
+  { id: 'clothing',    icon: 'Shirt',         label: 'لباس و مد',   color: 'text-pink-400',  bgColor: 'bg-pink-950/60' },
+  { id: 'furniture',   icon: 'Sofa',          label: 'مبلمان',      color: 'text-orange-400',bgColor: 'bg-orange-950/60' },
+  { id: 'services',    icon: 'Wrench',        label: 'خدمات',       color: 'text-cyan-400',  bgColor: 'bg-cyan-950/60' },
+];
+
+const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -221,6 +259,91 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
 
   return (
     <div className="pb-20 min-h-screen">
+
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden bg-hero-gradient border-b border-brand-800/30">
+        {/* Decorative background blobs */}
+        <div className="absolute top-0 right-0 w-72 h-72 bg-brand-500/8 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-600/6 rounded-full blur-3xl pointer-events-none" />
+        {/* Afghan flag stripe accent */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-black via-brand-500 to-red-600 opacity-70" />
+
+        <div className="max-w-7xl mx-auto px-4 pt-6 pb-5 relative">
+          {/* Badge */}
+          <div className="flex justify-center mb-4">
+            <span className="inline-flex items-center gap-2 bg-brand-500/12 border border-brand-500/25 rounded-full px-4 py-1.5 text-brand-300 text-xs font-bold">
+              <span className="w-2 h-2 bg-brand-400 rounded-full animate-pulse" />
+              🇦🇫 بزرگترین بازار آنلاین افغانستان
+            </span>
+          </div>
+
+          {/* Headline */}
+          <h1 className="text-center text-2xl sm:text-3xl font-black text-ui-text mb-2 leading-snug">
+            خرید و فروش آسان در
+            <span className="text-gradient"> مارکت‌فور‌یو</span>
+          </h1>
+          <p className="text-center text-sm text-ui-muted mb-5 max-w-xs mx-auto leading-relaxed">
+            هر چه نیاز دارید بیابید یا آگهی خود را رایگان ثبت کنید
+          </p>
+
+          {/* Stats Row */}
+          <div className="flex items-center justify-center gap-5 sm:gap-8 mb-5 flex-wrap">
+            {[
+              { icon: 'Tag',     value: '+۱۰ هزار', label: 'آگهی فعال' },
+              { icon: 'MapPin',  value: '۳۴',       label: 'ولایت' },
+              { icon: 'Grid2x2', value: '+۲۰',      label: 'دسته‌بندی' },
+              { icon: 'Users',   value: '+۵۰ هزار', label: 'کاربر' },
+            ].map(stat => (
+              <div key={stat.label} className="flex items-center gap-1.5">
+                <Icon name={stat.icon as any} size={15} strokeWidth={2} className="text-brand-400 shrink-0" />
+                <span className="font-black text-ui-text text-sm">{stat.value}</span>
+                <span className="text-ui-muted text-xs">{stat.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex items-center justify-center gap-3">
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate(Page.POST_AD)}
+                className="btn-brand text-white px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 press"
+              >
+                <Icon name="PlusCircle" size={17} strokeWidth={2.5} />
+                آگهی رایگان بده
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className="bg-ui-surface2 border border-ui-border text-ui-text px-6 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-ui-surface3 hover:border-brand-700/40 transition-all press"
+            >
+              <Icon name="Search" size={17} strokeWidth={2} className="text-brand-400" />
+              مرور آگهی‌ها
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Featured Categories ── */}
+      <div className="max-w-7xl mx-auto px-4 pt-5 pb-2">
+        <h2 className="text-xs font-bold text-ui-muted mb-3 flex items-center gap-2">
+          <Icon name="Grid2x2" size={14} strokeWidth={2} className="text-brand-400" />
+          دسته‌بندی‌های پرطرفدار
+        </h2>
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          {FEATURED_CATEGORIES.map(cat => (
+            <FeaturedCategoryCard
+              key={cat.id}
+              icon={cat.icon}
+              label={cat.label}
+              color={cat.color}
+              bgColor={cat.bgColor}
+              isSelected={selectedCategory === cat.id}
+              onClick={() => { setSelectedCategory(cat.id); setTempDynamicFilters({}); }}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Exchange Rate Widget */}
       <ExchangeRateWidget />

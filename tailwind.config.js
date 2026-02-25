@@ -22,25 +22,25 @@ export default {
       },
 
       colors: {
-        // Brand (Vibrant Emerald-Teal)
+        // Brand (Afghan Green - inspired by Afghan flag green #009A44)
         brand: {
-          50: "#edfcf7",
-          100: "#d3f8ec",
-          200: "#aaf0da",
-          300: "#72e5c2",
-          400: "#38d1a4",
-          500: "#13ba8a",
-          600: "#0a9870",
-          700: "#0c7a5c",
-          800: "#0d614a",
-          900: "#0d503e",
-          950: "#042d24",
+          50: "#f0fdf4",
+          100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
+          500: "#00a84f",
+          600: "#007a38",
+          700: "#005c2a",
+          800: "#003d1c",
+          900: "#002712",
+          950: "#00150a",
         },
-        // Accent (Vivid Blue)
+        // Accent (Warm Gold - Afghan cultural color)
         accent: {
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
+          400: "#fbbf24",
+          500: "#f59e0b",
+          600: "#d97706",
         },
       },
 
@@ -54,17 +54,18 @@ export default {
       boxShadow: {
         soft: "0 4px 24px rgba(0,0,0,0.30)",
         card: "0 8px 32px rgba(0,0,0,0.40)",
-        glow: "0 0 0 3px rgba(19,186,138,0.25)",
-        "glow-lg": "0 0 20px rgba(19,186,138,0.20)",
+        glow: "0 0 0 3px rgba(0,168,79,0.25)",
+        "glow-lg": "0 0 20px rgba(0,168,79,0.20)",
         "inner-sm": "inset 0 1px 0 rgba(255,255,255,0.06)",
         float: "0 16px 48px rgba(0,0,0,0.50), 0 4px 16px rgba(0,0,0,0.30)",
       },
 
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #13ba8a 0%, #0a9870 100%)",
-        "brand-glow": "linear-gradient(135deg, #38d1a4 0%, #13ba8a 50%, #0a9870 100%)",
+        "brand-gradient": "linear-gradient(135deg, #00a84f 0%, #007a38 100%)",
+        "brand-glow": "linear-gradient(135deg, #4ade80 0%, #00a84f 50%, #007a38 100%)",
         "surface-gradient": "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)",
         "card-shine": "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%)",
+        "hero-gradient": "linear-gradient(135deg, #00150a 0%, #003d1c 40%, #002712 100%)",
       },
 
       keyframes: {
