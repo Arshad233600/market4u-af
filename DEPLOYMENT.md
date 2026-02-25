@@ -267,6 +267,31 @@ After running `sql/init.sql`, you can test with:
 - Node version must be 20+
 - Run `npm install` in both locations
 
+### Deployment Error: "No matching Static Web App was found or the api key was invalid"
+
+This error means the GitHub Secret `AZURE_STATIC_WEB_APPS_API_TOKEN_GREEN_TREE_00484D503` is missing, expired, or invalid.
+
+**Steps to fix:**
+
+1. **Get a new deployment token from Azure Portal:**
+   - Go to [Azure Portal](https://portal.azure.com)
+   - Navigate to your Static Web App resource
+   - In the left menu, click **Overview**
+   - Click **Manage deployment token** button
+   - Copy the token
+
+2. **Update the GitHub Secret:**
+   - Go to your GitHub repository
+   - Click **Settings** → **Secrets and variables** → **Actions**
+   - Find `AZURE_STATIC_WEB_APPS_API_TOKEN_GREEN_TREE_00484D503`
+   - Click **Update** and paste the new token
+   - Click **Update secret**
+
+3. **Re-run the workflow:**
+   - Go to the **Actions** tab in GitHub
+   - Find the failed workflow run
+   - Click **Re-run all jobs**
+
 ## Project Structure
 
 ```
