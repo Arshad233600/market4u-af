@@ -200,7 +200,7 @@ const AppContent: React.FC = () => {
 
     switch (currentPage) {
       case Page.HOME:
-        return <Home onProductClick={handleProductClick} searchQuery={searchQuery} />;
+        return <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />;
       case Page.DETAIL:
         return selectedProduct ? (
           <ProductDetail
@@ -211,7 +211,7 @@ const AppContent: React.FC = () => {
             onProductClick={handleProductClick}
           />
         ) : (
-          <Home onProductClick={handleProductClick} searchQuery={searchQuery} />
+          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />
         );
       case Page.POST_AD:
         return user ? <PostAd onNavigate={navigateTo} /> : <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
@@ -241,7 +241,7 @@ const AppContent: React.FC = () => {
             onProductClick={handleProductClick}
           />
         ) : (
-          <Home onProductClick={handleProductClick} searchQuery={searchQuery} />
+          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />
         );
       default:
         return <NotFound onNavigate={navigateTo} />;

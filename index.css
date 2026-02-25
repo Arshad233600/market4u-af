@@ -2,26 +2,26 @@
 @config "./tailwind.config.js";
 
 @theme {
-  /* ── Backgrounds ── */
-  --color-ui-bg:       #060c18;
-  --color-ui-surface:  #0b1425;
-  --color-ui-surface2: #101c32;
-  --color-ui-surface3: #162238;
+  /* ── Backgrounds (Afghan green-tinted dark) ── */
+  --color-ui-bg:       #050d08;
+  --color-ui-surface:  #0a1810;
+  --color-ui-surface2: #0f2116;
+  --color-ui-surface3: #132a1c;
 
-  /* ── Borders ── */
-  --color-ui-border:   rgba(148, 196, 255, 0.09);
-  --color-ui-border2:  rgba(148, 196, 255, 0.16);
+  /* ── Borders (green-tinted) ── */
+  --color-ui-border:   rgba(0, 168, 79, 0.10);
+  --color-ui-border2:  rgba(0, 168, 79, 0.18);
 
   /* ── Typography ── */
-  --color-ui-text:     #edf2fd;
-  --color-ui-muted:    #7a9cc8;
-  --color-ui-subtle:   #4a6485;
+  --color-ui-text:     #edfff3;
+  --color-ui-muted:    #6db88a;
+  --color-ui-subtle:   #3d6e50;
 
   /* ── Ring ── */
-  --color-ui-ring:     rgba(19, 186, 138, 0.35);
+  --color-ui-ring:     rgba(0, 168, 79, 0.35);
 
   /* ── Status ── */
-  --color-ui-success:  #10d9a0;
+  --color-ui-success:  #22c55e;
   --color-ui-warning:  #fbbf24;
   --color-ui-danger:   #f43f5e;
   --color-ui-info:     #38bdf8;
@@ -67,21 +67,21 @@
 }
 
 @layer utilities {
-  /* Glass morphism */
+  /* Glass morphism (green-tinted) */
   .glass {
-    background: rgba(11, 20, 37, 0.75);
+    background: rgba(10, 24, 16, 0.80);
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
   }
   .glass-sm {
-    background: rgba(11, 20, 37, 0.60);
+    background: rgba(10, 24, 16, 0.65);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
 
   /* Gradient text */
   .text-gradient {
-    background: linear-gradient(135deg, #38d1a4 0%, #13ba8a 100%);
+    background: linear-gradient(135deg, #4ade80 0%, #00a84f 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -126,18 +126,18 @@
 
   /* Brand gradient button */
   .btn-brand {
-    background: linear-gradient(135deg, #13ba8a 0%, #0a9870 100%);
-    box-shadow: 0 4px 16px rgba(19,186,138,0.30);
+    background: linear-gradient(135deg, #00a84f 0%, #007a38 100%);
+    box-shadow: 0 4px 16px rgba(0,168,79,0.30);
     transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
   }
   .btn-brand:hover {
-    background: linear-gradient(135deg, #38d1a4 0%, #13ba8a 100%);
-    box-shadow: 0 6px 24px rgba(19,186,138,0.40);
+    background: linear-gradient(135deg, #4ade80 0%, #00a84f 100%);
+    box-shadow: 0 6px 24px rgba(0,168,79,0.40);
     transform: translateY(-1px);
   }
   .btn-brand:active {
     transform: scale(0.97) translateY(0);
-    box-shadow: 0 2px 8px rgba(19,186,138,0.25);
+    box-shadow: 0 2px 8px rgba(0,168,79,0.25);
   }
 }
 
