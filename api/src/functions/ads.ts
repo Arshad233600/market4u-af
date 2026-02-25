@@ -195,7 +195,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         .input("Category", sql.NVarChar, category ?? "")
         .input("Description", sql.NVarChar, description ?? "")
         .input("MainImageUrl", sql.NVarChar, mainImageUrl)
-        .input("Status", sql.NVarChar, "PENDING")
+        .input("Status", sql.NVarChar, "ACTIVE")
         .input("CreatedAt", sql.DateTime, new Date())
         .query(`
           INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, Description, MainImageUrl, Status, CreatedAt)
@@ -275,7 +275,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
               Description = @Description,
               MainImageUrl = @MainImageUrl,
               UpdatedAt = @UpdatedAt,
-              Status = 'PENDING'
+              Status = 'ACTIVE'
           WHERE Id = @Id AND UserId = @UserId AND IsDeleted = 0
         `);
 
