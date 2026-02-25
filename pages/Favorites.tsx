@@ -28,13 +28,13 @@ const Favorites: React.FC<FavoritesProps> = ({ onProductClick, onBack }) => {
     }, []);
 
     return (
-        <div className="pb-20 min-h-screen bg-gray-50">
+        <div className="pb-20 min-h-screen">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-10 px-4 py-4 flex items-center gap-3">
-                <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full">
-                    <Icon name="ArrowRight" size={20} strokeWidth={1.8} className="text-gray-600" />
+            <div className="bg-ui-surface border-b border-ui-border sticky top-0 z-10 px-4 py-4 flex items-center gap-3">
+                <button onClick={onBack} className="p-2 hover:bg-ui-surface2 rounded-full">
+                    <Icon name="ArrowRight" size={20} strokeWidth={1.8} className="text-ui-muted" />
                 </button>
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-ui-text flex items-center gap-2">
                     <Icon name="Heart" size={20} strokeWidth={1.8} className="text-red-500 fill-current" />
                     علاقه‌مندی‌ها
                 </h2>
@@ -44,16 +44,16 @@ const Favorites: React.FC<FavoritesProps> = ({ onProductClick, onBack }) => {
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="bg-white rounded-xl h-64 animate-pulse shadow-sm border border-gray-100"></div>
+                            <div key={i} className="bg-ui-surface rounded-xl h-64 animate-pulse shadow-sm border border-ui-border"></div>
                         ))}
                     </div>
                 ) : favorites.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                            <Icon name="Heart" size={24} strokeWidth={1.8} className="text-gray-400" />
+                        <div className="w-20 h-20 bg-ui-surface2 rounded-full flex items-center justify-center mb-4">
+                            <Icon name="Heart" size={24} strokeWidth={1.8} className="text-ui-muted" />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-2">لیست علاقه‌مندی‌های شما خالی است</h3>
-                        <p className="text-gray-500 max-w-xs mx-auto">
+                        <h3 className="text-lg font-bold text-ui-text mb-2">لیست علاقه‌مندی‌های شما خالی است</h3>
+                        <p className="text-ui-muted max-w-xs mx-auto">
                             آگهی‌هایی که دوست دارید را با زدن دکمه قلب ذخیره کنید تا بعداً راحت‌تر پیدا کنید.
                         </p>
                     </div>

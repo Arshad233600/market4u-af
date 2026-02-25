@@ -275,7 +275,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   return (
     <div className="max-w-3xl mx-auto pb-24 pt-6 px-4">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+      <h2 className="text-2xl font-bold text-ui-text mb-6 flex items-center gap-2">
           {existingAd ? t('post_title_edit') : t('post_title')}
       </h2>
       
@@ -289,8 +289,8 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Images Section */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-            <label className="block text-sm font-bold text-gray-700 mb-3">{t('post_lbl_images')} (حداکثر ۵ عکس)</label>
+        <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm">
+            <label className="block text-sm font-bold text-ui-muted mb-3">{t('post_lbl_images')} (حداکثر ۵ عکس)</label>
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                 <div className={`relative flex-shrink-0 w-24 h-24 bg-brand-600 rounded-xl flex flex-col items-center justify-center text-white transition-transform cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}>
                     <input 
@@ -305,7 +305,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                     <span className="text-[10px] font-bold">{uploadingImages.length > 0 ? '...' : 'افزودن عکس'}</span>
                 </div>
                 {images.map((img, idx) => (
-                    <div key={idx} className="relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm group">
+                    <div key={idx} className="relative flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border border-ui-border shadow-sm group">
                         <img src={img} alt="preview" className="w-full h-full object-cover" />
                         <button type="button" onClick={() => setImages(images.filter((_, i) => i !== idx))} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md opacity-90 hover:opacity-100">
                             <Icon name="X" size={12} strokeWidth={1.8} />
@@ -316,31 +316,31 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
         </div>
 
         {/* Basic Information */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-5">
-            <h3 className="font-bold text-gray-800 border-b border-gray-100 pb-2">اطلاعات پایه</h3>
+        <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm space-y-5">
+            <h3 className="font-bold text-ui-text border-b border-ui-border pb-2">اطلاعات پایه</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Category */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1.5">{t('post_lbl_category')}</label>
+                    <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_category')}</label>
                     <div className="relative">
-                        <select value={category} onChange={handleCategoryChange} className="w-full p-3 border border-gray-300 rounded-xl bg-white outline-none appearance-none focus:ring-2 focus:ring-brand-500">
+                        <select value={category} onChange={handleCategoryChange} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500">
                             {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{t(c.translationKey as keyof typeof TRANSLATIONS['fa'])}</option>)}
                         </select>
-                        <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                        <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                     </div>
                 </div>
 
                 {/* Subcategory */}
                 {subCategories.length > 0 && (
                     <div className="animate-in fade-in slide-in-from-top-1">
-                        <label className="block text-xs font-bold text-gray-500 mb-1.5">{t('post_lbl_subcategory')}</label>
+                        <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_subcategory')}</label>
                         <div className="relative">
-                            <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl bg-white outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
+                            <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
                                 <option value="" disabled>انتخاب کنید...</option>
                                 {subCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
                             </select>
-                            <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                            <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                         </div>
                     </div>
                 )}
@@ -348,24 +348,24 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
             {/* Title */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5">{t('post_lbl_title')}</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder={t('post_placeholder_title')} required />
+              <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_title')}</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder={t('post_placeholder_title')} required />
             </div>
 
             {/* Price */}
             <div>
-               <label className="block text-xs font-bold text-gray-500 mb-1.5">{category === 'jobs' ? t('post_lbl_salary') : t('post_lbl_price')}</label>
+               <label className="block text-xs font-bold text-ui-muted mb-1.5">{category === 'jobs' ? t('post_lbl_salary') : t('post_lbl_price')}</label>
                <div className="relative">
-                   <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12" placeholder="0" required />
-                   <span className="absolute left-3 top-3.5 text-sm text-gray-400 font-bold">AFN</span>
+                   <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12" placeholder="0" required />
+                   <span className="absolute left-3 top-3.5 text-sm text-ui-muted font-bold">AFN</span>
                </div>
             </div>
         </div>
 
         {/* Dynamic Attributes (Based on Category Config) */}
         {activeCategory?.filterConfig && activeCategory.filterConfig.length > 0 && (
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-5 animate-in fade-in">
-                <h3 className="font-bold text-gray-800 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm space-y-5 animate-in fade-in">
+                <h3 className="font-bold text-ui-text border-b border-ui-border pb-2 flex items-center gap-2">
                     <Icon name="Info" size={18} strokeWidth={1.8} className="text-brand-500" />
                     مشخصات {t(activeCategory.translationKey as any)}
                 </h3>
@@ -373,7 +373,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {activeCategory.filterConfig.map((field) => (
                         <div key={field.key}>
-                            <label className="block text-xs font-bold text-gray-500 mb-1.5">{field.label}</label>
+                            <label className="block text-xs font-bold text-ui-muted mb-1.5">{field.label}</label>
                             
                             {/* Select Input */}
                             {field.type === 'select' && (
@@ -381,14 +381,14 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                                     <select
                                         value={dynamicValues[field.key] || ''}
                                         onChange={(e) => handleDynamicChange(field.key, e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-xl bg-white outline-none appearance-none focus:ring-2 focus:ring-brand-500"
+                                        className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500"
                                     >
                                         <option value="">انتخاب کنید...</option>
                                         {field.options?.map(opt => (
                                             <option key={opt} value={opt}>{opt}</option>
                                         ))}
                                     </select>
-                                    <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                                    <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                                 </div>
                             )}
 
@@ -399,11 +399,11 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                                         type={field.type === 'range' ? 'number' : 'text'}
                                         value={dynamicValues[field.key] || ''}
                                         onChange={(e) => handleDynamicChange(field.key, e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                                        className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                                         placeholder={field.type === 'range' ? `مثلا: ${field.min || 0}` : 'وارد کنید...'}
                                     />
                                     {field.unit && (
-                                        <span className="absolute left-3 top-3.5 text-xs text-gray-400">{field.unit}</span>
+                                        <span className="absolute left-3 top-3.5 text-xs text-ui-muted">{field.unit}</span>
                                     )}
                                 </div>
                             )}
@@ -414,39 +414,39 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
         )}
 
         {/* Location Section */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-5">
-            <h3 className="font-bold text-gray-800 flex items-center gap-2 border-b border-gray-100 pb-2">
+        <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm space-y-5">
+            <h3 className="font-bold text-ui-text flex items-center gap-2 border-b border-ui-border pb-2">
                 <Icon name="MapPin" size={20} strokeWidth={1.8} className="text-brand-600" />
                 موقعیت مکانی
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                     <label className="block text-xs font-bold text-gray-500 mb-1.5">{t('filter_province')}</label>
+                     <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('filter_province')}</label>
                      <div className="relative">
-                        <select value={province} onChange={handleProvinceChange} className="w-full p-3 border border-gray-300 rounded-xl bg-white outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
+                        <select value={province} onChange={handleProvinceChange} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
                             <option value="" disabled>انتخاب کنید...</option>
                             {PROVINCES.filter(p => p.id !== 'all').map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
-                        <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                        <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                      </div>
                 </div>
                 {availableDistricts.length > 0 && (
                     <div className="animate-in fade-in">
-                        <label className="block text-xs font-bold text-gray-500 mb-1.5">ناحیه / ولسوالی</label>
+                        <label className="block text-xs font-bold text-ui-muted mb-1.5">ناحیه / ولسوالی</label>
                         <div className="relative">
-                            <select value={district} onChange={handleDistrictChange} className="w-full p-3 border border-gray-300 rounded-xl bg-white outline-none appearance-none focus:ring-2 focus:ring-brand-500">
+                            <select value={district} onChange={handleDistrictChange} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500">
                                 <option value="">انتخاب کنید (اختیاری)</option>
                                 {availableDistricts.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
-                            <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                            <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                         </div>
                     </div>
                 )}
             </div>
 
             <div>
-                <label className="block text-xs font-bold text-gray-500 mb-2">موقعیت دقیق روی نقشه (برای مسیریابی بهتر)</label>
+                <label className="block text-xs font-bold text-ui-muted mb-2">موقعیت دقیق روی نقشه (برای مسیریابی بهتر)</label>
                 <LocationPicker 
                     initialLat={mapCenter?.lat || 34.5553} 
                     initialLng={mapCenter?.lng || 69.2075} 
@@ -462,14 +462,14 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
         </div>
 
         {/* Description Section */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm">
           <div className="flex justify-between items-center mb-3">
-             <label className="block text-sm font-bold text-gray-700">{t('post_lbl_desc')}</label>
+             <label className="block text-sm font-bold text-ui-muted">{t('post_lbl_desc')}</label>
              <div className="flex gap-2">
                  <button 
                     type="button" 
                     onClick={startListening} 
-                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isListening ? 'bg-red-50 text-red-600 border border-red-200 animate-pulse' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isListening ? 'bg-red-50 text-red-600 border border-red-200 animate-pulse' : 'bg-ui-surface2 text-ui-muted hover:bg-ui-surface2'}`}
                  >
                     {isListening ? <Icon name="StopCircle" size={12} strokeWidth={1.8} /> : <Icon name="Mic" size={12} strokeWidth={1.8} />}
                     {isListening ? 'در حال ضبط...' : 'تایپ صوتی'}
@@ -480,7 +480,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                  </button>
              </div>
           </div>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none leading-7" placeholder={t('post_placeholder_desc')} />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none resize-none leading-7" placeholder={t('post_placeholder_desc')} />
         </div>
 
         <button type="submit" disabled={isSubmitting || uploadingImages.length > 0} className="w-full py-4 bg-brand-600 text-white font-bold rounded-xl text-lg hover:bg-brand-700 shadow-lg shadow-brand-200 disabled:opacity-70 flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">

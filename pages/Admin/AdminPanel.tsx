@@ -55,7 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="min-h-screen bg-ui-surface2 pb-20">
             {/* Header */}
             <div className="bg-gray-900 text-white p-6 shadow-md">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -63,10 +63,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
                         <Icon name="Shield" size={24} strokeWidth={1.8} className="text-green-400" />
                         <div>
                             <h1 className="text-2xl font-bold">پنل مدیریت بازار</h1>
-                            <p className="text-xs text-gray-400 mt-1">نسخه ۱.۰ - دسترسی مدیر ارشد</p>
+                            <p className="text-xs text-ui-muted mt-1">نسخه ۱.۰ - دسترسی مدیر ارشد</p>
                         </div>
                     </div>
-                    <button onClick={() => onNavigate(Page.HOME)} className="text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg">
+                    <button onClick={() => onNavigate(Page.HOME)} className="text-sm bg-ui-surface/10 hover:bg-ui-surface/20 px-4 py-2 rounded-lg">
                         خروج از پنل
                     </button>
                 </div>
@@ -77,7 +77,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
                 <div className="flex gap-4 mb-8">
                     <button 
                         onClick={() => setActiveTab('ADS')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'ADS' ? 'bg-white shadow-md text-brand-600 ring-1 ring-brand-100' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'ADS' ? 'bg-ui-surface shadow-md text-brand-600 ring-1 ring-brand-100' : 'bg-ui-surface2 text-ui-muted hover:bg-gray-300'}`}
                     >
                         <Icon name="FileText" size={20} strokeWidth={1.8} />
                         بررسی آگهی‌ها
@@ -85,7 +85,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
                     </button>
                     <button 
                         onClick={() => setActiveTab('USERS')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'USERS' ? 'bg-white shadow-md text-brand-600 ring-1 ring-brand-100' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'USERS' ? 'bg-ui-surface shadow-md text-brand-600 ring-1 ring-brand-100' : 'bg-ui-surface2 text-ui-muted hover:bg-gray-300'}`}
                     >
                         <Icon name="User" size={20} strokeWidth={1.8} />
                         احراز هویت کاربران
@@ -95,38 +95,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
 
                 {/* Content */}
                 {loading ? (
-                    <div className="text-center py-20 text-gray-400">در حال بارگذاری اطلاعات...</div>
+                    <div className="text-center py-20 text-ui-muted">در حال بارگذاری اطلاعات...</div>
                 ) : (
                     <>
                         {activeTab === 'ADS' && (
                             <div className="space-y-4">
                                 {pendingAds.length === 0 ? (
-                                    <div className="bg-white p-12 rounded-2xl shadow-sm text-center text-gray-500">
+                                    <div className="bg-ui-surface p-12 rounded-2xl shadow-sm text-center text-ui-muted">
                                         <Icon name="CheckCircle" size={24} strokeWidth={1.8} className="text-green-500 mx-auto mb-4" />
                                         <p>تبریک! هیچ آگهی در انتظار بررسی وجود ندارد.</p>
                                     </div>
                                 ) : (
                                     pendingAds.map(ad => (
-                                        <div key={ad.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-4">
-                                            <div className="w-full md:w-48 h-32 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                        <div key={ad.id} className="bg-ui-surface p-4 rounded-xl shadow-sm border border-ui-border flex flex-col md:flex-row gap-4">
+                                            <div className="w-full md:w-48 h-32 bg-ui-surface2 rounded-lg overflow-hidden shrink-0">
                                                 <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <h3 className="font-bold text-lg text-gray-900">{ad.title}</h3>
+                                                        <h3 className="font-bold text-lg text-ui-text">{ad.title}</h3>
                                                         <p className="text-brand-600 font-bold mt-1">{ad.price.toLocaleString()} ؋</p>
                                                     </div>
                                                     <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-bold">در انتظار تایید</span>
                                                 </div>
-                                                <p className="text-sm text-gray-600 mt-3 line-clamp-2">{ad.description}</p>
-                                                <div className="text-xs text-gray-400 mt-2 flex gap-3">
+                                                <p className="text-sm text-ui-muted mt-3 line-clamp-2">{ad.description}</p>
+                                                <div className="text-xs text-ui-muted mt-2 flex gap-3">
                                                     <span>دسته‌بندی: {ad.category}</span>
                                                     <span>فروشنده: {ad.sellerName}</span>
                                                     <span>موقعیت: {ad.location}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex md:flex-col gap-2 justify-center border-t md:border-t-0 md:border-r border-gray-100 pt-4 md:pt-0 md:pr-4">
+                                            <div className="flex md:flex-col gap-2 justify-center border-t md:border-t-0 md:border-r border-ui-border pt-4 md:pt-0 md:pr-4">
                                                 <button onClick={() => handleAdAction(ad.id, 'APPROVE')} className="flex items-center justify-center gap-2 bg-green-50 text-green-600 hover:bg-green-100 px-4 py-2 rounded-lg font-bold transition-colors">
                                                     <Icon name="CheckCircle" size={20} strokeWidth={1.8} className="text-green-600" /> تایید
                                                 </button>
@@ -143,31 +143,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onNavigate }) => {
                         {activeTab === 'USERS' && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {pendingUsers.length === 0 ? (
-                                    <div className="col-span-full bg-white p-12 rounded-2xl shadow-sm text-center text-gray-500">
+                                    <div className="col-span-full bg-ui-surface p-12 rounded-2xl shadow-sm text-center text-ui-muted">
                                         <Icon name="CheckCircle" size={24} strokeWidth={1.8} className="text-green-500 mx-auto mb-4" />
                                         <p>هیچ درخواست احراز هویتی وجود ندارد.</p>
                                     </div>
                                 ) : (
                                     pendingUsers.map(user => (
-                                        <div key={user.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                        <div key={user.id} className="bg-ui-surface p-6 rounded-xl shadow-sm border border-ui-border">
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-xl font-bold text-gray-600">
+                                                <div className="w-12 h-12 bg-ui-surface2 rounded-full flex items-center justify-center text-xl font-bold text-ui-muted">
                                                     {user.name.charAt(0)}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-gray-900">{user.name}</h3>
-                                                    <p className="text-sm text-gray-500 dir-ltr text-right">{user.phone}</p>
+                                                    <h3 className="font-bold text-ui-text">{user.name}</h3>
+                                                    <p className="text-sm text-ui-muted dir-ltr text-right">{user.phone}</p>
                                                 </div>
                                             </div>
-                                            <div className="bg-gray-50 p-4 rounded-lg mb-4 text-center">
-                                                <p className="text-xs text-gray-400 mb-2">تصویر تذکره</p>
-                                                <div className="h-32 bg-gray-200 rounded flex items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-300">
+                                            <div className="bg-ui-surface2 p-4 rounded-lg mb-4 text-center">
+                                                <p className="text-xs text-ui-muted mb-2">تصویر تذکره</p>
+                                                <div className="h-32 bg-ui-surface2 rounded flex items-center justify-center text-ui-muted cursor-pointer hover:bg-gray-300">
                                                     <Icon name="Eye" size={24} strokeWidth={1.8} className="mr-2" /> مشاهده مدرک
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 <button onClick={() => handleUserAction(user.id, 'VERIFY')} className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700">تایید هویت</button>
-                                                <button onClick={() => handleUserAction(user.id, 'REJECT')} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-bold hover:bg-gray-200">رد درخواست</button>
+                                                <button onClick={() => handleUserAction(user.id, 'REJECT')} className="flex-1 bg-ui-surface2 text-ui-muted py-2 rounded-lg font-bold hover:bg-ui-surface2">رد درخواست</button>
                                             </div>
                                         </div>
                                     ))

@@ -19,19 +19,19 @@ const ToastContainer: React.FC = () => {
         <div 
           key={toast.id}
           className={`
-            pointer-events-auto flex items-center gap-3 p-4 rounded-xl shadow-lg border animate-in slide-in-from-top-2 fade-in duration-300
-            ${toast.type === 'success' ? 'bg-white border-green-100 text-gray-800' : ''}
-            ${toast.type === 'error' ? 'bg-white border-red-100 text-gray-800' : ''}
-            ${toast.type === 'info' ? 'bg-white border-blue-100 text-gray-800' : ''}
-            ${toast.type === 'warning' ? 'bg-white border-yellow-100 text-gray-800' : ''}
+            pointer-events-auto flex items-center gap-3 p-4 rounded-xl shadow-card border animate-in slide-in-from-top-2 fade-in duration-300
+            ${toast.type === 'success' ? 'bg-ui-surface border-ui-success/30 text-ui-text' : ''}
+            ${toast.type === 'error' ? 'bg-ui-surface border-ui-danger/30 text-ui-text' : ''}
+            ${toast.type === 'info' ? 'bg-ui-surface border-ui-info/30 text-ui-text' : ''}
+            ${toast.type === 'warning' ? 'bg-ui-surface border-ui-warning/30 text-ui-text' : ''}
           `}
         >
           <div className={`
              flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-             ${toast.type === 'success' ? 'bg-green-100 text-green-600' : ''}
-             ${toast.type === 'error' ? 'bg-red-100 text-red-600' : ''}
-             ${toast.type === 'info' ? 'bg-blue-100 text-blue-600' : ''}
-             ${toast.type === 'warning' ? 'bg-yellow-100 text-yellow-600' : ''}
+             ${toast.type === 'success' ? 'bg-ui-success/20 text-ui-success' : ''}
+             ${toast.type === 'error' ? 'bg-ui-danger/20 text-ui-danger' : ''}
+             ${toast.type === 'info' ? 'bg-ui-info/20 text-ui-info' : ''}
+             ${toast.type === 'warning' ? 'bg-ui-warning/20 text-ui-warning' : ''}
           `}>
              {toast.type === 'success' && <Icon name="CheckCircle" size={20} strokeWidth={1.8} />}
              {toast.type === 'error' && <Icon name="AlertCircle" size={20} strokeWidth={1.8} />}
@@ -43,7 +43,7 @@ const ToastContainer: React.FC = () => {
           
           <button 
             onClick={() => toastService.remove(toast.id)}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-ui-muted hover:text-ui-muted"
           >
             <Icon name="X" size={18} strokeWidth={1.8} />
           </button>

@@ -40,9 +40,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
   return (
     <div 
       onClick={() => onClick(product)}
-      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+      className="bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden hover:border-brand-700/40 hover:shadow-glow transition-all cursor-pointer flex flex-col h-full"
     >
-      <div className="relative aspect-[4/3] w-full bg-gray-100">
+      <div className="relative aspect-[4/3] w-full bg-ui-surface2">
         <OptimizedImage 
           src={product.imageUrl} 
           alt={product.title} 
@@ -50,14 +50,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
         />
         <button 
           className={`absolute top-2 left-2 p-1.5 backdrop-blur-sm rounded-full transition-colors z-10 ${
-            isFavorite ? 'bg-red-50 text-red-500' : 'bg-black/30 text-white hover:bg-black/50'
+            isFavorite ? 'bg-ui-danger/20 text-ui-danger' : 'bg-black/30 text-white hover:bg-black/50'
           }`}
           onClick={handleToggleFavorite}
         >
           <Icon name="Heart" size={18} strokeWidth={1.8} className={isFavorite ? 'fill-current' : ''} />
         </button>
         {product.isPromoted && (
-          <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-md z-10">
+          <span className="absolute top-2 right-2 bg-ui-warning text-black text-xs font-bold px-2 py-1 rounded-md z-10">
             ویژه
           </span>
         )}
@@ -65,11 +65,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
       
       <div className="p-3 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-1">
-          <h3 className="font-bold text-gray-800 line-clamp-1 text-lg">{product.price.toLocaleString()} {APP_STRINGS.currency}</h3>
+          <h3 className="font-bold text-brand-300 line-clamp-1 text-lg">{product.price.toLocaleString()} {APP_STRINGS.currency}</h3>
         </div>
-        <p className="text-gray-700 text-sm line-clamp-2 mb-2 flex-1">{product.title}</p>
+        <p className="text-ui-text text-sm line-clamp-2 mb-2 flex-1">{product.title}</p>
         
-        <div className="flex items-center text-gray-400 text-xs gap-1 mt-auto">
+        <div className="flex items-center text-ui-muted text-xs gap-1 mt-auto">
           <Icon name="MapPin" size={12} strokeWidth={1.8} />
           <span className="truncate">{product.location}</span>
           <span className="mx-1">•</span>

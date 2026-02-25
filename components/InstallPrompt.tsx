@@ -53,26 +53,26 @@ const InstallPrompt: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border border-brand-100 p-4 z-50 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-ui-surface rounded-2xl shadow-card border border-ui-border p-4 z-50 animate-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-start justify-between">
         <div className="flex gap-3">
             <div className="bg-brand-600 p-3 rounded-xl text-white">
                 <Icon name="Smartphone" size={24} strokeWidth={1.8} />
             </div>
             <div>
-                <h3 className="font-bold text-gray-900 text-sm">نصب اپلیکیشن بازار</h3>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                <h3 className="font-bold text-ui-text text-sm">نصب اپلیکیشن بازار</h3>
+                <p className="text-xs text-ui-muted mt-1 leading-relaxed">
                     برای دسترسی سریع‌تر و استفاده آفلاین، برنامه را نصب کنید.
                 </p>
             </div>
         </div>
-        <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600">
+        <button onClick={handleDismiss} className="text-ui-muted hover:text-ui-text">
             <Icon name="X" size={20} strokeWidth={1.8} />
         </button>
       </div>
       <button 
         onClick={handleInstallClick}
-        className="w-full mt-4 bg-brand-50 text-brand-700 font-bold py-2.5 rounded-xl hover:bg-brand-100 transition-colors flex items-center justify-center gap-2 text-sm"
+        className="w-full mt-4 bg-brand-600 text-white font-bold py-2.5 rounded-xl hover:bg-brand-500 transition-colors flex items-center justify-center gap-2 text-sm shadow-glow"
       >
         <Icon name="Download" size={18} strokeWidth={1.8} />
         نصب رایگان

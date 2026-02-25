@@ -35,10 +35,10 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, onClick }: 
     };
 
     return (
-        <div onClick={onClick} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-24 h-24 ${bgClasses[color] || 'bg-gray-50'} rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`}></div>
+        <div onClick={onClick} className="bg-ui-surface p-5 rounded-2xl shadow-sm border border-ui-border hover:shadow-md transition-all cursor-pointer group relative overflow-hidden">
+            <div className={`absolute top-0 right-0 w-24 h-24 ${bgClasses[color] || 'bg-ui-surface2'} rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110`}></div>
             <div className="relative z-10 flex justify-between items-start mb-3">
-                <div className={`p-3 rounded-xl ${colorClasses[color] || 'bg-gray-100 text-gray-600'}`}>
+                <div className={`p-3 rounded-xl ${colorClasses[color] || 'bg-ui-surface2 text-ui-muted'}`}>
                     <IconComponent className="w-6 h-6" />
                 </div>
                 {trend && (
@@ -48,8 +48,8 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, onClick }: 
                 )}
             </div>
             <div className="relative z-10">
-                <h3 className="text-2xl font-bold text-gray-800 tracking-tight">{value}</h3>
-                <p className="text-xs text-gray-500 font-medium mt-1">{title}</p>
+                <h3 className="text-2xl font-bold text-ui-text tracking-tight">{value}</h3>
+                <p className="text-xs text-ui-muted font-medium mt-1">{title}</p>
             </div>
         </div>
     );
@@ -81,7 +81,7 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   if (!stats) return (
     <div className="flex flex-col items-center justify-center h-96">
       <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
-      <span className="text-gray-500 font-medium animate-pulse">در حال تحلیل داده‌های بازار...</span>
+      <span className="text-ui-muted font-medium animate-pulse">در حال تحلیل داده‌های بازار...</span>
     </div>
   );
 
@@ -104,13 +104,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+           <h1 className="text-2xl font-bold text-ui-text flex items-center gap-2">
              {getGreeting()}، {user?.name || 'کاربر عزیز'} 👋
            </h1>
-           <p className="text-gray-500 text-sm mt-1">خوش آمدید! وضعیت کسب‌وکار شما در یک نگاه.</p>
+           <p className="text-ui-muted text-sm mt-1">خوش آمدید! وضعیت کسب‌وکار شما در یک نگاه.</p>
         </div>
         <div className="flex gap-3">
-           <button onClick={() => onNavigate(Page.DASHBOARD_WALLET)} className="hidden md:flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
+           <button onClick={() => onNavigate(Page.DASHBOARD_WALLET)} className="hidden md:flex items-center gap-2 px-4 py-2 bg-ui-surface border border-ui-border text-ui-muted rounded-xl text-sm font-bold hover:bg-ui-surface2 transition-colors">
               <Wallet className="w-4 h-4" />
               موجودی: {stats.walletBalance.toLocaleString()} ؋
            </button>
@@ -134,12 +134,12 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
                 <h3 className="font-bold text-orange-800 text-sm">اقدامات ضروری</h3>
                 <div className="flex flex-wrap gap-2 mt-1">
                     {stats.unreadMessages > 0 && (
-                        <span onClick={() => onNavigate(Page.DASHBOARD_CHAT)} className="cursor-pointer text-xs bg-white text-orange-700 px-2 py-1 rounded border border-orange-200 hover:bg-orange-100 transition-colors">
+                        <span onClick={() => onNavigate(Page.DASHBOARD_CHAT)} className="cursor-pointer text-xs bg-ui-surface text-orange-700 px-2 py-1 rounded border border-orange-200 hover:bg-orange-100 transition-colors">
                             {stats.unreadMessages} پیام خوانده نشده دارید
                         </span>
                     )}
                     {stats.activeAds === 0 && (
-                        <span onClick={() => onNavigate(Page.POST_AD)} className="cursor-pointer text-xs bg-white text-orange-700 px-2 py-1 rounded border border-orange-200 hover:bg-orange-100 transition-colors">
+                        <span onClick={() => onNavigate(Page.POST_AD)} className="cursor-pointer text-xs bg-ui-surface text-orange-700 px-2 py-1 rounded border border-orange-200 hover:bg-orange-100 transition-colors">
                             شما هیچ آگهی فعالی ندارید، اولین فروش خود را آغاز کنید!
                         </span>
                     )}
@@ -185,13 +185,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Performance Chart Section */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+        <div className="lg:col-span-2 bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border flex flex-col">
            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="font-bold text-ui-text flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-brand-600" />
                 عملکرد بازدید هفته اخیر
               </h3>
-              <select className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none text-gray-600">
+              <select className="text-xs bg-ui-surface2 border border-ui-border rounded-lg px-2 py-1 outline-none text-ui-muted">
                   <option>۷ روز گذشته</option>
                   <option>۳۰ روز گذشته</option>
               </select>
@@ -200,7 +200,7 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
            <div className="h-48 flex items-end justify-between gap-2 px-2 flex-1">
                {chartData.map((item, i) => (
                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
-                       <div className="w-full bg-gray-50 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-gray-100 transition-colors">
+                       <div className="w-full bg-ui-surface2 rounded-t-lg relative h-full flex items-end overflow-hidden group-hover:bg-ui-surface2 transition-colors">
                            <div 
                                className="w-full bg-brand-500 opacity-80 group-hover:opacity-100 transition-all duration-700 ease-out rounded-t-lg relative" 
                                style={{ height: `${item.h}%` }}
@@ -210,22 +210,22 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
                                </div>
                            </div>
                        </div>
-                       <span className="text-[10px] text-gray-400 font-medium">{item.d}</span>
+                       <span className="text-[10px] text-ui-muted font-medium">{item.d}</span>
                    </div>
                ))}
            </div>
         </div>
 
         {/* Recent Activity Feed */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border">
+            <h3 className="font-bold text-ui-text mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 فعالیت‌های اخیر
             </h3>
             
             <div className="space-y-4">
                 {activities.length === 0 ? (
-                    <p className="text-center text-gray-400 text-xs py-10">هنوز فعالیتی ثبت نشده است.</p>
+                    <p className="text-center text-ui-muted text-xs py-10">هنوز فعالیتی ثبت نشده است.</p>
                 ) : (
                     activities.map((act, i) => (
                         <div key={i} className="flex gap-3 items-start pb-4 border-b border-gray-50 last:border-none last:pb-0">
@@ -234,9 +234,9 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
                                 act.type === 'WALLET' ? 'bg-green-500' : 'bg-yellow-500'
                             }`}></div>
                             <div>
-                                <p className="text-sm font-bold text-gray-800">{act.title}</p>
-                                {act.detail && <p className="text-xs text-gray-500 mt-0.5">{act.detail}</p>}
-                                <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                <p className="text-sm font-bold text-ui-text">{act.title}</p>
+                                {act.detail && <p className="text-xs text-ui-muted mt-0.5">{act.detail}</p>}
+                                <p className="text-[10px] text-ui-muted mt-1 flex items-center gap-1">
                                     <Clock className="w-3 h-3" /> {act.date}
                                 </p>
                             </div>
