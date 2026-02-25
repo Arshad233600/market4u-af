@@ -298,7 +298,7 @@ export const azureService = {
             description: adData.description,
             sellerName: authService.getCurrentUser()?.name || 'کاربر',
             postedDate: new Date().toLocaleDateString('fa-AF'),
-            status: AdStatus.PENDING,
+            status: AdStatus.ACTIVE,
             views: 0,
             dynamicFields: adData.dynamicFields
         };
@@ -321,7 +321,7 @@ export const azureService = {
             products[index] = {
                 ...products[index],
                 ...adData,
-                status: AdStatus.PENDING,
+                status: AdStatus.ACTIVE,
                 price: Number(adData.price),
                 imageUrl: adData.images && adData.images.length > 0 ? adData.images[0] : products[index].imageUrl,
                 imageUrls: adData.images || [],

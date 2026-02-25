@@ -259,7 +259,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       let success = false;
       if (existingAd) {
           success = await azureService.updateAd(existingAd.id, adData);
-          if (success) toastService.success('آگهی با موفقیت ویرایش شد و در انتظار تایید است.');
+          if (success) toastService.success('آگهی با موفقیت ویرایش شد.');
       } else {
           success = await azureService.postAd(adData);
           if (success) toastService.success('آگهی با موفقیت ثبت شد.');
@@ -285,12 +285,6 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           {existingAd ? t('post_title_edit') : t('post_title')}
       </h2>
       
-      {existingAd && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-xl mb-6 text-sm">
-             <Icon name="Info" size={20} strokeWidth={1.8} className="inline-block ml-2 align-middle" />
-             توجه: با ویرایش آگهی، وضعیت آن مجدداً به «در انتظار تایید» تغییر خواهد کرد.
-          </div>
-      )}
       
       <form onSubmit={handleSubmit} className="space-y-6">
         
