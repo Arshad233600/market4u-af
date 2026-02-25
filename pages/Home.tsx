@@ -15,6 +15,7 @@ interface HomeProps {
   onProductClick: (product: Product) => void;
   searchQuery: string;
   onNavigate?: (page: Page) => void;
+  onLocationChange?: (locationName: string) => void;
 }
 
 // --- Helper Component: Filter Accordion Section ---
@@ -47,7 +48,7 @@ const FilterSection: React.FC<{
 };
 
 
-const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) => {
+const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, onLocationChange }) => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,7 +119,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
                   setAppliedFilters(prev => ({ ...prev, province: closest.name }));
                   // Update Temp Province in case filter modal is next
                   setTempProvince(closest.name);
-                  
+                  onLocationChange?.(closest.name);
                   toastService.info(`موقعیت شما تشخیص داده شد: ${closest.name}`);
               } else {
                   toastService.warning('موقعیت شما شناسایی نشد.');
@@ -190,6 +191,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
           condition: tempCondition,
           dynamicFilters: tempCategory !== selectedCategory ? {} : tempDynamicFilters
       });
+      onLocationChange?.(tempProvince === 'all' ? 'کل افغانستان' : tempProvince);
       setShowFilters(false);
   };
 
@@ -299,7 +301,10 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
             <span>آگهی‌های <b className="text-brand-200">{appliedFilters.province}</b></span>
           </div>
           <button
-            onClick={() => setAppliedFilters(prev => ({ ...prev, province: 'all' }))}
+            onClick={() => {
+              setAppliedFilters(prev => ({ ...prev, province: 'all' }));
+              onLocationChange?.('کل افغانستان');
+            }}
             className="text-brand-400 hover:text-brand-200 text-xs font-bold flex items-center gap-1 transition-colors"
           >
             <Icon name="X" size={14} strokeWidth={2.5} />
@@ -309,7 +314,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
       )}
 
       {/* Category & Filter Bar */}
-      <div className="sticky top-[64px] z-20 glass border-b border-ui-border">
+      <div className="sticky top-[118px] sm:top-[64px] z-20 glass border-b border-ui-border">
         <div className="flex items-center pl-3 pr-1">
           <div className="flex-1 overflow-hidden">
             <CategoryPills

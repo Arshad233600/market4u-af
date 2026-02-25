@@ -58,6 +58,7 @@ const AppContent: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [currentSeller, setCurrentSeller] = useState<{ id: string; name: string } | null>(null);
+  const [currentLocationName, setCurrentLocationName] = useState<string>('کل افغانستان');
 
   // Initialize error logger on app start
   useEffect(() => {
@@ -200,7 +201,7 @@ const AppContent: React.FC = () => {
 
     switch (currentPage) {
       case Page.HOME:
-        return <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />;
+        return <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />;
       case Page.DETAIL:
         return selectedProduct ? (
           <ProductDetail
@@ -211,7 +212,7 @@ const AppContent: React.FC = () => {
             onProductClick={handleProductClick}
           />
         ) : (
-          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />
+          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />
         );
       case Page.POST_AD:
         return user ? <PostAd onNavigate={navigateTo} /> : <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
@@ -241,7 +242,7 @@ const AppContent: React.FC = () => {
             onProductClick={handleProductClick}
           />
         ) : (
-          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} />
+          <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />
         );
       default:
         return <NotFound onNavigate={navigateTo} />;
@@ -269,6 +270,7 @@ const AppContent: React.FC = () => {
               onSearch={setSearchQuery}
               onNavigate={navigateTo as any}
               user={user}
+              currentLocationName={currentLocationName}
               onRequestLocation={() => {
                 if (currentPage !== Page.HOME) navigateTo(Page.HOME);
               }}
@@ -279,9 +281,7 @@ const AppContent: React.FC = () => {
 
       {/* Main */}
       <main className="w-full flex-1">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Suspense fallback={<PageLoader />}>{renderContent()}</Suspense>
-        </div>
+        <Suspense fallback={<PageLoader />}>{renderContent()}</Suspense>
       </main>
 
       {/* Footer */}
