@@ -20,7 +20,7 @@ const ExchangeRateWidget: React.FC = () => {
         
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-1">
             {EXCHANGE_RATES.map((rate) => (
-                <div key={rate.currency} className="flex-shrink-0 bg-ui-surface2 rounded-lg p-2 min-w-[120px] border border-ui-border flex flex-col justify-center">
+                <div key={rate.currency} className="flex-shrink-0 bg-ui-surface2 rounded-lg p-2 min-w-[130px] border border-ui-border flex flex-col justify-center">
                     <div className="flex items-center justify-between mb-1">
                         <span className="font-bold text-ui-text text-sm flex items-center gap-1">
                             {rate.flag} {rate.currency}
@@ -29,8 +29,9 @@ const ExchangeRateWidget: React.FC = () => {
                         {rate.trend === 'down' && <Icon name="TrendingDown" size={14} strokeWidth={1.8} className="text-ui-danger" />}
                         {rate.trend === 'stable' && <Icon name="Minus" size={14} strokeWidth={1.8} className="text-ui-muted" />}
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                        <div className="text-ui-muted">{t('rates_buy')}: <span className="text-ui-text font-bold dir-ltr">{rate.buy}</span></div>
+                    <div className="flex justify-between items-center text-xs gap-2">
+                        <div className="text-ui-muted">{t('rates_buy')}: <span className="text-ui-success font-bold dir-ltr">{rate.buy}</span></div>
+                        <div className="text-ui-muted">{t('rates_sell')}: <span className="text-ui-danger font-bold dir-ltr">{rate.sell}</span></div>
                     </div>
                 </div>
             ))}
