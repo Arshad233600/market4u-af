@@ -34,6 +34,7 @@ BEGIN
         MainImageUrl NVARCHAR(1000),
         Status NVARCHAR(50) DEFAULT 'PENDING',
         IsDeleted BIT DEFAULT 0,
+        DeletedAt DATETIME2 NULL,
         Views INT DEFAULT 0,
         CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
         UpdatedAt DATETIME2 DEFAULT GETUTCDATE(),
@@ -120,18 +121,20 @@ END
 GO
 
 -- Add sample admin user (password: admin123)
+-- PasswordHash is bcrypt hash of 'admin123' with 10 rounds
 IF NOT EXISTS (SELECT * FROM Users WHERE Email = 'admin@market4u.com')
 BEGIN
     INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
-    VALUES ('u_admin_1', 'Admin User', 'admin@market4u.com', '+989123456789', 'hashed_admin123_secure', 'ADMIN', 1, GETUTCDATE());
+    VALUES ('u_admin_1', 'Admin User', 'admin@market4u.com', '+93700000001', '$2b$10$KOKNBFwWwSBh.R1RIwVL9Opr/86yjfBlTtwfE54sSXWl9daD6Ox2G', 'ADMIN', 1, GETUTCDATE());
 END
 GO
 
 -- Add sample regular user (password: user123)
+-- PasswordHash is bcrypt hash of 'user123' with 10 rounds
 IF NOT EXISTS (SELECT * FROM Users WHERE Email = 'user@market4u.com')
 BEGIN
     INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
-    VALUES ('u_user_1', 'Test User', 'user@market4u.com', '+989121234567', 'hashed_user123_secure', 'USER', 1, GETUTCDATE());
+    VALUES ('u_user_1', 'Test User', 'user@market4u.com', '+93700000002', '$2b$10$ZF2L0E2mhJM1ycZp8xXVk.7E3oWaQZolGS7Ue3mFQ9.TQxbOuNqSm', 'USER', 1, GETUTCDATE());
 END
 GO
 

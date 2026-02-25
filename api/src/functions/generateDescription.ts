@@ -31,7 +31,7 @@ export async function generateDescription(request: HttpRequest, context: Invocat
             return { status: 400, body: JSON.stringify({ error: "Title and Category are required." }) };
         }
 
-        const modelId = 'gemini-3-flash-preview'; 
+        const modelId = 'gemini-2.0-flash'; 
         const prompt = `Item Title: ${title}\nCategory: ${category}\nLocation: ${location || 'Afghanistan'}`;
 
         const response = await ai.models.generateContent({
