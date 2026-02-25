@@ -14,7 +14,8 @@ function buildConfig(): SqlConfig | string {
 
     if (!DB_SERVER || !DB_NAME || !DB_USER || !DB_PASSWORD) {
         throw new Error(
-            "Database configuration missing. Provide SqlConnectionString or DB_SERVER/DB_NAME/DB_USER/DB_PASSWORD."
+            "Database not configured. Add SqlConnectionString to Azure Static Web App environment variables. " +
+            "See AZURE_DEPLOY_GUIDE.md for setup instructions."
         );
     }
 

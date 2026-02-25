@@ -29,10 +29,11 @@ const getEnv = (key: string): string | undefined => {
 const apiUrl = getEnv('REACT_APP_API_URL') || getEnv('VITE_API_URL');
 export const API_BASE_URL = apiUrl || '/api';
 
-// Logic: 
-// 1. If explicitly set to 'true' in env vars.
-// 2. OR if NO custom API URL is provided (use live API via /api proxy).
-export const USE_MOCK_DATA = getEnv('REACT_APP_USE_MOCK_DATA') === 'true' || getEnv('VITE_USE_MOCK_DATA') === 'true';
+// Logic:
+// Defaults to TRUE (demo/mock mode) so the app works without a database.
+// To connect to a real Azure SQL database, set VITE_USE_MOCK_DATA=false
+// as a build-time environment variable in Azure Static Web App settings.
+export const USE_MOCK_DATA = getEnv('VITE_USE_MOCK_DATA') !== 'false' && getEnv('REACT_APP_USE_MOCK_DATA') !== 'false';
 
 export const AZURE_AD_CONFIG = {
   clientId: getEnv('REACT_APP_AZURE_CLIENT_ID') || 'your-client-id',

@@ -233,6 +233,9 @@
 | `AZURE_STORAGE_CONNECTION_STRING` | رشته اتصال Storage که کپی کردید | ذخیره تصاویر |
 | `AZURE_STORAGE_CONTAINER` | `product-images` | نام container تصاویر |
 | `GEMINI_API_KEY` | کلید Gemini AI (اختیاری) | هوش مصنوعی |
+| `VITE_USE_MOCK_DATA` | `false` | **⚠️ اختیاری:** برای استفاده از دیتابیس واقعی، این متغیر را `false` قرار دهید. بدون این متغیر، اپ از حالت نمایشی (Mock) استفاده می‌کند |
+
+> ⚠️ **مهم:** متغیر `VITE_USE_MOCK_DATA=false` در زمان **Build** خوانده می‌شود نه Runtime. برای اینکه این متغیر در هنگام build در دسترس باشد، باید آن را در Azure Static Web App → Configuration → Application settings اضافه کنید تا Azure در هنگام deploy از آن استفاده کند.
 
 > 💡 **برای ساخت AUTH_SECRET:** می‌توانید از این سایت یک کلید تصادفی بسازید: https://generate-secret.vercel.app/32
 
@@ -347,6 +350,15 @@ az deployment group create \
 ---
 
 ## ۹. رفع مشکلات رایج
+
+### ❌ خطا: "خطای سرور" هنگام ثبت نام یا ورود
+
+**علت:** متغیر `VITE_USE_MOCK_DATA=false` تنظیم نشده، یا دیتابیس متصل نیست.
+
+**راه حل:**
+1. اگر می‌خواهید از داده‌های نمایشی استفاده کنید (بدون دیتابیس): مطمئن شوید `VITE_USE_MOCK_DATA` تنظیم نشده یا مقدار `true` دارد، سپس دوباره deploy کنید.
+2. اگر می‌خواهید دیتابیس واقعی: اطمینان حاصل کنید که `VITE_USE_MOCK_DATA=false` و `SqlConnectionString` در Azure App Settings تنظیم شده است، سپس دوباره deploy کنید.
+3. وضعیت دیتابیس را از آدرس `/api/health` بررسی کنید.
 
 ### ❌ خطا: "Database connection failed"
 
