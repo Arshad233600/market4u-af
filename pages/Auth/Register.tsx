@@ -21,8 +21,9 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onLoginSuccess }) => {
     try {
       await authService.register(name, email, password);
       onLoginSuccess();
-    } catch {
-      toastService.error('ثبت‌نام ناموفق بود. لطفاً دوباره امتحان کنید.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'ثبت‌نام ناموفق بود. لطفاً دوباره امتحان کنید.';
+      toastService.error(msg);
     } finally {
       setIsLoading(false);
     }

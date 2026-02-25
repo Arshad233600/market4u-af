@@ -21,8 +21,9 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
     try {
       await authService.login(email, password);
       onLoginSuccess();
-    } catch {
-      toastService.error('ورود ناموفق بود. لطفاً اطلاعات خود را بررسی کنید.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'ورود ناموفق بود. لطفاً اطلاعات خود را بررسی کنید.';
+      toastService.error(msg);
     } finally {
       setIsLoading(false);
     }
