@@ -9,7 +9,7 @@ class RealtimeService {
   private socket: WebSocket | null = null;
   private messageHandlers: MessageHandler[] = [];
   private isConnected = false;
-  private reconnectInterval: any;
+  private reconnectInterval: ReturnType<typeof setInterval> | null = null;
   private mockEventListener: ((e: Event) => void) | null = null;
 
   constructor() {

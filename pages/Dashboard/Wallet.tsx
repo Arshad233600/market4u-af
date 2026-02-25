@@ -4,11 +4,11 @@ import {
   CreditCard, Wallet, Plus, Download, ArrowDownLeft, ArrowUpRight,
   History, Lock
 } from 'lucide-react';
-import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { WalletTransaction } from '../../types';
 import { APP_STRINGS } from '../../constants';
 import PaymentGatewayModal from '../../components/PaymentGatewayModal';
+import { toastService } from '../../services/toastService';
 
 const WalletPage: React.FC = () => {
   const [balance, setBalance] = useState(0);
@@ -19,6 +19,8 @@ const WalletPage: React.FC = () => {
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState(0);
+  const [showTopUpInput, setShowTopUpInput] = useState(false);
+  const [topUpInputValue, setTopUpInputValue] = useState('1000');
 
   const fetchData = useCallback(async () => {
     const stats = await azureService.getDashboardStats();
@@ -33,16 +35,13 @@ const WalletPage: React.FC = () => {
   }, [fetchData]);
 
   const initiateTopUp = () => {
-      const amountStr = window.prompt("مبلغ افزایش موجودی را وارد کنید (افغانی):", "1000");
-      if (!amountStr) return;
-
-      const amount = parseInt(amountStr);
+      const amount = parseInt(topUpInputValue);
       if (isNaN(amount) || amount <= 0) {
-          alert("مبلغ نامعتبر است.");
+          toastService.error('مبلغ نامعتبر است. لطفاً یک عدد مثبت وارد کنید.');
           return;
       }
-      
       setTopUpAmount(amount);
+      setShowTopUpInput(false);
       setShowPaymentModal(true);
   };
 
@@ -54,10 +53,10 @@ const WalletPage: React.FC = () => {
 
   const handleWithdraw = () => {
       if (balance < 500) {
-          alert("حداقل مبلغ برداشت ۵۰۰ افغانی است.");
+          toastService.warning('حداقل مبلغ برداشت ۵۰۰ افغانی است.');
           return;
       }
-      alert("درخواست تسویه حساب ثبت شد و تا ۲۴ ساعت آینده به حساب بانکی شما واریز می‌شود.");
+      toastService.success('درخواست تسویه حساب ثبت شد. تا ۲۴ ساعت آینده به حساب بانکی شما واریز می‌شود.');
   };
 
   const filteredTxs = activeTab === 'ALL' ? transactions : transactions.filter(t => t.type.includes(activeTab));
@@ -94,13 +93,34 @@ const WalletPage: React.FC = () => {
             </div>
 
             <div className="relative z-10 flex gap-3 mt-6">
-                <button 
-                    onClick={initiateTopUp}
-                    className="flex-1 bg-ui-surface text-brand-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-50 transition-colors shadow-sm"
-                >
-                    <Plus className="w-5 h-5 text-brand-900" />
-                    افزایش موجودی
-                </button>
+                {!showTopUpInput ? (
+                    <button 
+                        onClick={() => setShowTopUpInput(true)}
+                        className="flex-1 bg-ui-surface text-brand-900 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-50 transition-colors shadow-sm"
+                    >
+                        <Plus className="w-5 h-5 text-brand-900" />
+                        افزایش موجودی
+                    </button>
+                ) : (
+                    <div className="flex-1 flex gap-2">
+                        <input
+                            type="number"
+                            value={topUpInputValue}
+                            onChange={(e) => setTopUpInputValue(e.target.value)}
+                            placeholder="مبلغ (افغانی)"
+                            dir="ltr"
+                            className="flex-1 px-3 py-2 bg-ui-surface text-brand-900 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-white/50 min-w-0"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && initiateTopUp()}
+                        />
+                        <button onClick={initiateTopUp} className="px-3 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors">
+                            <Plus className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setShowTopUpInput(false)} className="px-3 py-2 bg-ui-surface/20 text-white rounded-xl text-sm font-bold hover:bg-ui-surface/30 transition-colors">
+                            ✕
+                        </button>
+                    </div>
+                )}
                 <button 
                     onClick={handleWithdraw}
                     className="flex-1 bg-brand-800/50 backdrop-blur-md text-white py-3 rounded-xl font-bold border border-white/20 hover:bg-brand-800/70 transition-colors flex items-center justify-center gap-2"

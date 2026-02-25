@@ -4,11 +4,11 @@ import {
   WifiOff, Search, MessageSquare, ArrowRight, MoreVertical,
   Trash2, CheckCheck, AlertCircle, Clock, Plus, Send, StopCircle, Mic
 } from 'lucide-react';
-import Icon from '../../src/components/ui/Icon';
 import { azureService } from '../../services/azureService';
 import { realtimeService } from '../../services/realtimeService';
 import { ChatConversation, ChatMessage } from '../../types';
 import { authService } from '../../services/authService';
+import { toastService } from '../../services/toastService';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -164,7 +164,7 @@ const Messages: React.FC = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-        alert('مرورگر شما از قابلیت تبدیل صدا به متن پشتیبانی نمی‌کند.');
+        toastService.warning('مرورگر شما از قابلیت تبدیل صدا به متن پشتیبانی نمی‌کند.');
         return;
     }
 

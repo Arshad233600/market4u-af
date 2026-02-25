@@ -100,7 +100,7 @@ const AppContent: React.FC = () => {
     // Admin Guard
     if (page === 'ADMIN_PANEL') {
       if (user?.role !== 'ADMIN') {
-        alert('شما اجازه دسترسی به این بخش را ندارید.');
+        toastService.error('شما اجازه دسترسی به این بخش را ندارید.');
         return;
       }
     }

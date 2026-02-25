@@ -4,7 +4,6 @@ import {
   User, FileCheck, CheckCircle, Lock, Bell, Camera,
   Loader2, Save, Shield, AlertTriangle, Trash2
 } from 'lucide-react';
-import Icon from '../../src/components/ui/Icon';
 import { authService } from '../../services/authService';
 import { azureService } from '../../services/azureService';
 import { toastService } from '../../services/toastService';
@@ -13,6 +12,8 @@ const Settings: React.FC = () => {
   const currentUser = authService.getCurrentUser();
   const [activeTab, setActiveTab] = useState<'PROFILE' | 'SECURITY' | 'VERIFICATION' | 'NOTIFICATIONS'>('PROFILE');
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   
   // Form States
   const [name, setName] = useState(currentUser?.name || '');
@@ -39,7 +40,7 @@ const Settings: React.FC = () => {
     setIsLoading(false);
     
     if (success) {
-        window.location.reload(); 
+        toastService.success('اطلاعات پروفایل با موفقیت ذخیره شد.');
     }
   };
 
@@ -47,14 +48,14 @@ const Settings: React.FC = () => {
       setIsLoading(true);
       await new Promise(r => setTimeout(r, 1500));
       setIsLoading(false);
-      alert('رمز عبور بروزرسانی شد.');
+      toastService.success('رمز عبور بروزرسانی شد.');
       setCurrentPassword('');
       setNewPassword('');
   };
 
   const handleVerificationSubmit = async () => {
       if (!frontId || !backId) {
-          alert('لطفا تصویر پشت و روی تذکره را آپلود کنید.');
+          toastService.warning('لطفاً تصویر پشت و روی تذکره را آپلود کنید.');
           return;
       }
       setIsLoading(true);
@@ -65,19 +66,21 @@ const Settings: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-      const confirmText = prompt('برای تایید حذف حساب کاربری، عبارت "delete" را وارد کنید:');
-      if (confirmText !== 'delete') return;
+      if (deleteConfirmInput !== 'delete') {
+          toastService.warning('لطفاً عبارت "delete" را برای تأیید وارد کنید.');
+          return;
+      }
 
       setIsLoading(true);
       const success = await azureService.deleteAccount();
       setIsLoading(false);
 
       if (success) {
-          alert('حساب کاربری شما با موفقیت حذف شد.');
+          toastService.success('حساب کاربری شما با موفقیت حذف شد.');
           authService.logout();
           window.location.href = '/';
       } else {
-          alert('خطا در حذف حساب کاربری.');
+          toastService.error('خطا در حذف حساب کاربری. لطفاً دوباره امتحان کنید.');
       }
   };
 
@@ -323,14 +326,44 @@ const Settings: React.FC = () => {
               <p className="text-sm text-red-600/80 mb-4">
                   حذف حساب کاربری غیرقابل بازگشت است. تمام آگهی‌ها، پیام‌ها و اطلاعات شما حذف خواهند شد (Soft Delete).
               </p>
-              <button 
-                onClick={handleDeleteAccount}
-                disabled={isLoading}
-                className="flex items-center gap-2 bg-ui-surface border border-red-200 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-colors"
-              >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  حذف حساب کاربری
-              </button>
+              {!showDeleteConfirm ? (
+                  <button 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 bg-ui-surface border border-red-200 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-colors"
+                  >
+                      <Trash2 className="w-4 h-4" />
+                      حذف حساب کاربری
+                  </button>
+              ) : (
+                  <div className="space-y-3">
+                      <p className="text-xs text-red-700 font-bold">برای تأیید، کلمه <code className="bg-red-100 px-1 rounded">delete</code> را تایپ کنید:</p>
+                      <input
+                          type="text"
+                          value={deleteConfirmInput}
+                          onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                          placeholder="delete"
+                          dir="ltr"
+                          className="w-full px-3 py-2 border border-red-200 bg-ui-surface text-red-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-300 placeholder:text-red-300"
+                      />
+                      <div className="flex gap-2">
+                          <button
+                              onClick={handleDeleteAccount}
+                              disabled={isLoading || deleteConfirmInput !== 'delete'}
+                              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50"
+                          >
+                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              تأیید حذف
+                          </button>
+                          <button
+                              onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmInput(''); }}
+                              className="px-4 py-2 rounded-xl text-sm font-bold border border-ui-border text-ui-muted hover:bg-ui-surface2 transition-colors"
+                          >
+                              انصراف
+                          </button>
+                      </div>
+                  </div>
+              )}
           </div>
 
         </div>
