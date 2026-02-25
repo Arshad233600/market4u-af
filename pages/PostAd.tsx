@@ -61,6 +61,20 @@ interface PostAdProps {
     existingAd?: Product | null; // Optional prop for edit mode
 }
 
+// Category-specific title placeholder hints
+const CATEGORY_TITLE_PLACEHOLDERS: Record<string, string> = {
+  real_estate: 'مثلا: آپارتمان ۳ اتاقه در شهرنو...',
+  vehicles: 'مثلا: تویوتا کرولا مدل ۲۰۱۸، رنگ سفید...',
+  electronics: 'مثلا: آیفون ۱۴ پرو مکس ۲۵۶ گیگ...',
+  home_kitchen: 'مثلا: مبلمان راحتی ۷ نفره...',
+  fashion: 'مثلا: پیراهن مردانه سایز L...',
+  entertainment: 'مثلا: کتاب ریاضی دوازدهم...',
+  baby: 'مثلا: کالسکه نوزاد Chicco...',
+  sports: 'مثلا: توپ فوتبال نایک سایز ۵...',
+  business: 'مثلا: ماشین لاندری صنعتی...',
+  services: 'مثلا: تدریس خصوصی ریاضی...',
+};
+
 const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
   const { t } = useLanguage();
   // Form States
@@ -245,6 +259,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       e.preventDefault();
       if (!province) { alert("لطفا ولایت را انتخاب کنید"); return; }
       if (!title || !price) { alert("لطفا عنوان و قیمت را وارد کنید"); return; }
+      if (subCategories.length > 0 && !subCategory) { alert("لطفا زیرمجموعه را انتخاب کنید"); return; }
       
       setIsSubmitting(true);
       const fullLocation = district ? `${province} - ${district}` : province;
@@ -324,43 +339,70 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
         {/* Basic Information */}
         <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm space-y-5">
             <h3 className="font-bold text-ui-text border-b border-ui-border pb-2">اطلاعات پایه</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Category */}
-                <div>
-                    <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_category')}</label>
-                    <div className="relative">
-                        <select value={category} onChange={handleCategoryChange} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500">
-                            {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{t(c.translationKey as keyof typeof TRANSLATIONS['fa'])}</option>)}
-                        </select>
-                        <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
-                    </div>
-                </div>
 
-                {/* Subcategory */}
-                {subCategories.length > 0 && (
-                    <div className="animate-in fade-in slide-in-from-top-1">
-                        <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_subcategory')}</label>
-                        <div className="relative">
-                            <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
-                                <option value="" disabled>انتخاب کنید...</option>
-                                {subCategories.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
-                            </select>
-                            <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
-                        </div>
-                    </div>
-                )}
+            {/* Category Visual Picker */}
+            <div>
+                <label className="block text-xs font-bold text-ui-muted mb-2">{t('post_lbl_category')} <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                        <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                                const syntheticEvent = { target: { value: c.id } } as React.ChangeEvent<HTMLSelectElement>;
+                                handleCategoryChange(syntheticEvent);
+                            }}
+                            className={`flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl border-2 text-center transition-all ${
+                                category === c.id
+                                    ? 'border-brand-500 bg-brand-50 text-brand-600 shadow-sm'
+                                    : 'border-ui-border bg-ui-surface2 text-ui-muted hover:border-brand-300 hover:text-brand-500'
+                            }`}
+                        >
+                            <Icon name={c.icon as any} size={22} strokeWidth={1.8} />
+                            <span className="text-[10px] font-bold leading-tight">{t(c.translationKey as keyof typeof TRANSLATIONS['fa'])}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
+
+            {/* Subcategory Pill Buttons */}
+            {subCategories.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-top-1">
+                    <label className="block text-xs font-bold text-ui-muted mb-2">{t('post_lbl_subcategory')} <span className="text-red-500">*</span></label>
+                    <div className="flex flex-wrap gap-2">
+                        {subCategories.map(sub => (
+                            <button
+                                key={sub.id}
+                                type="button"
+                                onClick={() => setSubCategory(sub.id)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                    subCategory === sub.id
+                                        ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
+                                        : 'bg-ui-surface2 border-ui-border text-ui-muted hover:border-brand-400 hover:text-brand-500'
+                                }`}
+                            >
+                                {sub.name}
+                            </button>
+                        ))}
+                    </div>
+                    {subCategories.length > 0 && !subCategory && (
+                        <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                            <Icon name="AlertCircle" size={12} strokeWidth={1.8} />
+                            لطفاً یک زیرمجموعه انتخاب کنید
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Title */}
             <div>
-              <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_title')}</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder={t('post_placeholder_title')} required />
+              <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_title')} <span className="text-red-500">*</span></label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder={CATEGORY_TITLE_PLACEHOLDERS[category] || t('post_placeholder_title')} required />
             </div>
 
             {/* Price */}
             <div>
-               <label className="block text-xs font-bold text-ui-muted mb-1.5">{category === 'jobs' ? t('post_lbl_salary') : t('post_lbl_price')}</label>
+               <label className="block text-xs font-bold text-ui-muted mb-1.5">{category === 'services' ? t('post_lbl_salary') : t('post_lbl_price')}</label>
                <div className="relative">
                    <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12" placeholder="0" required />
                    <span className="absolute left-3 top-3.5 text-sm text-ui-muted font-bold">AFN</span>
@@ -391,7 +433,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
             </h3>
 
             {/* Condition */}
-            {category !== 'jobs' && category !== 'services' && (
+            {category !== 'services' && (
               <div>
                 <label className="block text-xs font-bold text-ui-muted mb-2">{t('condition_label')}</label>
                 <div className="grid grid-cols-3 gap-2">
