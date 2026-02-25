@@ -20,7 +20,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50">
+    <nav className="md:hidden pb-safe">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => {
           const isActive = activePage === item.id;
@@ -30,11 +30,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
-                isActive ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
+                isActive ? 'text-brand-400' : 'text-ui-muted hover:text-ui-text'
               }`}
             >
               {item.special ? (
-                <div className="bg-brand-600 text-white p-2 rounded-xl shadow-lg -mt-6 border-4 border-white active:scale-95 transition-transform">
+                <div className="bg-brand-500 text-white p-2 rounded-xl shadow-glow -mt-6 border-4 border-ui-bg active:scale-95 transition-transform">
                   <Icon name={item.icon} size={28} strokeWidth={1.8} className="text-white" />
                 </div>
               ) : (

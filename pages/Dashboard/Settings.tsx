@@ -86,21 +86,21 @@ const Settings: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800">تنظیمات حساب کاربری</h2>
+      <h2 className="text-2xl font-bold text-ui-text">تنظیمات حساب کاربری</h2>
 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Settings Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0 space-y-2">
           <button 
             onClick={() => setActiveTab('PROFILE')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'PROFILE' ? 'bg-white shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-gray-600 hover:bg-white/50'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'PROFILE' ? 'bg-ui-surface shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-ui-muted hover:bg-ui-surface/50'}`}
           >
             <User className="w-5 h-5" />
             اطلاعات کاربری
           </button>
           <button 
             onClick={() => setActiveTab('VERIFICATION')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'VERIFICATION' ? 'bg-white shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-gray-600 hover:bg-white/50'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'VERIFICATION' ? 'bg-ui-surface shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-ui-muted hover:bg-ui-surface/50'}`}
           >
             <FileCheck className="w-5 h-5" />
             احراز هویت
@@ -108,14 +108,14 @@ const Settings: React.FC = () => {
           </button>
           <button 
             onClick={() => setActiveTab('SECURITY')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'SECURITY' ? 'bg-white shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-gray-600 hover:bg-white/50'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'SECURITY' ? 'bg-ui-surface shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-ui-muted hover:bg-ui-surface/50'}`}
           >
             <Lock className="w-5 h-5" />
             امنیت و رمز عبور
           </button>
           <button 
             onClick={() => setActiveTab('NOTIFICATIONS')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'NOTIFICATIONS' ? 'bg-white shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-gray-600 hover:bg-white/50'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === 'NOTIFICATIONS' ? 'bg-ui-surface shadow-sm text-brand-600 font-bold border border-brand-100' : 'text-ui-muted hover:bg-ui-surface/50'}`}
           >
             <Bell className="w-5 h-5" />
             اعلان‌ها
@@ -127,7 +127,7 @@ const Settings: React.FC = () => {
           
           {/* PROFILE TAB */}
           {activeTab === 'PROFILE' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
+            <div className="bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border space-y-6 animate-in fade-in">
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative group cursor-pointer">
                    <div className="w-20 h-20 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 text-2xl font-bold border-4 border-white shadow-md overflow-hidden">
@@ -138,44 +138,44 @@ const Settings: React.FC = () => {
                    </div>
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-800">تصویر پروفایل</h3>
-                  <p className="text-xs text-gray-500 mt-1">PNG یا JPG، حداکثر ۲ مگابایت</p>
+                  <h3 className="font-bold text-ui-text">تصویر پروفایل</h3>
+                  <p className="text-xs text-ui-muted mt-1">PNG یا JPG، حداکثر ۲ مگابایت</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">نام کامل</label>
+                  <label className="block text-sm font-medium text-ui-muted mb-1">نام کامل</label>
                   <input 
                     type="text" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">شماره موبایل</label>
+                  <label className="block text-sm font-medium text-ui-muted mb-1">شماره موبایل</label>
                   <input 
                     type="text" 
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed outline-none"
+                    className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface2 text-ui-muted cursor-not-allowed outline-none"
                     disabled
                   />
-                  <p className="text-xs text-gray-400 mt-1">شماره موبایل قابل تغییر نیست</p>
+                  <p className="text-xs text-ui-muted mt-1">شماره موبایل قابل تغییر نیست</p>
                 </div>
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ایمیل</label>
+                  <label className="block text-sm font-medium text-ui-muted mb-1">ایمیل</label>
                   <input 
                     type="email" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                    className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-gray-100 flex justify-end">
+              <div className="pt-4 border-t border-ui-border flex justify-end">
                 <button 
                   onClick={handleSaveProfile}
                   disabled={isLoading}
@@ -190,7 +190,7 @@ const Settings: React.FC = () => {
 
           {/* VERIFICATION TAB */}
           {activeTab === 'VERIFICATION' && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
+              <div className="bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border space-y-6 animate-in fade-in">
                   <div className="flex items-start gap-4 p-4 bg-blue-50 text-blue-800 rounded-xl text-sm">
                       <Shield className="w-6 h-6 flex-shrink-0" />
                       <p>
@@ -212,8 +212,8 @@ const Settings: React.FC = () => {
                   ) : (
                       <div className="space-y-6">
                           <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">تصویر روی تذکره/پاسپورت</label>
-                              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors cursor-pointer relative">
+                              <label className="block text-sm font-bold text-ui-muted mb-2">تصویر روی تذکره/پاسپورت</label>
+                              <div className="border-2 border-dashed border-ui-border rounded-xl p-8 flex flex-col items-center justify-center text-ui-muted hover:bg-ui-surface2 transition-colors cursor-pointer relative">
                                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setFrontId(e.target.files?.[0] || null)} />
                                   {frontId ? <span className="text-brand-600 font-bold">{frontId.name}</span> : <>
                                       <Camera className="w-8 h-8 mb-2" />
@@ -222,8 +222,8 @@ const Settings: React.FC = () => {
                               </div>
                           </div>
                           <div>
-                              <label className="block text-sm font-bold text-gray-700 mb-2">تصویر پشت تذکره (اختیاری برای پاسپورت)</label>
-                              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors cursor-pointer relative">
+                              <label className="block text-sm font-bold text-ui-muted mb-2">تصویر پشت تذکره (اختیاری برای پاسپورت)</label>
+                              <div className="border-2 border-dashed border-ui-border rounded-xl p-8 flex flex-col items-center justify-center text-ui-muted hover:bg-ui-surface2 transition-colors cursor-pointer relative">
                                   <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setBackId(e.target.files?.[0] || null)} />
                                   {backId ? <span className="text-brand-600 font-bold">{backId.name}</span> : <>
                                       <Camera className="w-8 h-8 mb-2" />
@@ -245,29 +245,29 @@ const Settings: React.FC = () => {
 
           {/* SECURITY TAB */}
           {activeTab === 'SECURITY' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
+            <div className="bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border space-y-6 animate-in fade-in">
                <div>
-                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                 <h3 className="font-bold text-ui-text mb-4 flex items-center gap-2">
                    <Shield className="w-5 h-5 text-brand-600" />
                    تغییر رمز عبور
                  </h3>
                  <div className="space-y-4 max-w-md">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">رمز عبور فعلی</label>
+                      <label className="block text-sm font-medium text-ui-muted mb-1">رمز عبور فعلی</label>
                       <input 
                         type="password" 
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                        className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">رمز عبور جدید</label>
+                      <label className="block text-sm font-medium text-ui-muted mb-1">رمز عبور جدید</label>
                       <input 
                         type="password" 
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
+                        className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none"
                       />
                     </div>
                     <button 
@@ -285,7 +285,7 @@ const Settings: React.FC = () => {
 
           {/* NOTIFICATIONS TAB */}
           {activeTab === 'NOTIFICATIONS' && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 animate-in fade-in">
+            <div className="bg-ui-surface p-6 rounded-2xl shadow-sm border border-ui-border space-y-6 animate-in fade-in">
               {[
                 { key: 'notif_msg', label: 'اعلان پیام جدید', desc: 'وقتی کاربری به شما پیام می‌دهد' },
                 { key: 'notif_ad', label: 'تایید آگهی', desc: 'وقتی آگهی شما توسط مدیر تایید می‌شود' },
@@ -293,8 +293,8 @@ const Settings: React.FC = () => {
               ].map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2">
                    <div>
-                     <p className="font-bold text-gray-800">{item.label}</p>
-                     <p className="text-xs text-gray-500">{item.desc}</p>
+                     <p className="font-bold text-ui-text">{item.label}</p>
+                     <p className="text-xs text-ui-muted">{item.desc}</p>
                    </div>
                    <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -303,7 +303,7 @@ const Settings: React.FC = () => {
                         checked={(notifSettings as any)[item.key]} 
                         onChange={() => handleNotifChange(item.key)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
+                      <div className="w-11 h-6 bg-ui-surface2 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-ui-surface after:border-ui-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-600"></div>
                    </label>
                 </div>
               ))}
@@ -322,7 +322,7 @@ const Settings: React.FC = () => {
               <button 
                 onClick={handleDeleteAccount}
                 disabled={isLoading}
-                className="flex items-center gap-2 bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-colors"
+                className="flex items-center gap-2 bg-ui-surface border border-red-200 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-colors"
               >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   حذف حساب کاربری

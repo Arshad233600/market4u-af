@@ -89,20 +89,20 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className="w-full">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
         
         {/* Logo & Mobile Menu */}
         <div className="flex items-center gap-2">
           <button 
-            className="p-2 -mr-2 md:hidden text-gray-600 active:bg-gray-100 rounded-full"
+            className="p-2 -mr-2 md:hidden text-ui-muted active:bg-ui-surface2 rounded-full"
             onClick={() => onNavigate(user ? Page.PROFILE : Page.LOGIN)}
             aria-label="منوی کاربری"
           >
             <Icon name="Menu" size={24} strokeWidth={1.8} />
           </button>
           <div 
-            className="text-2xl font-bold text-brand-600 tracking-tighter cursor-pointer flex items-center"
+            className="text-2xl font-bold text-brand-400 tracking-tighter cursor-pointer flex items-center"
             onClick={() => onNavigate(Page.HOME)}
           >
             {t('app_name')}
@@ -116,28 +116,28 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
               type="text" 
               value={searchValue}
               placeholder={t('search_placeholder')}
-              className="w-full h-10 pr-10 pl-4 bg-gray-100 rounded-full border-none focus:ring-2 focus:ring-brand-500 text-sm transition-all"
+              className="w-full h-10 pr-10 pl-4 bg-ui-surface2 rounded-full border border-ui-border focus:ring-2 focus:ring-brand-500 text-ui-text placeholder:text-ui-muted text-sm transition-all outline-none"
               onChange={handleSearchInput}
               onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
             />
-            <Icon name="Search" size={20} strokeWidth={1.8} className="absolute right-3 top-2.5 text-gray-400" />
+            <Icon name="Search" size={20} strokeWidth={1.8} className="absolute right-3 top-2.5 text-ui-muted" />
             {searchValue && (
-                <button onClick={() => { setSearchValue(''); onSearch(''); }} className="absolute left-3 top-2.5 text-gray-400 hover:text-gray-600">
+                <button onClick={() => { setSearchValue(''); onSearch(''); }} className="absolute left-3 top-2.5 text-ui-muted hover:text-ui-text">
                     <Icon name="X" size={18} strokeWidth={1.8} />
                 </button>
             )}
           </div>
           {/* Autocomplete Dropdown */}
           {showSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden z-50">
                   <ul>
                       {suggestions.map((s, i) => (
                           <li 
                             key={i} 
                             onClick={() => handleSelectSuggestion(s)}
-                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 flex items-center gap-2 border-b border-gray-50 last:border-none"
+                            className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-2 border-b border-ui-border last:border-none"
                           >
-                              <Icon name="Search" size={18} strokeWidth={1.8} className="text-gray-400" />
+                              <Icon name="Search" size={18} strokeWidth={1.8} className="text-ui-muted" />
                               {s}
                           </li>
                       ))}
@@ -152,7 +152,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
           {/* Language Switcher */}
           <button 
             onClick={toggleLanguage}
-            className="flex items-center gap-1 text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-full transition-colors"
+            className="flex items-center gap-1 text-xs font-bold text-brand-400 bg-brand-900/40 hover:bg-brand-900/60 px-3 py-1.5 rounded-full transition-colors border border-brand-700/40"
           >
             <Icon name="Globe" size={14} strokeWidth={1.8} />
             <span>{t('lang_switch')}</span>
@@ -161,7 +161,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
           {/* Smart Location Button */}
           <button 
             onClick={onRequestLocation}
-            className={`hidden md:flex items-center gap-1 text-sm transition-colors px-2 py-1 rounded-lg ${currentLocationName && currentLocationName !== 'کل افغانستان' ? 'text-brand-600 bg-brand-50 font-bold' : 'text-gray-700 hover:text-brand-600'}`}
+            className={`hidden md:flex items-center gap-1 text-sm transition-colors px-2 py-1 rounded-lg ${currentLocationName && currentLocationName !== 'کل افغانستان' ? 'text-brand-400 bg-brand-900/40 font-bold border border-brand-700/40' : 'text-ui-muted hover:text-brand-400'}`}
             title="یافتن آگهی‌های اطراف من"
           >
             {currentLocationName && currentLocationName !== 'کل افغانستان' ? <Icon name="MapPin" size={18} strokeWidth={1.8} /> : <Icon name="Crosshair" size={18} strokeWidth={1.8} />}
@@ -172,21 +172,21 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
           <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => { setShowNotifications(!showNotifications); void fetchNotifications(); }}
-                className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                className="relative p-2 text-ui-muted hover:text-ui-text hover:bg-ui-surface2 rounded-full transition-colors"
               >
                 <Icon name="Bell" size={24} strokeWidth={1.8} />
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                    <span className="absolute top-1 left-1 w-2.5 h-2.5 bg-ui-danger rounded-full border-2 border-ui-surface animate-pulse"></span>
                 )}
               </button>
 
               {/* Notification Dropdown */}
               {showNotifications && (
-                  <div className="absolute top-full left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[60] animate-in fade-in slide-in-from-top-2 origin-top-left">
-                      <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                          <h4 className="font-bold text-gray-800 text-sm">اعلان‌ها</h4>
+                  <div className="absolute top-full left-0 mt-2 w-80 bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden z-[60]">
+                      <div className="p-3 border-b border-ui-border flex justify-between items-center bg-ui-surface2">
+                          <h4 className="font-bold text-ui-text text-sm">اعلان‌ها</h4>
                           {unreadCount > 0 && (
-                              <button onClick={markAllRead} className="text-[10px] text-brand-600 cursor-pointer hover:underline flex items-center gap-1">
+                              <button onClick={markAllRead} className="text-[10px] text-brand-400 cursor-pointer hover:underline flex items-center gap-1">
                                   <Icon name="CheckCircle" size={12} strokeWidth={2.0} />
                                   خواندن همه
                               </button>
@@ -194,35 +194,35 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                           {notifications.length === 0 ? (
-                              <div className="p-8 text-center text-gray-400">
+                              <div className="p-8 text-center text-ui-muted">
                                   <Icon name="Bell" size={32} strokeWidth={1.8} className="mx-auto mb-2 opacity-50" />
                                   <p className="text-xs">هیچ اعلان جدیدی ندارید.</p>
                               </div>
                           ) : (
                               notifications.map(notif => (
-                                  <div key={notif.id} className={`p-4 border-b border-gray-50 last:border-none hover:bg-gray-50 transition-colors ${!notif.isRead ? 'bg-blue-50/50' : ''}`}>
+                                  <div key={notif.id} className={`p-4 border-b border-ui-border last:border-none hover:bg-ui-surface2 transition-colors ${!notif.isRead ? 'bg-ui-info/5' : ''}`}>
                                       <div className="flex gap-3">
                                           <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                              notif.type === 'success' ? 'bg-green-100 text-green-600' :
-                                              notif.type === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                                              'bg-blue-100 text-blue-600'
+                                              notif.type === 'success' ? 'bg-ui-success/20 text-ui-success' :
+                                              notif.type === 'warning' ? 'bg-ui-warning/20 text-ui-warning' :
+                                              'bg-ui-info/20 text-ui-info'
                                           }`}>
                                               {notif.type === 'success' ? <Icon name="CheckCircle" size={18} strokeWidth={1.8} /> :
                                               notif.type === 'warning' ? <Icon name="AlertTriangle" size={18} strokeWidth={1.8} /> :
                                               <Icon name="Info" size={18} strokeWidth={1.8} />}
                                           </div>
                                           <div>
-                                              <h5 className={`text-sm ${!notif.isRead ? 'font-bold text-gray-900' : 'text-gray-700'}`}>{notif.title}</h5>
-                                              <p className="text-xs text-gray-500 mt-1 leading-relaxed">{notif.message}</p>
-                                              <span className="text-[10px] text-gray-400 mt-2 block">{notif.date}</span>
+                                              <h5 className={`text-sm ${!notif.isRead ? 'font-bold text-ui-text' : 'text-ui-muted'}`}>{notif.title}</h5>
+                                              <p className="text-xs text-ui-muted mt-1 leading-relaxed">{notif.message}</p>
+                                              <span className="text-[10px] text-ui-muted/60 mt-2 block">{notif.date}</span>
                                           </div>
                                       </div>
                                   </div>
                               ))
                           )}
                       </div>
-                      <div className="p-2 text-center bg-gray-50 border-t border-gray-100">
-                          <button onClick={() => { setShowNotifications(false); onNavigate(Page.DASHBOARD_SETTINGS); }} className="text-xs text-brand-600 font-bold hover:underline">
+                      <div className="p-2 text-center bg-ui-surface2 border-t border-ui-border">
+                          <button onClick={() => { setShowNotifications(false); onNavigate(Page.DASHBOARD_SETTINGS); }} className="text-xs text-brand-400 font-bold hover:underline">
                               تنظیمات اعلان
                           </button>
                       </div>
@@ -235,25 +235,25 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                 {user.role === 'ADMIN' && (
                     <button 
                         onClick={() => onNavigate('ADMIN_PANEL')}
-                        className="hidden md:flex items-center gap-1 bg-gray-900 text-white px-3 py-1.5 rounded-full text-xs font-bold hover:bg-gray-800 transition-colors"
+                        className="hidden md:flex items-center gap-1 bg-ui-surface2 text-ui-text px-3 py-1.5 rounded-full text-xs font-bold hover:bg-ui-surface border border-ui-border transition-colors"
                         title="پنل مدیریت"
                     >
-                        <Icon name="Shield" size={14} strokeWidth={1.8} className="text-white" />
+                        <Icon name="Shield" size={14} strokeWidth={1.8} className="text-brand-400" />
                         <span>مدیریت</span>
                     </button>
                 )}
                 <button 
                 onClick={() => onNavigate(Page.DASHBOARD)}
-                className="w-9 h-9 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 font-bold border border-brand-200 cursor-pointer hover:bg-brand-200 transition-colors"
+                className="w-9 h-9 bg-brand-800/60 rounded-full flex items-center justify-center text-brand-300 font-bold border border-brand-700/50 cursor-pointer hover:bg-brand-800 transition-colors"
                 aria-label="پروفایل کاربری"
                 >
-                <Icon name="User" size={20} strokeWidth={1.8} className="text-brand-700" />
+                <Icon name="User" size={20} strokeWidth={1.8} className="text-brand-300" />
                 </button>
             </div>
           ) : (
             <button 
               onClick={() => onNavigate(Page.LOGIN)}
-              className="hidden md:flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-700 transition-colors"
+              className="hidden md:flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-500 transition-colors shadow-glow"
             >
               <Icon name="LogIn" size={18} strokeWidth={1.8} className="rtl:rotate-180 text-white" />
               {t('login_btn')}
@@ -269,22 +269,22 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
               type="text" 
               value={searchValue}
               placeholder={t('search_placeholder')}
-              className="w-full h-10 pr-10 pl-4 bg-gray-100 rounded-full border-none focus:ring-2 focus:ring-brand-500 text-sm"
+              className="w-full h-10 pr-10 pl-4 bg-ui-surface2 rounded-full border border-ui-border focus:ring-2 focus:ring-brand-500 text-ui-text placeholder:text-ui-muted text-sm outline-none"
               onChange={handleSearchInput}
             />
-            <Icon name="Search" size={20} strokeWidth={1.8} className="absolute right-3 top-2.5 text-gray-400" />
+            <Icon name="Search" size={20} strokeWidth={1.8} className="absolute right-3 top-2.5 text-ui-muted" />
           </div>
           {/* Mobile Suggestions */}
           {showSuggestions && (
-              <div className="absolute left-4 right-4 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+              <div className="absolute left-4 right-4 mt-2 bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden z-50">
                   <ul>
                       {suggestions.map((s, i) => (
                           <li 
                             key={i} 
                             onClick={() => handleSelectSuggestion(s)}
-                            className="px-4 py-3 hover:bg-gray-50 cursor-pointer text-sm text-gray-700 flex items-center gap-2 border-b border-gray-50"
+                            className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-2 border-b border-ui-border"
                           >
-                              <Icon name="Search" size={18} strokeWidth={1.8} className="text-gray-400" />
+                              <Icon name="Search" size={18} strokeWidth={1.8} className="text-ui-muted" />
                               {s}
                           </li>
                       ))}

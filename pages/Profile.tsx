@@ -19,8 +19,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onNavigate, onLogout }) => {
              <span>{user.name.charAt(0)}</span>
           )}
         </div>
-        <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-        <p className="text-gray-500 text-sm dir-ltr">{user.phone}</p>
+        <h2 className="text-xl font-bold text-ui-text">{user.name}</h2>
+        <p className="text-ui-muted text-sm dir-ltr">{user.phone}</p>
         {user.isVerified && (
             <div className="flex items-center gap-1 mt-2 bg-green-50 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -29,37 +29,37 @@ const Profile: React.FC<ProfileProps> = ({ user, onNavigate, onLogout }) => {
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+      <div className="bg-ui-surface rounded-xl shadow-sm border border-ui-border overflow-hidden mb-6">
         <button 
             onClick={() => onNavigate(Page.DASHBOARD_ADS)}
-            className="w-full p-4 border-b border-gray-100 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right"
+            className="w-full p-4 border-b border-ui-border flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
         >
             <Icon name="ShoppingBag" size={20} strokeWidth={1.8} className="text-brand-600" />
-            <span className="flex-1 font-medium text-gray-700">آگهی‌های من</span>
+            <span className="flex-1 font-medium text-ui-muted">آگهی‌های من</span>
         </button>
         <button 
             onClick={() => onNavigate(Page.FAVORITES)}
-            className="w-full p-4 border-b border-gray-100 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right"
+            className="w-full p-4 border-b border-ui-border flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
         >
             <Icon name="Heart" size={20} strokeWidth={1.8} className="text-red-500" />
-            <span className="flex-1 font-medium text-gray-700">علاقه‌مندی‌ها</span>
+            <span className="flex-1 font-medium text-ui-muted">علاقه‌مندی‌ها</span>
         </button>
         <button 
              onClick={() => onNavigate(Page.DASHBOARD_SETTINGS)}
-             className="w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right"
+             className="w-full p-4 flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
         >
-            <Icon name="MapPin" size={20} strokeWidth={1.8} className="text-gray-500" />
-            <span className="flex-1 font-medium text-gray-700">آدرس‌ها</span>
+            <Icon name="MapPin" size={20} strokeWidth={1.8} className="text-ui-muted" />
+            <span className="flex-1 font-medium text-ui-muted">آدرس‌ها</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-ui-surface rounded-xl shadow-sm border border-ui-border overflow-hidden">
         <button 
             onClick={() => onNavigate(Page.DASHBOARD_SETTINGS)}
-            className="w-full p-4 border-b border-gray-100 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right"
+            className="w-full p-4 border-b border-ui-border flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
         >
-            <Icon name="Settings" size={20} strokeWidth={1.8} className="text-gray-500" />
-            <span className="flex-1 font-medium text-gray-700">تنظیمات</span>
+            <Icon name="Settings" size={20} strokeWidth={1.8} className="text-ui-muted" />
+            <span className="flex-1 font-medium text-ui-muted">تنظیمات</span>
         </button>
         <button 
             onClick={onLogout}
@@ -70,7 +70,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onNavigate, onLogout }) => {
         </button>
       </div>
 
-      <p className="text-center text-gray-400 text-xs mt-8">نسخه ۱.۱.۰</p>
+      <p className="text-center text-ui-muted text-xs mt-8">نسخه ۱.۱.۰</p>
     </div>
   );
 };

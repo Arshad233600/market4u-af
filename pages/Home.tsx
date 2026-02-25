@@ -25,16 +25,16 @@ const FilterSection: React.FC<{
 }> = ({ title, isOpen = true, children, count }) => {
     const [open, setOpen] = useState(isOpen);
     return (
-        <div className="border-b border-gray-100 py-4 last:border-0">
+        <div className="border-b border-ui-border py-4 last:border-0">
             <button 
                 onClick={() => setOpen(!open)}
                 className="w-full flex items-center justify-between text-right mb-2 group"
             >
-                <span className="font-bold text-gray-800 text-sm group-hover:text-brand-600 transition-colors flex items-center gap-2">
+                <span className="font-bold text-ui-text text-sm group-hover:text-brand-400 transition-colors flex items-center gap-2">
                     {title}
-                    {count ? <span className="bg-brand-100 text-brand-700 text-[10px] px-1.5 py-0.5 rounded-full">{count}</span> : null}
+                    {count ? <span className="bg-brand-900/40 text-brand-300 text-[10px] px-1.5 py-0.5 rounded-full">{count}</span> : null}
                 </span>
-                <Icon name="ChevronDown" size={18} strokeWidth={1.8} className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+                <Icon name="ChevronDown" size={18} strokeWidth={1.8} className={`text-ui-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
             </button>
             <div className={`transition-all duration-300 overflow-hidden ${open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="pt-2 pb-1">
@@ -206,21 +206,21 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   // NOTE: In a real app, 'appliedFilters.province' should probably be in a Context.
 
   return (
-    <div className="pb-20 min-h-screen bg-gray-50">
+    <div className="pb-20 min-h-screen">
       
       {/* Exchange Rate Widget */}
       <ExchangeRateWidget />
 
       {/* Smart Location Banner (If filtered by location) */}
       {appliedFilters.province !== 'all' && (
-          <div className="bg-brand-50 border-b border-brand-100 px-4 py-2 flex items-center justify-between text-xs text-brand-700 animate-in slide-in-from-top">
+          <div className="bg-brand-900/40 border-b border-brand-700/30 px-4 py-2 flex items-center justify-between text-xs text-brand-300 animate-in slide-in-from-top">
               <div className="flex items-center gap-2">
                   <Icon name="MapPin" size={18} strokeWidth={1.8} />
                   <span>نمایش آگهی‌های <b>{appliedFilters.province}</b></span>
               </div>
               <button 
                 onClick={() => setAppliedFilters(prev => ({...prev, province: 'all'}))}
-                className="text-brand-600 hover:text-brand-800 underline"
+                className="text-brand-400 hover:text-brand-200 underline"
               >
                   مشاهده همه شهرها
               </button>
@@ -228,18 +228,18 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
       )}
 
       {/* Category & Filter Bar */}
-      <div className="sticky top-16 z-20 sm:top-[4rem] bg-white border-b border-gray-100 shadow-sm">
+      <div className="sticky top-16 z-20 sm:top-[4rem] bg-ui-surface border-b border-ui-border">
          <div className="flex items-center pl-4 py-2">
              <div className="flex-1 overflow-hidden">
                 <CategoryPills selectedId={selectedCategory} onSelect={(id) => { setSelectedCategory(id); setTempDynamicFilters({}); }} />
              </div>
-             <div className="h-8 w-px bg-gray-200 mx-2"></div>
+             <div className="h-8 w-px bg-ui-border mx-2"></div>
              <button 
                 onClick={() => setShowFilters(true)}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl whitespace-nowrap transition-all active:scale-95 ${
                   activeCount > 0 
-                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-200' 
-                  : 'text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                  ? 'bg-brand-500 text-white shadow-glow' 
+                  : 'text-ui-muted bg-ui-surface2 hover:bg-ui-surface2/80 border border-ui-border'
                 }`}
              >
                 <Icon name="SlidersHorizontal" size={18} strokeWidth={1.8} />
@@ -259,7 +259,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           <button 
             onClick={handleSmartLocation}
             disabled={isLocating}
-            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-ui-surface border border-ui-border text-ui-muted py-2.5 rounded-xl text-sm font-medium hover:bg-ui-surface2 active:bg-ui-surface2 transition-colors"
           >
               {isLocating ? <Icon name="Loader2" size={18} strokeWidth={1.8} className="animate-spin" /> : <Icon name="Crosshair" size={18} strokeWidth={1.8} />}
               آگهی‌های اطراف من را پیدا کن
@@ -269,21 +269,21 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
       {/* Products Grid */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-4 px-1">
-             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                 <Icon name="Search" size={20} strokeWidth={1.8} className="text-brand-500" />
+             <h2 className="text-lg font-bold text-ui-text flex items-center gap-2">
+                 <Icon name="Search" size={20} strokeWidth={1.8} className="text-brand-400" />
                  {t('hero_title')}
-                 {selectedCategory !== 'all' && <span className="text-sm font-normal text-gray-500">در {t(activeCategoryConfig?.translationKey as any)}</span>}
+                 {selectedCategory !== 'all' && <span className="text-sm font-normal text-ui-muted">در {t(activeCategoryConfig?.translationKey as any)}</span>}
              </h2>
              {/* Simple sort for desktop, hidden on mobile as it's in drawer */}
-             <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 bg-white px-3 py-1 rounded-lg border border-gray-100">
+             <div className="hidden md:flex items-center gap-2 text-sm text-ui-muted bg-ui-surface px-3 py-1 rounded-lg border border-ui-border">
                 <span>{t('sort_label')}</span>
                 <select 
                     value={appliedFilters.sort} 
                     onChange={(e) => setAppliedFilters({...appliedFilters, sort: e.target.value})}
-                    className="border-none bg-transparent font-medium text-gray-800 outline-none cursor-pointer"
+                    className="border-none bg-transparent font-medium text-ui-text outline-none cursor-pointer"
                 >
                     {SORT_OPTIONS.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.name}</option>
+                        <option key={opt.id} value={opt.id} className="bg-ui-surface text-ui-text">{opt.name}</option>
                     ))}
                 </select>
              </div>
@@ -292,20 +292,20 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
         {loading ? (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                  {[...Array(8)].map((_, i) => (
-                     <div key={i} className="bg-white rounded-xl h-72 animate-pulse shadow-sm border border-gray-100 p-4">
-                        <div className="w-full h-40 bg-gray-200 rounded-lg mb-4"></div>
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                     <div key={i} className="bg-ui-surface rounded-xl h-72 animate-pulse border border-ui-border p-4">
+                        <div className="w-full h-40 bg-ui-surface2 rounded-lg mb-4"></div>
+                        <div className="h-4 bg-ui-surface2 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-ui-surface2 rounded w-1/2"></div>
                      </div>
                  ))}
              </div>
         ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-dashed border-gray-200 mx-4">
-             <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                 <Icon name="RefreshCw" size={40} strokeWidth={1.8} className="text-gray-300" />
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-ui-surface rounded-3xl border border-dashed border-ui-border mx-4">
+             <div className="w-24 h-24 bg-ui-surface2 rounded-full flex items-center justify-center mb-6">
+                 <Icon name="RefreshCw" size={40} strokeWidth={1.8} className="text-ui-muted" />
              </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">{t('empty_state')}</h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">هیچ آگهی با این مشخصات پیدا نشد. پیشنهاد می‌کنیم فیلترها را تغییر دهید.</p>
+            <h3 className="text-lg font-bold text-ui-text mb-2">{t('empty_state')}</h3>
+            <p className="text-sm text-ui-muted mb-6 max-w-xs mx-auto">هیچ آگهی با این مشخصات پیدا نشد. پیشنهاد می‌کنیم فیلترها را تغییر دهید.</p>
             <button 
                 onClick={() => {
                     setSelectedCategory('all');
@@ -318,7 +318,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                         dynamicFilters: {}
                     });
                 }}
-                className="text-brand-600 bg-brand-50 px-8 py-3 rounded-xl text-sm font-bold hover:bg-brand-100 transition-colors"
+                className="text-brand-400 bg-brand-900/30 px-8 py-3 rounded-xl text-sm font-bold hover:bg-brand-900/50 transition-colors border border-brand-700/30"
             >
                 نمایش همه آگهی‌ها
             </button>
@@ -341,20 +341,20 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           <div className="fixed inset-0 z-[60] flex justify-end isolation-auto">
               {/* Backdrop */}
               <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-in fade-in" 
+                className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in" 
                 onClick={() => setShowFilters(false)}
               />
               
               {/* Drawer Content */}
-              <div className="relative w-full md:max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+              <div className="relative w-full md:max-w-md bg-ui-surface h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
                   
                   {/* Header */}
-                  <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
-                      <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                          <Icon name="SlidersHorizontal" size={20} strokeWidth={1.8} className="text-brand-600" />
+                  <div className="flex items-center justify-between p-4 border-b border-ui-border bg-ui-surface z-10">
+                      <h2 className="text-lg font-bold text-ui-text flex items-center gap-2">
+                          <Icon name="SlidersHorizontal" size={20} strokeWidth={1.8} className="text-brand-400" />
                           فیلترهای پیشرفته
                       </h2>
-                      <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
+                      <button onClick={() => setShowFilters(false)} className="p-2 hover:bg-ui-surface2 rounded-full text-ui-muted transition-colors">
                           <Icon name="X" size={24} strokeWidth={1.8} />
                       </button>
                   </div>
@@ -371,8 +371,8 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                                     onClick={() => setTempSort(opt.id)}
                                     className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
                                         tempSort === opt.id 
-                                        ? 'bg-brand-50 border-brand-200 text-brand-700' 
-                                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                        ? 'bg-brand-900/40 border-brand-600 text-brand-300' 
+                                        : 'bg-ui-surface2 border-ui-border text-ui-muted hover:border-brand-700'
                                     }`}
                                   >
                                       {opt.name}
@@ -386,41 +386,41 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                           <div className="space-y-3">
                               <button 
                                 onClick={handleSmartLocation} 
-                                className="w-full flex items-center justify-center gap-2 text-brand-600 bg-brand-50 border border-brand-100 rounded-xl py-2.5 text-sm font-bold hover:bg-brand-100 transition-colors"
+                                className="w-full flex items-center justify-center gap-2 text-brand-400 bg-brand-900/30 border border-brand-700/30 rounded-xl py-2.5 text-sm font-bold hover:bg-brand-900/50 transition-colors"
                               >
                                   {isLocating ? <Icon name="Loader2" size={18} strokeWidth={1.8} className="animate-spin" /> : <Icon name="Crosshair" size={18} strokeWidth={1.8} />}
                                   یافتن موقعیت من (GPS)
                               </button>
                               
                               <div className="relative">
-                                  <label className="text-xs text-gray-500 font-bold mb-1 block">ولایت (استان)</label>
+                                  <label className="text-xs text-ui-muted font-bold mb-1 block">ولایت (استان)</label>
                                   <select 
                                       value={tempProvince}
                                       onChange={(e) => setTempProvince(e.target.value)}
-                                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm font-medium"
+                                      className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm font-medium text-ui-text"
                                   >
                                       {PROVINCES.map(p => (
-                                          <option key={p.id} value={p.id === 'all' ? 'all' : p.name}>{p.name}</option> 
+                                          <option key={p.id} value={p.id === 'all' ? 'all' : p.name} className="bg-ui-surface text-ui-text">{p.name}</option> 
                                       ))}
                                   </select>
-                                  <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-8 text-gray-400 pointer-events-none" />
+                                  <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-8 text-ui-muted pointer-events-none" />
                               </div>
 
                               {/* Smart District Selector */}
                               {tempProvince !== 'all' && DISTRICTS[tempProvince] && (
                                   <div className="relative animate-in slide-in-from-top-2 fade-in">
-                                      <label className="text-xs text-gray-500 font-bold mb-1 block">ناحیه / ولسوالی</label>
+                                      <label className="text-xs text-ui-muted font-bold mb-1 block">ناحیه / ولسوالی</label>
                                       <select 
                                           value={tempDistrict}
                                           onChange={(e) => setTempDistrict(e.target.value)}
-                                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm font-medium"
+                                          className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm font-medium text-ui-text"
                                       >
-                                          <option value="">همه نواحی</option>
+                                          <option value="" className="bg-ui-surface text-ui-text">همه نواحی</option>
                                           {DISTRICTS[tempProvince].map(d => (
-                                              <option key={d} value={d}>{d}</option>
+                                              <option key={d} value={d} className="bg-ui-surface text-ui-text">{d}</option>
                                           ))}
                                       </select>
-                                      <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-8 text-gray-400 pointer-events-none" />
+                                      <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-8 text-ui-muted pointer-events-none" />
                                   </div>
                               )}
                           </div>
@@ -435,23 +435,23 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                                       placeholder="حداقل" 
                                       value={tempMinPrice}
                                       onChange={(e) => setTempMinPrice(e.target.value)}
-                                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm font-bold dir-ltr"
+                                      className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm font-bold dir-ltr text-ui-text placeholder:text-ui-muted"
                                   />
-                                  <span className="absolute right-3 top-3.5 text-xs text-gray-400">از</span>
+                                  <span className="absolute right-3 top-3.5 text-xs text-ui-muted">از</span>
                               </div>
-                              <span className="text-gray-300">-</span>
+                              <span className="text-ui-border">-</span>
                               <div className="relative flex-1">
                                   <input 
                                       type="number" 
                                       placeholder="حداکثر" 
                                       value={tempMaxPrice}
                                       onChange={(e) => setTempMaxPrice(e.target.value)}
-                                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm font-bold dir-ltr"
+                                      className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm font-bold dir-ltr text-ui-text placeholder:text-ui-muted"
                                   />
-                                  <span className="absolute right-3 top-3.5 text-xs text-gray-400">تا</span>
+                                  <span className="absolute right-3 top-3.5 text-xs text-ui-muted">تا</span>
                               </div>
                           </div>
-                          <p className="text-center text-xs text-gray-400 mt-2">قیمت‌ها به افغانی (؋) هستند</p>
+                          <p className="text-center text-xs text-ui-muted mt-2">قیمت‌ها به افغانی (؋) هستند</p>
                       </FilterSection>
                       
                       {/* Dynamic Category Filters */}
@@ -460,21 +460,21 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                            <div className="space-y-4">
                               {activeCategoryConfig.filterConfig.map(filter => (
                                 <div key={filter.key}>
-                                  <label className="text-xs text-gray-500 font-bold mb-1 block">{filter.label}</label>
+                                  <label className="text-xs text-ui-muted font-bold mb-1 block">{filter.label}</label>
                                   
                                   {filter.type === 'select' && (
                                      <div className="relative">
                                        <select
                                          value={tempDynamicFilters[filter.key] || ''}
                                          onChange={(e) => setTempDynamicFilters({...tempDynamicFilters, [filter.key]: e.target.value})}
-                                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm"
+                                         className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl appearance-none focus:ring-2 focus:ring-brand-500 outline-none text-sm text-ui-text"
                                        >
-                                         <option value="">همه</option>
+                                         <option value="" className="bg-ui-surface text-ui-text">همه</option>
                                          {filter.options?.map(opt => (
-                                           <option key={opt} value={opt}>{opt}</option>
+                                           <option key={opt} value={opt} className="bg-ui-surface text-ui-text">{opt}</option>
                                          ))}
                                        </select>
-                                       <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                                       <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                                      </div>
                                   )}
 
@@ -483,14 +483,14 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                                         <input 
                                           type="number"
                                           placeholder={`از ${filter.min}`}
-                                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm"
+                                          className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm text-ui-text placeholder:text-ui-muted"
                                           onChange={(e) => setTempDynamicFilters({...tempDynamicFilters, [`${filter.key}_min`]: e.target.value})}
                                         />
-                                        <span className="text-gray-300">-</span>
+                                        <span className="text-ui-muted">-</span>
                                         <input 
                                           type="number"
                                           placeholder={`تا ${filter.max}`}
-                                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm"
+                                          className="w-full p-3 bg-ui-surface2 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none text-center text-sm text-ui-text placeholder:text-ui-muted"
                                           onChange={(e) => setTempDynamicFilters({...tempDynamicFilters, [`${filter.key}_max`]: e.target.value})}
                                         />
                                       </div>
@@ -503,17 +503,17 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                   </div>
 
                   {/* Sticky Footer */}
-                  <div className="p-4 border-t border-gray-100 bg-white sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                  <div className="p-4 border-t border-ui-border bg-ui-surface sticky bottom-0 z-20">
                       <div className="flex gap-3">
                           <button 
                               onClick={handleResetFilters}
-                              className="px-6 py-3.5 text-gray-600 font-bold hover:bg-gray-50 rounded-xl transition-colors border border-gray-200 text-sm flex-shrink-0"
+                              className="px-6 py-3.5 text-ui-muted font-bold hover:bg-ui-surface2 rounded-xl transition-colors border border-ui-border text-sm flex-shrink-0"
                           >
                               <Icon name="RefreshCw" size={18} strokeWidth={1.8} />
                           </button>
                           <button 
                               onClick={handleApplyFilters}
-                              className="flex-1 py-3.5 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 shadow-lg shadow-brand-200 transition-transform active:scale-[0.98] text-sm flex items-center justify-center gap-2"
+                              className="flex-1 py-3.5 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-500 shadow-glow transition-transform active:scale-[0.98] text-sm flex items-center justify-center gap-2"
                           >
                               مشاهده نتایج
                               <Icon name="ChevronLeft" size={18} strokeWidth={1.8} />

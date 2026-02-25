@@ -20,10 +20,10 @@ const ToastContainer: React.FC = () => {
           key={toast.id}
           className={`
             pointer-events-auto flex items-center gap-3 p-4 rounded-xl shadow-lg border animate-in slide-in-from-top-2 fade-in duration-300
-            ${toast.type === 'success' ? 'bg-white border-green-100 text-gray-800' : ''}
-            ${toast.type === 'error' ? 'bg-white border-red-100 text-gray-800' : ''}
-            ${toast.type === 'info' ? 'bg-white border-blue-100 text-gray-800' : ''}
-            ${toast.type === 'warning' ? 'bg-white border-yellow-100 text-gray-800' : ''}
+            ${toast.type === 'success' ? 'bg-ui-surface border-green-100 text-ui-text' : ''}
+            ${toast.type === 'error' ? 'bg-ui-surface border-red-100 text-ui-text' : ''}
+            ${toast.type === 'info' ? 'bg-ui-surface border-blue-100 text-ui-text' : ''}
+            ${toast.type === 'warning' ? 'bg-ui-surface border-yellow-100 text-ui-text' : ''}
           `}
         >
           <div className={`
@@ -43,7 +43,7 @@ const ToastContainer: React.FC = () => {
           
           <button 
             onClick={() => toastService.remove(toast.id)}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-ui-muted hover:text-ui-muted"
           >
             <Icon name="X" size={18} strokeWidth={1.8} />
           </button>

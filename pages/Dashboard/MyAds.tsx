@@ -73,11 +73,11 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       case AdStatus.PENDING:
         return <span className="flex items-center gap-1.5 text-xs font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 px-2.5 py-1 rounded-full"><Clock className="w-3.5 h-3.5" /> در انتظار بررسی</span>;
       case AdStatus.SOLD:
-        return <span className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">فروخته شده</span>;
+        return <span className="flex items-center gap-1.5 text-xs font-bold text-ui-muted bg-ui-surface2 border border-ui-border px-2.5 py-1 rounded-full">فروخته شده</span>;
       case AdStatus.REJECTED:
         return <span className="flex items-center gap-1.5 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full"><XCircle className="w-3.5 h-3.5" /> رد شده</span>;
       default:
-        return <span className="flex items-center gap-1.5 text-xs font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">منقضی</span>;
+        return <span className="flex items-center gap-1.5 text-xs font-bold text-ui-muted bg-ui-surface2 border border-ui-border px-2.5 py-1 rounded-full">منقضی</span>;
     }
   };
 
@@ -93,8 +93,8 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h2 className="text-2xl font-bold text-gray-800">مدیریت آگهی‌ها</h2>
-            <p className="text-sm text-gray-500 mt-1">آگهی‌های خود را مدیریت، ویرایش یا ارتقا دهید.</p>
+            <h2 className="text-2xl font-bold text-ui-text">مدیریت آگهی‌ها</h2>
+            <p className="text-sm text-ui-muted mt-1">آگهی‌های خود را مدیریت، ویرایش یا ارتقا دهید.</p>
         </div>
         <button className="flex items-center gap-2 text-sm text-brand-600 font-bold hover:bg-brand-50 px-3 py-2 rounded-lg transition-colors">
             <TrendingUp className="w-4 h-4" />
@@ -103,7 +103,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 overflow-x-auto no-scrollbar">
+      <div className="border-b border-ui-border overflow-x-auto no-scrollbar">
           <div className="flex gap-6 min-w-max px-2">
             {[
                 { id: 'ALL', label: 'همه' },
@@ -118,11 +118,11 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                     className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
                         filter === tab.id 
                         ? 'border-brand-600 text-brand-600' 
-                        : 'border-transparent text-gray-500 hover:text-gray-800'
+                        : 'border-transparent text-ui-muted hover:text-ui-text'
                     }`}
                 >
                     {tab.label}
-                    <span className={`mr-2 text-xs py-0.5 px-1.5 rounded-full ${filter === tab.id ? 'bg-brand-100' : 'bg-gray-100'}`}>
+                    <span className={`mr-2 text-xs py-0.5 px-1.5 rounded-full ${filter === tab.id ? 'bg-brand-100' : 'bg-ui-surface2'}`}>
                         {tab.id === 'ALL' ? ads.length : ads.filter(a => a.status === tab.id).length}
                     </span>
                 </button>
@@ -132,21 +132,21 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
 
       <div className="space-y-4">
         {filteredAds.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
-             <div className="mx-auto w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-gray-400">
+          <div className="text-center py-20 bg-ui-surface rounded-2xl border border-dashed border-ui-border">
+             <div className="mx-auto w-16 h-16 bg-ui-surface2 rounded-full flex items-center justify-center mb-4 text-ui-muted">
                 <Filter className="w-8 h-8" />
              </div>
-             <p className="text-gray-500 font-medium">هیچ آگهی در این بخش یافت نشد.</p>
+             <p className="text-ui-muted font-medium">هیچ آگهی در این بخش یافت نشد.</p>
           </div>
         ) : (
           filteredAds.map((ad) => {
             const stats = getMockAnalytics(ad.views || 0);
             return (
-            <div key={ad.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4 hover:border-brand-200 transition-colors">
+            <div key={ad.id} className="bg-ui-surface p-4 rounded-2xl shadow-sm border border-ui-border flex flex-col gap-4 hover:border-brand-200 transition-colors">
                
                <div className="flex gap-4">
                     {/* Image */}
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 relative group">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-ui-surface2 rounded-xl overflow-hidden flex-shrink-0 relative group">
                         <img src={ad.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt={ad.title} />
                         {ad.isPromoted && <span className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm flex items-center gap-1"><Rocket className="w-3 h-3 text-yellow-900"/> ویژه</span>}
                     </div>
@@ -155,20 +155,20 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                     <div className="flex-1 flex flex-col justify-between">
                         <div>
                             <div className="flex justify-between items-start">
-                                <h4 className="font-bold text-gray-900 text-lg line-clamp-1 hover:text-brand-600 cursor-pointer">{ad.title}</h4>
+                                <h4 className="font-bold text-ui-text text-lg line-clamp-1 hover:text-brand-600 cursor-pointer">{ad.title}</h4>
                                 <div className="relative">
-                                    <button className="text-gray-400 hover:text-gray-600 p-1"><MoreVertical className="w-5 h-5"/></button>
+                                    <button className="text-ui-muted hover:text-ui-muted p-1"><MoreVertical className="w-5 h-5"/></button>
                                 </div>
                             </div>
                             <p className="text-brand-600 text-lg font-bold mt-1">{ad.price.toLocaleString()} {APP_STRINGS.currency}</p>
                             
                             {/* Analytics Row */}
-                            <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg w-fit">
+                            <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-ui-muted bg-ui-surface2 p-2 rounded-lg w-fit">
                                 <span className="flex items-center gap-1.5" title="تعداد بازدید"><Eye className="w-3.5 h-3.5 text-blue-500" /> <b>{ad.views}</b> بازدید</span>
                                 <span className="w-px h-3 bg-gray-300"></span>
                                 <span className="flex items-center gap-1.5" title="تعداد تماس/چت"><MousePointerClick className="w-3.5 h-3.5 text-purple-500" /> <b>{stats.clicks}</b> تعامل</span>
                                 <span className="w-px h-3 bg-gray-300"></span>
-                                <span className="text-gray-400">{ad.postedDate}</span>
+                                <span className="text-ui-muted">{ad.postedDate}</span>
                             </div>
                         </div>
                     </div>
@@ -198,7 +198,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                             </button>
                             <button 
                                 onClick={() => handleStatusChange(ad.id, AdStatus.SOLD)}
-                                className="flex items-center gap-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-bold text-ui-muted bg-ui-surface border border-ui-border hover:bg-ui-surface2 px-4 py-2 rounded-xl transition-colors"
                             >
                                 فروختم
                             </button>
@@ -207,7 +207,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                         <button 
                             onClick={() => onEdit && onEdit(ad)}
                             disabled={loadingActionId === ad.id}
-                            className="flex items-center gap-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 text-xs font-bold text-ui-muted bg-ui-surface border border-ui-border hover:bg-ui-surface2 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
                         >
                             <Edit className="w-3.5 h-3.5" />
                             ویرایش
@@ -230,14 +230,14 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       {/* Promotion Modal */}
       {promoteModalAd && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
-                  <button onClick={() => setPromoteModalAd(null)} className="absolute top-4 left-4 p-1 hover:bg-gray-100 rounded-full"><X className="w-5 h-5"/></button>
+              <div className="bg-ui-surface rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
+                  <button onClick={() => setPromoteModalAd(null)} className="absolute top-4 left-4 p-1 hover:bg-ui-surface2 rounded-full"><X className="w-5 h-5"/></button>
                   <div className="text-center mb-6">
                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 text-orange-600">
                          <Rocket className="w-8 h-8" />
                      </div>
-                     <h3 className="text-xl font-bold text-gray-800">افزایش بازدید آگهی</h3>
-                     <p className="text-sm text-gray-500 mt-1">با ارتقای آگهی، مشتریان بیشتری محصول شما را می‌بینند.</p>
+                     <h3 className="text-xl font-bold text-ui-text">افزایش بازدید آگهی</h3>
+                     <p className="text-sm text-ui-muted mt-1">با ارتقای آگهی، مشتریان بیشتری محصول شما را می‌بینند.</p>
                   </div>
 
                   <div className="space-y-3">
@@ -249,29 +249,29 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                           <div className="flex items-center gap-3 relative z-10">
                               <div className="bg-orange-500 text-white p-2.5 rounded-xl"><Rocket className="w-6 h-6" /></div>
                               <div className="text-right">
-                                  <p className="font-bold text-gray-900">نشان فوری و ویژه</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">۳ روز در صدر لیست + برچسب ویژه</p>
+                                  <p className="font-bold text-ui-text">نشان فوری و ویژه</p>
+                                  <p className="text-xs text-ui-muted mt-0.5">۳ روز در صدر لیست + برچسب ویژه</p>
                               </div>
                           </div>
-                          <span className="font-bold text-brand-600 bg-white px-3 py-1 rounded-lg shadow-sm">۲۰۰ ؋</span>
+                          <span className="font-bold text-brand-600 bg-ui-surface px-3 py-1 rounded-lg shadow-sm">۲۰۰ ؋</span>
                       </button>
 
                       <button 
                         onClick={() => handlePromote('LADDER')}
                         disabled={loadingActionId === promoteModalAd.id}
-                        className="w-full border border-gray-200 bg-white hover:bg-gray-50 p-4 rounded-2xl flex items-center justify-between group transition-colors"
+                        className="w-full border border-ui-border bg-ui-surface hover:bg-ui-surface2 p-4 rounded-2xl flex items-center justify-between group transition-colors"
                       >
                            <div className="flex items-center gap-3">
-                              <div className="bg-gray-200 text-gray-600 p-2.5 rounded-xl"><TrendingUp className="w-6 h-6" /></div>
+                              <div className="bg-ui-surface2 text-ui-muted p-2.5 rounded-xl"><TrendingUp className="w-6 h-6" /></div>
                               <div className="text-right">
-                                  <p className="font-bold text-gray-900">نردبان</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">آگهی به اول لیست باز می‌گردد</p>
+                                  <p className="font-bold text-ui-text">نردبان</p>
+                                  <p className="text-xs text-ui-muted mt-0.5">آگهی به اول لیست باز می‌گردد</p>
                               </div>
                           </div>
-                          <span className="font-bold text-gray-700">۵۰ ؋</span>
+                          <span className="font-bold text-ui-muted">۵۰ ؋</span>
                       </button>
                   </div>
-                  {loadingActionId === promoteModalAd.id && <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-2xl"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>}
+                  {loadingActionId === promoteModalAd.id && <div className="absolute inset-0 bg-ui-surface/50 flex items-center justify-center rounded-2xl"><Loader2 className="w-8 h-8 animate-spin text-brand-600"/></div>}
               </div>
           </div>
       )}
