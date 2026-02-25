@@ -1,5 +1,7 @@
 export type Currency = 'AFN';
 
+export type ProductCondition = 'new' | 'used' | 'damaged';
+
 export enum AdStatus {
   ACTIVE = 'ACTIVE',
   PENDING = 'PENDING',
@@ -54,6 +56,9 @@ export interface Product {
   views: number;
   isPromoted?: boolean;
   isFavorite?: boolean; 
+  condition?: ProductCondition;
+  isNegotiable?: boolean;
+  deliveryAvailable?: boolean;
   dynamicFields?: Record<string, string | number>;
 }
 

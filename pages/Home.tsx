@@ -61,6 +61,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   const [tempMinPrice, setTempMinPrice] = useState('');
   const [tempMaxPrice, setTempMaxPrice] = useState('');
   const [tempSort, setTempSort] = useState('newest');
+  const [tempCondition, setTempCondition] = useState<string>('');
   const [tempDynamicFilters, setTempDynamicFilters] = useState<Record<string, string | number>>({});
 
   // Active Applied Filters (Used for fetching data)
@@ -70,6 +71,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
       minPrice: '',
       maxPrice: '',
       sort: 'newest',
+      condition: '',
       dynamicFilters: {} as Record<string, string | number>
   });
 
@@ -81,6 +83,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           setTempMinPrice(appliedFilters.minPrice);
           setTempMaxPrice(appliedFilters.maxPrice);
           setTempSort(appliedFilters.sort);
+          setTempCondition(appliedFilters.condition);
           setTempDynamicFilters(appliedFilters.dynamicFilters);
       }
   }, [showFilters, appliedFilters]);
@@ -176,6 +179,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           minPrice: tempMinPrice,
           maxPrice: tempMaxPrice,
           sort: tempSort,
+          condition: tempCondition,
           dynamicFilters: tempDynamicFilters
       });
       setShowFilters(false);
@@ -187,6 +191,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
       setTempMinPrice('');
       setTempMaxPrice('');
       setTempSort('newest');
+      setTempCondition('');
       setTempDynamicFilters({});
   };
 
@@ -198,6 +203,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
       (appliedFilters.district ? 1 : 0) +
       (appliedFilters.minPrice ? 1 : 0) + 
       (appliedFilters.maxPrice ? 1 : 0) +
+      (appliedFilters.condition ? 1 : 0) +
       (Object.keys(appliedFilters.dynamicFilters).length);
 
   // Pass location handler to Header via a Portal or Context would be ideal, 
@@ -315,6 +321,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                         minPrice: '',
                         maxPrice: '',
                         sort: 'newest',
+                        condition: '',
                         dynamicFilters: {}
                     });
                 }}
@@ -452,6 +459,30 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                               </div>
                           </div>
                           <p className="text-center text-xs text-ui-muted mt-2">قیمت‌ها به افغانی (؋) هستند</p>
+                      </FilterSection>
+
+                      {/* Condition Section */}
+                      <FilterSection title={t('condition_label')} isOpen={true} count={tempCondition ? 1 : 0}>
+                          <div className="flex flex-wrap gap-2">
+                              {[
+                                  { id: '', label: 'همه' },
+                                  { id: 'new', label: t('condition_new') },
+                                  { id: 'used', label: t('condition_used') },
+                                  { id: 'damaged', label: t('condition_damaged') },
+                              ].map(opt => (
+                                  <button
+                                      key={opt.id}
+                                      onClick={() => setTempCondition(opt.id)}
+                                      className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                                          tempCondition === opt.id
+                                          ? 'bg-brand-900/40 border-brand-600 text-brand-300'
+                                          : 'bg-ui-surface2 border-ui-border text-ui-muted hover:border-brand-700'
+                                      }`}
+                                  >
+                                      {opt.label}
+                                  </button>
+                              ))}
+                          </div>
                       </FilterSection>
                       
                       {/* Dynamic Category Filters */}
