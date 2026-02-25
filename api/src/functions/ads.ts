@@ -119,7 +119,8 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
 
     ad.images = imagesResult.recordset.map((r: ImageRecord) => r.Url);
 
-    if (ad.images.length === 0 && ad.MainImageUrl) {
+    const adImages = ad.images as string[];
+    if (adImages.length === 0 && ad.MainImageUrl) {
       ad.images = [ad.MainImageUrl];
     }
 
