@@ -21,28 +21,50 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, onNavigate }) => {
 
   return (
     <nav className="md:hidden pb-safe">
-      <div className="flex justify-around items-center h-16">
+      <div className="flex justify-around items-center h-16 px-2">
         {navItems.map((item) => {
           const isActive = activePage === item.id;
+
+          if (item.special) {
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className="flex flex-col items-center justify-center w-full h-full"
+                aria-label={item.label}
+              >
+                <div className="btn-brand w-12 h-12 rounded-2xl flex items-center justify-center -mt-5 shadow-glow-lg press">
+                  <Icon name={item.icon} size={24} strokeWidth={2.5} className="text-white" />
+                </div>
+              </button>
+            );
+          }
 
           return (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
-                isActive ? 'text-brand-400' : 'text-ui-muted hover:text-ui-text'
-              }`}
+              className="flex flex-col items-center justify-center w-full h-full gap-0.5 press"
+              aria-label={item.label}
             >
-              {item.special ? (
-                <div className="bg-brand-500 text-white p-2 rounded-xl shadow-glow -mt-6 border-4 border-ui-bg active:scale-95 transition-transform">
-                  <Icon name={item.icon} size={28} strokeWidth={1.8} className="text-white" />
-                </div>
-              ) : (
-                <>
-                  <Icon name={item.icon} size={24} strokeWidth={isActive ? 2.0 : 1.8} />
-                  <span className="text-[10px] mt-1 font-medium">{item.label}</span>
-                </>
-              )}
+              <div className={`relative w-10 h-8 flex items-center justify-center rounded-xl transition-all duration-200 ${
+                isActive ? 'bg-brand-500/15' : ''
+              }`}>
+                <Icon
+                  name={item.icon}
+                  size={22}
+                  strokeWidth={isActive ? 2.5 : 1.8}
+                  className={`transition-all duration-200 ${isActive ? 'text-brand-400' : 'text-ui-subtle'}`}
+                />
+                {isActive && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-400" />
+                )}
+              </div>
+              <span className={`text-[10px] font-medium transition-colors duration-200 ${
+                isActive ? 'text-brand-400' : 'text-ui-subtle'
+              }`}>
+                {item.label}
+              </span>
             </button>
           );
         })}
