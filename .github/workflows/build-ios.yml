@@ -193,8 +193,18 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
 
       - name: Create release with IPA (on tag)
-        if: startsWith(github.ref, 'refs/tags/') && steps.check-secrets.outputs.has_secrets == 'true'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           name: Market4U ${{ github.ref_name }}
-          files: ${{ runner.temp }}/ipa/*.ipa
+          body: |
+            ## Market4U ${{ github.ref_name }} - نسخه جدید iOS 🎉
+
+            ### 📥 نصب روی آیفون
+            1. فایل `.ipa` را دانلود کنید
+            2. از طریق Apple Configurator 2 یا AltStore نصب کنید
+
+            ### 📱 نصب PWA روی آیفون (Safari)
+            1. سایت [market4u.af](https://market4u.af) را در Safari باز کنید
+            2. دکمه Share را بزنید → **Add to Home Screen**
+          files: ${{ runner.temp }}/ipa/*
