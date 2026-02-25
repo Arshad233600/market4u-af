@@ -2,29 +2,146 @@
 @config "./tailwind.config.js";
 
 @theme {
-  --color-ui-bg: #0b1220;
-  --color-ui-surface: #0f1a30;
-  --color-ui-surface2: #111f3a;
-  --color-ui-border: rgba(255,255,255,0.10);
-  --color-ui-text: #e5e7eb;
-  --color-ui-muted: #9ca3af;
-  --color-ui-ring: rgba(16,185,129,0.35);
+  /* ── Backgrounds ── */
+  --color-ui-bg:       #060c18;
+  --color-ui-surface:  #0b1425;
+  --color-ui-surface2: #101c32;
+  --color-ui-surface3: #162238;
 
-  --color-ui-success: #22c55e;
-  --color-ui-warning: #f59e0b;
-  --color-ui-danger: #ef4444;
-  --color-ui-info: #3b82f6;
+  /* ── Borders ── */
+  --color-ui-border:   rgba(148, 196, 255, 0.09);
+  --color-ui-border2:  rgba(148, 196, 255, 0.16);
+
+  /* ── Typography ── */
+  --color-ui-text:     #edf2fd;
+  --color-ui-muted:    #7a9cc8;
+  --color-ui-subtle:   #4a6485;
+
+  /* ── Ring ── */
+  --color-ui-ring:     rgba(19, 186, 138, 0.35);
+
+  /* ── Status ── */
+  --color-ui-success:  #10d9a0;
+  --color-ui-warning:  #fbbf24;
+  --color-ui-danger:   #f43f5e;
+  --color-ui-info:     #38bdf8;
 }
 
 @layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     background-color: var(--color-ui-bg);
     color: var(--color-ui-text);
+    line-height: 1.6;
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-track { background: var(--color-ui-bg); }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+  /* Premium Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 196, 255, 0.15);
+    border-radius: 999px;
+    transition: background 0.2s;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148, 196, 255, 0.30); }
+
+  /* Tap highlight removed for native feel */
+  * { -webkit-tap-highlight-color: transparent; }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid rgba(19, 186, 138, 0.6);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Glass morphism */
+  .glass {
+    background: rgba(11, 20, 37, 0.75);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  }
+  .glass-sm {
+    background: rgba(11, 20, 37, 0.60);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #38d1a4 0%, #13ba8a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Card shine effect */
+  .card-shine::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* Shimmer loading */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.03) 25%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.03) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s infinite linear;
+  }
+
+  /* Safe area bottom padding */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Hide scrollbar while keeping scroll */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Active press animation */
+  .press:active { transform: scale(0.96); transition: transform 0.1s; }
+
+  /* Brand gradient button */
+  .btn-brand {
+    background: linear-gradient(135deg, #13ba8a 0%, #0a9870 100%);
+    box-shadow: 0 4px 16px rgba(19,186,138,0.30);
+    transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
+  }
+  .btn-brand:hover {
+    background: linear-gradient(135deg, #38d1a4 0%, #13ba8a 100%);
+    box-shadow: 0 6px 24px rgba(19,186,138,0.40);
+    transform: translateY(-1px);
+  }
+  .btn-brand:active {
+    transform: scale(0.97) translateY(0);
+    box-shadow: 0 2px 8px rgba(19,186,138,0.25);
+  }
+}
+
+/* Skeleton animation */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }

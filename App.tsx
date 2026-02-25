@@ -40,14 +40,14 @@ const Profile = lazy(() => import('./pages/Profile'));
 
 // Full Screen Loader for Suspense fallback
 const PageLoader = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center text-ui-muted">
-    <div className="relative mb-4">
-      <div className="w-16 h-16 border-4 border-brand-200/30 border-t-brand-500 rounded-full animate-spin" />
-      <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-brand-300">
-        M4U
+  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+    <div className="relative">
+      <div className="w-14 h-14 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-glow-lg animate-float">
+        <span className="text-white font-black text-sm tracking-tight">M4U</span>
       </div>
+      <div className="absolute -inset-2 rounded-3xl border-2 border-brand-500/30 animate-ping" />
     </div>
-    <span className="text-sm font-medium animate-pulse">در حال بارگذاری...</span>
+    <span className="text-sm font-medium text-ui-muted animate-pulse">در حال بارگذاری...</span>
   </div>
 );
 
@@ -264,8 +264,7 @@ const AppContent: React.FC = () => {
       {/* Header */}
       {!isDashboard && !isDetail && currentPage !== Page.FAVORITES && !isFullScreenPage && (
         <div className="sticky top-0 z-40">
-          {/* یک پوسته برای اینکه Header هم با theme همخوان شود حتی اگر خود Header هنوز کلاس‌های قدیمی دارد */}
-          <div className="bg-ui-surface/90 backdrop-blur border-b border-ui-border shadow-soft">
+          <div className="glass border-b border-ui-border">
             <Header
               onSearch={setSearchQuery}
               onNavigate={navigateTo as any}
@@ -280,7 +279,6 @@ const AppContent: React.FC = () => {
 
       {/* Main */}
       <main className="w-full flex-1">
-        {/* Container سراسری؛ اگر بعضی صفحات تو خودشون container دارند و بهم ریخت، این div را حذف کن */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Suspense fallback={<PageLoader />}>{renderContent()}</Suspense>
         </div>
@@ -295,7 +293,7 @@ const AppContent: React.FC = () => {
 
       {/* BottomNav */}
       {!isDashboard && !isDetail && currentPage !== Page.FAVORITES && !isFullScreenPage && (
-        <div className="sticky bottom-0 z-40 border-t border-ui-border bg-ui-surface/95 backdrop-blur">
+        <div className="sticky bottom-0 z-40 border-t border-ui-border glass">
           <BottomNav activePage={currentPage as Page} onNavigate={navigateTo} />
         </div>
       )}
