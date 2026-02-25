@@ -111,6 +111,8 @@ export interface SearchFilters {
   minPrice?: number;
   maxPrice?: number;
   sort?: string;
+  condition?: string;
+  dynamicFilters?: Record<string, string | number>;
 }
 
 // Helper to simulate incoming messages
@@ -439,8 +441,32 @@ export const azureService = {
         if (filters.maxPrice) {
             res = res.filter(p => p.price <= filters.maxPrice!);
         }
+        if (filters.condition) {
+            res = res.filter(p => p.condition === filters.condition);
+        }
+        if (filters.dynamicFilters) {
+            for (const [key, value] of Object.entries(filters.dynamicFilters)) {
+                if (!value && value !== 0) continue;
+                if (key.endsWith('_min')) {
+                    const field = key.slice(0, -4);
+                    res = res.filter(p => p.dynamicFields && Number(p.dynamicFields[field]) >= Number(value));
+                } else if (key.endsWith('_max')) {
+                    const field = key.slice(0, -4);
+                    res = res.filter(p => p.dynamicFields && Number(p.dynamicFields[field]) <= Number(value));
+                } else {
+                    res = res.filter(p => p.dynamicFields && String(p.dynamicFields[key]) === String(value));
+                }
+            }
+        }
         if(filters.query) {
-            res = res.filter(p => p.title.includes(filters.query!) || p.description.includes(filters.query!));
+            const q = filters.query.toLowerCase();
+            res = res.filter(p =>
+                p.title.toLowerCase().includes(q) ||
+                p.description.toLowerCase().includes(q) ||
+                p.location.toLowerCase().includes(q) ||
+                p.sellerName.toLowerCase().includes(q) ||
+                p.category.toLowerCase().includes(q)
+            );
         }
         
         if (filters.sort === 'price_low') {
@@ -462,7 +488,16 @@ export const azureService = {
   getSearchSuggestions: async (q: string): Promise<string[]> => {
       if (USE_MOCK_DATA) {
           const products = db.get<Product[]>('products', []);
-          return products.map(p => p.title).filter(t => t.includes(q)).slice(0, 5);
+          const ql = q.toLowerCase();
+          return products
+              .filter(p => p.status === AdStatus.ACTIVE && (
+                  p.title.toLowerCase().includes(ql) ||
+                  p.description.toLowerCase().includes(ql) ||
+                  p.location.toLowerCase().includes(ql)
+              ))
+              .map(p => p.title)
+              .filter((t, i, arr) => arr.indexOf(t) === i)
+              .slice(0, 5);
       }
       return apiClient.get<string[]>(`/search/suggest?q=${q}`);
   },

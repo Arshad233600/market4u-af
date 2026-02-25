@@ -155,7 +155,8 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
             minPrice: appliedFilters.minPrice ? Number(appliedFilters.minPrice) : undefined,
             maxPrice: appliedFilters.maxPrice ? Number(appliedFilters.maxPrice) : undefined,
             sort: appliedFilters.sort,
-            // dynamicFilters: appliedFilters.dynamicFilters (In real API)
+            condition: appliedFilters.condition || undefined,
+            dynamicFilters: Object.keys(appliedFilters.dynamicFilters).length > 0 ? appliedFilters.dynamicFilters : undefined,
         };
         
         try {

@@ -263,34 +263,40 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
       </div>
 
       {/* Mobile Search Bar */}
-      <div className="sm:hidden px-4 pb-3">
+      <div className="sm:hidden px-4 pb-3" ref={searchRef}>
          <div className="relative">
             <input 
               type="text" 
               value={searchValue}
               placeholder={t('search_placeholder')}
-              className="w-full h-10 pr-10 pl-4 bg-ui-surface2 rounded-full border border-ui-border focus:ring-2 focus:ring-brand-500 text-ui-text placeholder:text-ui-muted text-sm outline-none"
+              className="w-full h-10 pr-10 pl-8 bg-ui-surface2 rounded-full border border-ui-border focus:ring-2 focus:ring-brand-500 text-ui-text placeholder:text-ui-muted text-sm outline-none"
               onChange={handleSearchInput}
+              onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
             />
             <Icon name="Search" size={20} strokeWidth={1.8} className="absolute right-3 top-2.5 text-ui-muted" />
-          </div>
-          {/* Mobile Suggestions */}
-          {showSuggestions && (
-              <div className="absolute left-4 right-4 mt-2 bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden z-50">
-                  <ul>
-                      {suggestions.map((s, i) => (
-                          <li 
-                            key={i} 
-                            onClick={() => handleSelectSuggestion(s)}
-                            className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-2 border-b border-ui-border"
-                          >
-                              <Icon name="Search" size={18} strokeWidth={1.8} className="text-ui-muted" />
-                              {s}
-                          </li>
-                      ))}
-                  </ul>
-              </div>
-          )}
+            {searchValue && (
+                <button onClick={() => { setSearchValue(''); onSearch(''); }} className="absolute left-3 top-2.5 text-ui-muted hover:text-ui-text">
+                    <Icon name="X" size={18} strokeWidth={1.8} />
+                </button>
+            )}
+         </div>
+         {/* Mobile Suggestions */}
+         {showSuggestions && (
+             <div className="absolute left-4 right-4 mt-2 bg-ui-surface rounded-xl shadow-card border border-ui-border overflow-hidden z-50">
+                 <ul>
+                     {suggestions.map((s, i) => (
+                         <li 
+                           key={i} 
+                           onClick={() => handleSelectSuggestion(s)}
+                           className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-2 border-b border-ui-border last:border-none"
+                         >
+                             <Icon name="Search" size={18} strokeWidth={1.8} className="text-ui-muted" />
+                             {s}
+                         </li>
+                     ))}
+                 </ul>
+             </div>
+         )}
       </div>
     </header>
   );
