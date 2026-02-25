@@ -56,6 +56,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   // Staged Filter States (Applied only when user clicks "Show Results")
+  const [tempCategory, setTempCategory] = useState<string>('all');
   const [tempProvince, setTempProvince] = useState<string>('all');
   const [tempDistrict, setTempDistrict] = useState<string>('');
   const [tempMinPrice, setTempMinPrice] = useState('');
@@ -78,6 +79,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   // Sync temp filters with applied filters when modal opens
   useEffect(() => {
       if (showFilters) {
+          setTempCategory(selectedCategory);
           setTempProvince(appliedFilters.province);
           setTempDistrict(appliedFilters.district);
           setTempMinPrice(appliedFilters.minPrice);
@@ -86,7 +88,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           setTempCondition(appliedFilters.condition);
           setTempDynamicFilters(appliedFilters.dynamicFilters);
       }
-  }, [showFilters, appliedFilters]);
+  }, [showFilters, appliedFilters, selectedCategory]);
 
   // Automatic Location Detection on First Load
   useEffect(() => {
@@ -173,6 +175,10 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   }, [searchQuery, selectedCategory, appliedFilters]);
 
   const handleApplyFilters = () => {
+      if (tempCategory !== selectedCategory) {
+          setTempDynamicFilters({});
+      }
+      setSelectedCategory(tempCategory);
       setAppliedFilters({
           province: tempProvince,
           district: tempDistrict,
@@ -180,12 +186,13 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
           maxPrice: tempMaxPrice,
           sort: tempSort,
           condition: tempCondition,
-          dynamicFilters: tempDynamicFilters
+          dynamicFilters: tempCategory !== selectedCategory ? {} : tempDynamicFilters
       });
       setShowFilters(false);
   };
 
   const handleResetFilters = () => {
+      setTempCategory('all');
       setTempProvince('all');
       setTempDistrict('');
       setTempMinPrice('');
@@ -199,6 +206,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
   
   // Calculate active filter count badge
   const activeCount = 
+      (selectedCategory !== 'all' ? 1 : 0) +
       (appliedFilters.province !== 'all' ? 1 : 0) + 
       (appliedFilters.district ? 1 : 0) +
       (appliedFilters.minPrice ? 1 : 0) + 
@@ -369,6 +377,33 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                   {/* Scrollable Body */}
                   <div className="flex-1 overflow-y-auto p-5 space-y-1">
                       
+                      {/* Category Section */}
+                      <FilterSection title="دسته‌بندی" isOpen={true} count={tempCategory !== 'all' ? 1 : 0}>
+                          <div className="grid grid-cols-2 gap-2">
+                              {CATEGORIES.map(cat => {
+                                  const isSelected = tempCategory === cat.id;
+                                  const catName = t(cat.translationKey as any);
+                                  return (
+                                      <button
+                                          key={cat.id}
+                                          onClick={() => {
+                                              if (cat.id !== tempCategory) setTempDynamicFilters({});
+                                              setTempCategory(cat.id);
+                                          }}
+                                          className={`flex items-center gap-2 px-3 py-2.5 text-xs font-bold rounded-xl border transition-all ${
+                                              isSelected
+                                              ? 'bg-brand-900/40 border-brand-600 text-brand-300'
+                                              : 'bg-ui-surface2 border-ui-border text-ui-muted hover:border-brand-700'
+                                          }`}
+                                      >
+                                          <Icon name={(cat.icon || 'MoreHorizontal') as any} size={16} strokeWidth={1.8} className={isSelected ? 'text-brand-400' : ''} />
+                                          <span className="truncate">{catName}</span>
+                                      </button>
+                                  );
+                              })}
+                          </div>
+                      </FilterSection>
+
                       {/* Sort Section */}
                       <FilterSection title="مرتب‌سازی" isOpen={true}>
                           <div className="flex flex-wrap gap-2">
@@ -486,10 +521,10 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                       </FilterSection>
                       
                       {/* Dynamic Category Filters */}
-                      {activeCategoryConfig?.filterConfig && activeCategoryConfig.filterConfig.length > 0 && (
-                        <FilterSection title={`ویژگی‌های ${t(activeCategoryConfig.translationKey as any)}`} isOpen={true}>
+                      {(() => { const tempCatConfig = CATEGORIES.find(c => c.id === tempCategory); return tempCatConfig?.filterConfig && tempCatConfig.filterConfig.length > 0 && (
+                        <FilterSection title={`ویژگی‌های ${t(tempCatConfig.translationKey as any)}`} isOpen={true}>
                            <div className="space-y-4">
-                              {activeCategoryConfig.filterConfig.map(filter => (
+                              {tempCatConfig.filterConfig.map(filter => (
                                 <div key={filter.key}>
                                   <label className="text-xs text-ui-muted font-bold mb-1 block">{filter.label}</label>
                                   
@@ -530,7 +565,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery }) => {
                               ))}
                            </div>
                         </FilterSection>
-                      )}
+                      ); })()}
                   </div>
 
                   {/* Sticky Footer */}
