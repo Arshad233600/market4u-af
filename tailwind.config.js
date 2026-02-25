@@ -123,6 +123,7 @@ export default {
         bounceIn: "bounceIn 0.4s cubic-bezier(0.16,1,0.3,1)",
         slideUp: "slideUp 0.4s cubic-bezier(0.16,1,0.3,1)",
         float: "float 3s ease-in-out infinite",
+        pulse2: "pulse2 1.5s ease-in-out infinite",
       },
 
       transitionTimingFunction: {
