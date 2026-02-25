@@ -4,7 +4,7 @@ import sql, { ConnectionPool, config as SqlConfig } from "mssql";
 let poolPromise: Promise<ConnectionPool> | null = null;
 
 function buildConfig(): SqlConfig | string {
-    const connectionString = process.env.SqlConnectionString;
+    const connectionString = process.env.SqlConnectionString || process.env.AZURE_SQL_CONNECTION_STRING;
 
     if (connectionString && connectionString.trim().length > 0) {
         return connectionString;

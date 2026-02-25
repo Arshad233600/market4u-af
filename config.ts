@@ -32,7 +32,8 @@ export const API_BASE_URL = apiUrl || '/api';
 // Logic:
 // Defaults to TRUE (demo/mock mode) so the app works without a database.
 // To connect to a real Azure SQL database, set VITE_USE_MOCK_DATA=false
-// as a build-time environment variable in Azure Static Web App settings.
+// as a build-time environment variable in the GitHub Actions workflow.
+// The && ensures that setting EITHER variable to 'false' switches to live mode.
 export const USE_MOCK_DATA = getEnv('VITE_USE_MOCK_DATA') !== 'false' && getEnv('REACT_APP_USE_MOCK_DATA') !== 'false';
 
 export const AZURE_AD_CONFIG = {
