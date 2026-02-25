@@ -24,12 +24,18 @@ export default defineConfig(({ mode }) => {
           output: {
             manualChunks: {
               'vendor-react': ['react', 'react-dom'],
+              'vendor-router': ['react-router-dom'],
               'vendor-icons': ['lucide-react'],
             },
           },
         },
         chunkSizeWarningLimit: 1000,
         sourcemap: false, // Disable source maps in production for smaller build
+        minify: 'esbuild',
+        esbuildOptions: {
+          drop: ['console', 'debugger'],
+        },
       },
     };
 });
+

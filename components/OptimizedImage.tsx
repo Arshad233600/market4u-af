@@ -8,13 +8,33 @@ interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   className?: string;
 }
 
+/** Detect slow connection using the Network Information API */
+const isSlowConnection = (): boolean => {
+  const connection = (navigator as any).connection;
+  if (!connection) return false;
+  return connection.saveData === true || connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g';
+};
+
 const OptimizedImage: React.FC<OptimizedImageProps> = ({ src, alt, className, ...props }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // On very slow/save-data connections default to deferred (user must tap to load)
+  const [deferred, setDeferred] = useState(() => isSlowConnection());
 
-  // If bandwidth is very low (experimental API), we could potentially not load images at all
-  // const connection = (navigator as any).connection;
-  // const isSlow = connection ? connection.saveData || connection.effectiveType === '2g' : false;
+  if (deferred) {
+    return (
+      <div
+        className={`relative overflow-hidden bg-ui-surface2 flex items-center justify-center cursor-pointer ${className}`}
+        onClick={() => setDeferred(false)}
+        title="برای نمایش تصویر ضربه بزنید"
+      >
+        <div className="flex flex-col items-center gap-1 text-ui-subtle select-none pointer-events-none">
+          <Icon name="ImageIcon" size={28} strokeWidth={1.5} />
+          <span className="text-[10px]">نمایش تصویر</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative overflow-hidden bg-gray-100 ${className}`}>

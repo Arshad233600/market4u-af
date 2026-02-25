@@ -47,7 +47,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - network-first for HTML, cache-first for assets
+// Fetch event - stale-while-revalidate for HTML, cache-first for assets
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
@@ -56,29 +56,33 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // CRITICAL: Always fetch index.html from network to get latest asset manifest
+  // Stale-while-revalidate for navigation (HTML) requests:
+  // Serve cached version immediately while fetching a fresh copy in background.
+  // This is the key strategy for low-bandwidth environments – the page appears instantly.
   if (
     event.request.mode === 'navigate' || 
     url.pathname === '/' || 
     url.pathname === '/index.html'
   ) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Don't cache index.html
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cached index.html only if offline
-          return caches.match('/index.html').then((cached) => {
-            return cached || new Response('Offline', { status: 503 });
-          });
-        })
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match('/index.html').then((cached) => {
+          const networkFetch = fetch(event.request).then((response) => {
+            if (response.status === 200) {
+              cache.put('/index.html', response.clone());
+            }
+            return response;
+          }).catch(() => cached || new Response('Offline', { status: 503 }));
+
+          // Return cached immediately if available; otherwise wait for network
+          return cached || networkFetch;
+        });
+      })
     );
     return;
   }
 
-  // Cache-first strategy for static assets (JS, CSS, images)
+  // Cache-first strategy for static assets (JS, CSS, images, fonts)
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|ico)$/)
   ) {
