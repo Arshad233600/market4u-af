@@ -17,32 +17,6 @@ interface HomeProps {
   onNavigate?: (page: Page) => void;
 }
 
-// --- Featured Category Card ---
-const FeaturedCategoryCard: React.FC<{
-  icon: string;
-  label: string;
-  color: string;
-  bgColor: string;
-  isSelected: boolean;
-  onClick: () => void;
-}> = ({ icon, label, color, bgColor, isSelected, onClick }) => (
-  <button
-    onClick={onClick}
-    className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all duration-200 press ${
-      isSelected
-        ? 'border-brand-500/60 bg-brand-950/60 shadow-glow'
-        : 'border-ui-border bg-ui-surface hover:border-ui-border2 hover:bg-ui-surface2'
-    }`}
-  >
-    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${bgColor}`}>
-      <Icon name={icon as any} size={22} strokeWidth={isSelected ? 2.5 : 2} className={color} />
-    </div>
-    <span className={`text-xs font-bold leading-tight text-center ${isSelected ? 'text-brand-300' : 'text-ui-muted'}`}>
-      {label}
-    </span>
-  </button>
-);
-
 // --- Helper Component: Filter Accordion Section ---
 const FilterSection: React.FC<{ 
     title: string; 
@@ -72,16 +46,6 @@ const FilterSection: React.FC<{
     );
 };
 
-const FEATURED_CATEGORIES = [
-  { id: 'all',         icon: 'LayoutGrid',   label: 'همه آگهی‌ها', color: 'text-brand-400', bgColor: 'bg-brand-950/60' },
-  { id: 'real_estate', icon: 'Home',          label: 'ملک و مسکن',  color: 'text-amber-400', bgColor: 'bg-amber-950/60' },
-  { id: 'vehicles',    icon: 'Car',           label: 'موترها',      color: 'text-blue-400',  bgColor: 'bg-blue-950/60' },
-  { id: 'electronics', icon: 'Smartphone',    label: 'الکترونیک',   color: 'text-purple-400',bgColor: 'bg-purple-950/60' },
-  { id: 'jobs',        icon: 'Briefcase',     label: 'کار و استخدام',color: 'text-rose-400',  bgColor: 'bg-rose-950/60' },
-  { id: 'clothing',    icon: 'Shirt',         label: 'لباس و مد',   color: 'text-pink-400',  bgColor: 'bg-pink-950/60' },
-  { id: 'furniture',   icon: 'Sofa',          label: 'مبلمان',      color: 'text-orange-400',bgColor: 'bg-orange-950/60' },
-  { id: 'services',    icon: 'Wrench',        label: 'خدمات',       color: 'text-cyan-400',  bgColor: 'bg-cyan-950/60' },
-];
 
 const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) => {
   const { t } = useLanguage();
@@ -270,7 +234,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
 
         <div className="max-w-7xl mx-auto px-4 pt-6 pb-5 relative">
           {/* Badge */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 animate-fadeUp" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
             <span className="inline-flex items-center gap-2 bg-brand-500/12 border border-brand-500/25 rounded-full px-4 py-1.5 text-brand-300 text-xs font-bold">
               <span className="w-2 h-2 bg-brand-400 rounded-full animate-pulse" />
               🇦🇫 بزرگترین بازار آنلاین افغانستان
@@ -278,16 +242,16 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
           </div>
 
           {/* Headline */}
-          <h1 className="text-center text-2xl sm:text-3xl font-black text-ui-text mb-2 leading-snug">
+          <h1 className="text-center text-2xl sm:text-3xl font-black text-ui-text mb-2 leading-snug animate-fadeUp" style={{ animationDelay: '80ms', animationFillMode: 'both' }}>
             خرید و فروش آسان در
             <span className="text-gradient"> مارکت‌فور‌یو</span>
           </h1>
-          <p className="text-center text-sm text-ui-muted mb-5 max-w-xs mx-auto leading-relaxed">
+          <p className="text-center text-sm text-ui-muted mb-5 max-w-xs mx-auto leading-relaxed animate-fadeUp" style={{ animationDelay: '140ms', animationFillMode: 'both' }}>
             هر چه نیاز دارید بیابید یا آگهی خود را رایگان ثبت کنید
           </p>
 
           {/* Stats Row */}
-          <div className="flex items-center justify-center gap-5 sm:gap-8 mb-5 flex-wrap">
+          <div className="flex items-center justify-center gap-5 sm:gap-8 mb-5 flex-wrap animate-fadeUp" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
             {[
               { icon: 'Tag',     value: '+۱۰ هزار', label: 'آگهی فعال' },
               { icon: 'MapPin',  value: '۳۴',       label: 'ولایت' },
@@ -303,7 +267,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 animate-fadeUp" style={{ animationDelay: '260ms', animationFillMode: 'both' }}>
             {onNavigate && (
               <button
                 onClick={() => onNavigate(Page.POST_AD)}
@@ -321,27 +285,6 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
               مرور آگهی‌ها
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* ── Featured Categories ── */}
-      <div className="max-w-7xl mx-auto px-4 pt-5 pb-2">
-        <h2 className="text-xs font-bold text-ui-muted mb-3 flex items-center gap-2">
-          <Icon name="Grid2x2" size={14} strokeWidth={2} className="text-brand-400" />
-          دسته‌بندی‌های پرطرفدار
-        </h2>
-        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-          {FEATURED_CATEGORIES.map(cat => (
-            <FeaturedCategoryCard
-              key={cat.id}
-              icon={cat.icon}
-              label={cat.label}
-              color={cat.color}
-              bgColor={cat.bgColor}
-              isSelected={selectedCategory === cat.id}
-              onClick={() => { setSelectedCategory(cat.id); setTempDynamicFilters({}); }}
-            />
-          ))}
         </div>
       </div>
 
@@ -393,21 +336,6 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate }) 
             )}
           </button>
         </div>
-      </div>
-
-      {/* Manual Locate Trigger (Mobile mostly) */}
-      <div className="px-4 mt-3 md:hidden">
-        <button
-          onClick={handleSmartLocation}
-          disabled={isLocating}
-          className="w-full flex items-center justify-center gap-2 bg-ui-surface2 border border-ui-border text-ui-muted py-2.5 rounded-2xl text-xs font-bold hover:bg-ui-surface3 active:scale-[0.98] transition-all"
-        >
-          {isLocating
-            ? <Icon name="Loader2" size={15} strokeWidth={2} className="animate-spin" />
-            : <Icon name="Crosshair" size={15} strokeWidth={2} className="text-brand-400" />
-          }
-          آگهی‌های اطراف من را پیدا کن
-        </button>
       </div>
 
       {/* Products Grid */}
