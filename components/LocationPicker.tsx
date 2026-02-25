@@ -15,6 +15,33 @@ declare global {
   }
 }
 
+const LEAFLET_VERSION = '1.9.4';
+const LEAFLET_CSS_URL = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
+const LEAFLET_JS_URL = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js`;
+
+/** Dynamically inject Leaflet CSS once */
+const ensureLeafletCss = (): void => {
+  if (document.querySelector(`link[href="${LEAFLET_CSS_URL}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = LEAFLET_CSS_URL;
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+};
+
+/** Dynamically load Leaflet JS if not already loaded */
+const loadLeafletJs = (): Promise<void> => {
+  if (window.L) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = LEAFLET_JS_URL;
+    script.crossOrigin = '';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Leaflet'));
+    document.head.appendChild(script);
+  });
+};
+
 const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng, onLocationSelect }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -24,42 +51,49 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng,
   const defaultLat = 34.5553;
   const defaultLng = 69.2075;
 
-  // 1. Initialize Map (Run once)
+  // 1. Initialize Map (Run once) — load Leaflet on demand
   useEffect(() => {
-    if (!mapRef.current || !window.L) return;
+    let cancelled = false;
 
-    // Prevent double initialization
-    if (mapInstanceRef.current) return;
+    ensureLeafletCss();
+    loadLeafletJs().then(() => {
+      if (cancelled || !mapRef.current || !window.L) return;
 
-    const startLat = initialLat || defaultLat;
-    const startLng = initialLng || defaultLng;
+      // Prevent double initialization
+      if (mapInstanceRef.current) return;
 
-    const map = window.L.map(mapRef.current).setView([startLat, startLng], 13);
-    
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+      const startLat = initialLat || defaultLat;
+      const startLng = initialLng || defaultLng;
 
-    const marker = window.L.marker([startLat, startLng], {
-      draggable: true
-    }).addTo(map);
+      const map = window.L.map(mapRef.current).setView([startLat, startLng], 13);
+      
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
 
-    // Event Listeners
-    marker.on('dragend', function() {
-      const position = marker.getLatLng();
-      onLocationSelect(position.lat, position.lng);
+      const marker = window.L.marker([startLat, startLng], {
+        draggable: true
+      }).addTo(map);
+
+      // Event Listeners
+      marker.on('dragend', function() {
+        const position = marker.getLatLng();
+        onLocationSelect(position.lat, position.lng);
+      });
+
+      map.on('click', function(e: any) {
+         marker.setLatLng(e.latlng);
+         onLocationSelect(e.latlng.lat, e.latlng.lng);
+      });
+
+      mapInstanceRef.current = map;
+      markerInstanceRef.current = marker;
+    }).catch(() => {
+      toastService.warning('بارگذاری نقشه ناموفق بود. اینترنت خود را بررسی کنید.');
     });
 
-    map.on('click', function(e: any) {
-       marker.setLatLng(e.latlng);
-       onLocationSelect(e.latlng.lat, e.latlng.lng);
-    });
-
-    mapInstanceRef.current = map;
-    markerInstanceRef.current = marker;
-
-    // Cleanup function to destroy map on unmount
     return () => {
+      cancelled = true;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
