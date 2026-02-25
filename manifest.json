@@ -1,21 +1,73 @@
 
 {
   "short_name": "Market4U",
-  "name": "Market4U Marketplace",
+  "name": "Market4U - بازار آنلاین افغانستان",
+  "description": "اولین و بزرگترین پلتفرم خرید و فروش آنلاین در افغانستان",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "72x72",
+      "purpose": "any maskable"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "96x96",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "128x128",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "144x144",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "152x152",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "384x384",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#059669",
-  "background_color": "#ffffff"
+  "orientation": "portrait",
+  "theme_color": "#13ba8a",
+  "background_color": "#060c18",
+  "lang": "fa-AF",
+  "dir": "rtl",
+  "categories": ["shopping", "business"],
+  "screenshots": [
+    {
+      "src": "https://images.unsplash.com/photo-1519638399535-1b036603ac77?auto=format&fit=crop&w=1200&q=80",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "label": "Market4U - بازار آنلاین افغانستان"
+    }
+  ]
 }
