@@ -51,7 +51,9 @@ jobs:
             echo "::warning::One or more required Apple signing secrets are missing."
             echo "::warning::Required secrets: BUILD_CERTIFICATE_BASE64, P12_PASSWORD, KEYCHAIN_PASSWORD,"
             echo "::warning::                  BUILD_PROVISION_PROFILE_BASE64, APPLE_TEAM_ID, PROVISIONING_PROFILE_NAME"
-            echo "::warning::Add all required secrets to the repository settings to enable iOS builds."
+            echo "::warning::Follow the setup guide to add all required secrets:"
+            echo "::warning::  https://github.com/${{ github.repository }}/blob/main/IOS_SIGNING.md"
+            echo "::warning::Or run scripts/setup-ios-signing.sh on your Mac to generate the secret values."
             echo "has_secrets=false" >> $GITHUB_OUTPUT
           else
             echo "All required Apple signing secrets are present."
