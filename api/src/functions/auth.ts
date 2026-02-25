@@ -67,8 +67,11 @@ export async function login(request: HttpRequest, context: InvocationContext): P
         id: user.Id,
         name: user.Name,
         email: user.Email,
+        phone: user.Phone || '',
+        avatarUrl: user.AvatarUrl || '',
         role: user.Role,
-        isVerified: user.IsVerified
+        isVerified: user.IsVerified,
+        joinDate: user.CreatedAt
       }
     });
   } catch (err: unknown) {
@@ -127,7 +130,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
 
     return success({
       token,
-      user: { id, name, email, role: "USER", isVerified: false }
+      user: { id, name, email, phone: phone || '', avatarUrl: '', role: "USER", isVerified: false, joinDate: new Date().toISOString() }
     }, 201);
   } catch (err: unknown) {
     context.error("Register Error", err);

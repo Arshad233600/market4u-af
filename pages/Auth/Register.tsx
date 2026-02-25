@@ -15,8 +15,14 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const MIN_PASSWORD_LENGTH = 6;
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      toastService.error('رمز عبور باید حداقل ۶ کاراکتر باشد.');
+      return;
+    }
     setIsLoading(true);
     try {
       await authService.register(name, email, password);
@@ -85,6 +91,7 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onLoginSuccess }) => {
                 <input
                   type="password"
                   required
+                  minLength={MIN_PASSWORD_LENGTH}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-3 pr-10 py-3 border border-ui-border bg-ui-surface2 text-ui-text rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition-all placeholder:text-ui-muted"
