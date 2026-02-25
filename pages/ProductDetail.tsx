@@ -1,13 +1,19 @@
 
 import React, { useEffect, useState } from 'react';
 import Icon from '../src/components/ui/Icon';
-import { Product, Page } from '../types';
+import { Product, Page, ProductCondition } from '../types';
 import { CATEGORIES } from '../constants';
 import { azureService } from '../services/azureService';
 import ProductCard from '../components/ProductCard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { authService } from '../services/authService';
 import OptimizedImage from '../components/OptimizedImage';
+
+const CONDITION_LABELS: Record<ProductCondition, { label: string; color: string; icon: string }> = {
+  new: { label: 'نو', color: 'bg-ui-success/20 text-ui-success border-ui-success/30', icon: 'Sparkles' },
+  used: { label: 'دست دوم / کارکرده', color: 'bg-ui-warning/20 text-ui-warning border-ui-warning/30', icon: 'RefreshCw' },
+  damaged: { label: 'معیوب / نیاز به تعمیر', color: 'bg-ui-danger/20 text-ui-danger border-ui-danger/30', icon: 'Wrench' },
+};
 
 interface ProductDetailProps {
   product: Product;
@@ -230,10 +236,31 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
                             )}
                          </div>
                      </div>
-                     <div className="text-2xl font-bold text-brand-300 bg-brand-900/40 px-4 py-2 rounded-xl border border-brand-700/40">
+                     <div className="text-2xl font-bold text-brand-300 bg-brand-900/40 px-4 py-2 rounded-xl border border-brand-700/40 text-left">
                          {product.price.toLocaleString()} {t('currency')}
+                         {product.isNegotiable && (
+                             <div className="text-xs font-bold text-brand-400 mt-1 text-center">{t('negotiable_label')}</div>
+                         )}
                      </div>
                  </div>
+
+                 {/* Condition / Delivery badges */}
+                 {(product.condition || product.deliveryAvailable) && (
+                     <div className="flex flex-wrap gap-2 mb-4">
+                         {product.condition && (
+                             <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border ${CONDITION_LABELS[product.condition].color}`}>
+                                 <Icon name={CONDITION_LABELS[product.condition].icon as any} size={14} strokeWidth={2} />
+                                 {t('condition_label')}: {t(`condition_${product.condition}` as any)}
+                             </span>
+                         )}
+                         {product.deliveryAvailable && (
+                             <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-ui-info/20 text-ui-info border-ui-info/30">
+                                 <Icon name="Truck" size={14} strokeWidth={2} />
+                                 {t('delivery_available')}
+                             </span>
+                         )}
+                     </div>
+                 )}
 
                  {/* Dynamic Attributes */}
                  {product.dynamicFields && Object.keys(product.dynamicFields).length > 0 && (

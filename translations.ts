@@ -117,6 +117,18 @@ export const TRANSLATIONS = {
     verify_status_pending: 'در حال بررسی',
     verify_upload_front: 'تصویر روی تذکره',
     verify_upload_back: 'تصویر پشت تذکره',
+
+    // Condition
+    condition_label: 'وضعیت کالا',
+    condition_new: 'نو',
+    condition_used: 'دست دوم / کارکرده',
+    condition_damaged: 'معیوب / نیاز به تعمیر',
+
+    // Negotiable & Delivery
+    negotiable_label: 'قیمت قابل مذاکره',
+    delivery_label: 'ارسال به سراسر افغانستان',
+    delivery_available: 'ارسال دارد',
+    delivery_unavailable: 'بدون ارسال (تحویل حضوری)',
   },
   
   ps: {
@@ -234,5 +246,17 @@ export const TRANSLATIONS = {
     verify_status_pending: 'تر کار لاندې',
     verify_upload_front: 'د تذکرې مخ',
     verify_upload_back: 'د تذکرې شا',
+
+    // Condition
+    condition_label: 'د توکي حالت',
+    condition_new: 'نوی',
+    condition_used: 'کارول شوی',
+    condition_damaged: 'خراب / د جوړولو ضرورت',
+
+    // Negotiable & Delivery
+    negotiable_label: 'قیمت د خبرو وړ',
+    delivery_label: 'د افغانستان ټولو ولایتونو ته لیږل',
+    delivery_available: 'لیږل کیږي',
+    delivery_unavailable: 'نه لیږل کیږي (مستقیم تحویلي)',
   }
 };

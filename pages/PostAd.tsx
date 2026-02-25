@@ -4,7 +4,7 @@ import Icon from '../src/components/ui/Icon';
 import { CATEGORIES, PROVINCES, DISTRICTS, DISTRICT_LOCATIONS } from '../constants';
 import { generateAdDescription } from '../services/geminiService';
 import { azureService } from '../services/azureService';
-import { Page, Product } from '../types';
+import { Page, Product, ProductCondition } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TRANSLATIONS } from '../translations';
 import LocationPicker from '../components/LocationPicker';
@@ -116,6 +116,11 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   // Dynamic Fields State (Stores generic key-value pairs based on category config)
   const [dynamicValues, setDynamicValues] = useState<Record<string, string | number>>(existingAd?.dynamicFields || {});
+
+  // New marketplace fields
+  const [condition, setCondition] = useState<ProductCondition>(existingAd?.condition || 'used');
+  const [isNegotiable, setIsNegotiable] = useState(existingAd?.isNegotiable || false);
+  const [deliveryAvailable, setDeliveryAvailable] = useState(existingAd?.deliveryAvailable || false);
 
   const activeCategory = CATEGORIES.find(c => c.id === category);
   const subCategories = activeCategory?.subcategories || [];
@@ -247,7 +252,8 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       const adData = {
           title, category, subCategory, price, location: fullLocation,
           latitude: coords?.lat, longitude: coords?.lng,
-          description, imageUrls: images, dynamicFields: dynamicValues
+          description, imageUrls: images, dynamicFields: dynamicValues,
+          condition, isNegotiable, deliveryAvailable
       };
 
       let success = false;
@@ -359,6 +365,67 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                    <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12" placeholder="0" required />
                    <span className="absolute left-3 top-3.5 text-sm text-ui-muted font-bold">AFN</span>
                </div>
+            </div>
+
+            {/* Negotiable Toggle */}
+            <div className="flex items-center justify-between bg-ui-surface2 p-3 rounded-xl border border-ui-border">
+              <label className="text-sm font-bold text-ui-text flex items-center gap-2 cursor-pointer">
+                <Icon name="BadgePercent" size={18} strokeWidth={1.8} className="text-brand-400" />
+                {t('negotiable_label')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsNegotiable(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${isNegotiable ? 'bg-brand-500' : 'bg-ui-border'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isNegotiable ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+        </div>
+
+        {/* Condition & Delivery */}
+        <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm space-y-5">
+            <h3 className="font-bold text-ui-text border-b border-ui-border pb-2 flex items-center gap-2">
+                <Icon name="Tag" size={18} strokeWidth={1.8} className="text-brand-500" />
+                وضعیت و ارسال
+            </h3>
+
+            {/* Condition */}
+            {category !== 'jobs' && category !== 'services' && (
+              <div>
+                <label className="block text-xs font-bold text-ui-muted mb-2">{t('condition_label')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['new', 'used', 'damaged'] as ProductCondition[]).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCondition(c)}
+                      className={`py-2.5 text-sm font-bold rounded-xl border transition-all ${
+                        condition === c
+                          ? 'bg-brand-900/40 border-brand-600 text-brand-300'
+                          : 'bg-ui-surface2 border-ui-border text-ui-muted hover:border-brand-700'
+                      }`}
+                    >
+                      {t(`condition_${c}` as any)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Delivery */}
+            <div className="flex items-center justify-between bg-ui-surface2 p-3 rounded-xl border border-ui-border">
+              <label className="text-sm font-bold text-ui-text flex items-center gap-2 cursor-pointer">
+                <Icon name="Truck" size={18} strokeWidth={1.8} className="text-brand-400" />
+                {t('delivery_label')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setDeliveryAvailable(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${deliveryAvailable ? 'bg-brand-500' : 'bg-ui-border'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${deliveryAvailable ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
             </div>
         </div>
 

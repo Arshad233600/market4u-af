@@ -1,11 +1,17 @@
 
 import React, { useState } from 'react';
 import Icon from '../src/components/ui/Icon';
-import { Product } from '../types';
+import { Product, ProductCondition } from '../types';
 import { APP_STRINGS } from '../constants';
 import { azureService } from '../services/azureService';
 import OptimizedImage from './OptimizedImage';
 import { getRelativeTime } from '../utils/dateUtils';
+
+const CONDITION_LABELS: Record<ProductCondition, { label: string; color: string }> = {
+  new: { label: 'نو', color: 'bg-ui-success/20 text-ui-success' },
+  used: { label: 'کارکرده', color: 'bg-ui-warning/20 text-ui-warning' },
+  damaged: { label: 'معیوب', color: 'bg-ui-danger/20 text-ui-danger' },
+};
 
 interface ProductCardProps {
   product: Product;
@@ -66,8 +72,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
       <div className="p-3 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-1">
           <h3 className="font-bold text-brand-300 line-clamp-1 text-lg">{product.price.toLocaleString()} {APP_STRINGS.currency}</h3>
+          {product.isNegotiable && (
+            <span className="text-[10px] font-bold bg-brand-900/40 text-brand-300 px-1.5 py-0.5 rounded border border-brand-700/30 whitespace-nowrap">مذاکره</span>
+          )}
         </div>
         <p className="text-ui-text text-sm line-clamp-2 mb-2 flex-1">{product.title}</p>
+
+        {/* Condition & Delivery badges */}
+        <div className="flex flex-wrap gap-1 mb-2">
+          {product.condition && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${CONDITION_LABELS[product.condition].color}`}>
+              {CONDITION_LABELS[product.condition].label}
+            </span>
+          )}
+          {product.deliveryAvailable && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-ui-info/20 text-ui-info flex items-center gap-0.5">
+              <Icon name="Truck" size={10} strokeWidth={2} />
+              ارسال
+            </span>
+          )}
+        </div>
         
         <div className="flex items-center text-ui-muted text-xs gap-1 mt-auto">
           <Icon name="MapPin" size={12} strokeWidth={1.8} />
