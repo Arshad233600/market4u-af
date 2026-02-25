@@ -5,6 +5,20 @@ A modern, offline-first marketplace Progressive Web App (PWA) tailored for the A
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.StaticApp)
 
+## 📱 نصب اپ روی موبایل (Mobile Installation)
+
+### اندرید (Android)
+1. **از طریق PWA (بدون دانلود):** سایت را در Chrome باز کنید → منوی ⋮ → "Add to Home Screen"
+2. **APK مستقیم:** آخرین نسخه APK را از [Releases](https://github.com/Arshad233600/market4u-af/releases) دانلود کنید
+3. **توسعه‌دهندگان:** راهنمای [android/README.md](./android/README.md) را ببینید
+
+### آیفون (iPhone / iOS)
+1. سایت را در **Safari** باز کنید
+2. دکمه Share (🔗) را بزنید → **"Add to Home Screen"**
+3. **توسعه‌دهندگان:** راهنمای [ios/README.md](./ios/README.md) را ببینید
+
+---
+
 ## 🌟 Features
 
 *   **Localized UI:** Full RTL support with Dari (Persian) and Pashto translations.
@@ -12,6 +26,7 @@ A modern, offline-first marketplace Progressive Web App (PWA) tailored for the A
 *   **Performance:** Image compression and optimized loading for low-bandwidth networks.
 *   **AI Integration:** Gemini-powered ad description generation.
 *   **Advanced Search:** Filtering by 34 provinces, districts, price, and category.
+*   **Mobile Apps:** Native Android (Capacitor) + iOS PWA support.
 
 ## 📊 Azure Migration Status
 
