@@ -67,12 +67,16 @@ export const authService = {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || 'نام کاربری یا رمز عبور اشتباه است');
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(errBody.error || errBody.message || 'نام کاربری یا رمز عبور اشتباه است');
         }
 
-        const data = await response.json();
-        // Backend returns { token, user }
+        const responseData = await response.json();
+        // Backend returns { success: true, data: { token, user } }
+        const data = responseData.data ?? responseData;
+        if (!data.user || !data.token) {
+          throw new Error('پاسخ سرور نامعتبر است. لطفاً دوباره تلاش کنید.');
+        }
         localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
         localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
         
@@ -107,11 +111,16 @@ export const authService = {
         });
 
         if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || 'خطا در ثبت‌نام');
+          const errBody = await response.json().catch(() => ({}));
+          throw new Error(errBody.error || errBody.message || 'خطا در ثبت‌نام');
         }
 
-        const data = await response.json();
+        const responseData = await response.json();
+        // Backend returns { success: true, data: { token, user } }
+        const data = responseData.data ?? responseData;
+        if (!data.user || !data.token) {
+          throw new Error('پاسخ سرور نامعتبر است. لطفاً دوباره تلاش کنید.');
+        }
         localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
         localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
         
