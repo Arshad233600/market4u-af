@@ -167,7 +167,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const files = Array.from(e.target.files);
+      const files: File[] = Array.from(e.target.files);
       const remainingSlots = 5 - images.length;
       const filesToUpload = files.slice(0, remainingSlots);
 

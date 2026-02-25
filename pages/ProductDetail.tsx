@@ -14,9 +14,10 @@ interface ProductDetailProps {
   onBack: () => void;
   onNavigate: (page: Page) => void;
   onSellerClick?: (sellerId: string, sellerName: string) => void;
+  onProductClick?: (product: Product) => void;
 }
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNavigate, onSellerClick }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNavigate, onSellerClick, onProductClick }) => {
   const { t } = useLanguage();
   const [relatedAds, setRelatedAds] = useState<Product[]>([]);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
@@ -522,9 +523,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
               <h3 className="font-bold text-xl text-ui-text mb-6 pr-1 border-r-4 border-brand-500">{t('related_ads')}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {relatedAds.map(ad => (
-                      <ProductCard key={ad.id} product={ad} onClick={() => {
-                          window.scrollTo(0,0);
-                          setTimeout(() => window.location.reload(), 100); 
+                      <ProductCard key={ad.id} product={ad} onClick={(p) => {
+                          window.scrollTo(0, 0);
+                          if (onProductClick) onProductClick(p);
                       }} />
                   ))}
               </div>
