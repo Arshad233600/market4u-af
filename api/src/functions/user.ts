@@ -64,6 +64,37 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
     }
 }
 
+export async function searchUsers(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    const auth = validateToken(request);
+    if (!auth.isAuthenticated) {
+        return { status: 401, body: JSON.stringify({ message: "لطفا وارد حساب کاربری شوید." }) };
+    }
+
+    const q = request.query.get('q') || '';
+    if (!q.trim()) {
+        return { status: 200, jsonBody: [] };
+    }
+
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input("Q", sql.NVarChar, `%${q.trim()}%`)
+            .input("CurrentUserId", sql.NVarChar, auth.userId)
+            .query(`
+                SELECT TOP 10 Id, Name, AvatarUrl
+                FROM Users
+                WHERE Name LIKE @Q
+                  AND Id <> @CurrentUserId
+                ORDER BY Name
+            `);
+
+        return { status: 200, jsonBody: result.recordset };
+    } catch (error) {
+        context.error("Search Users Error", error);
+        return { status: 500, body: JSON.stringify({ message: "خطای سرور" }) };
+    }
+}
+
 app.http('getUserProfile', {
     methods: ['GET'],
     authLevel: 'anonymous',
@@ -76,4 +107,11 @@ app.http('updateUserProfile', {
     authLevel: 'anonymous',
     route: 'user/profile',
     handler: updateUserProfile
+});
+
+app.http('searchUsers', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'users/search',
+    handler: searchUsers
 });
