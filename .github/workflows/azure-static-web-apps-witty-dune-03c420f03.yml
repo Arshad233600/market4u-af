@@ -15,25 +15,64 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_USE_MOCK_DATA: 'false'
+
+      - name: Install API dependencies
+        # --ignore-scripts skips the azure-functions-core-tools binary download (not needed in CI)
+        run: npm ci --prefix api --ignore-scripts
+
+      - name: Build API
+        run: npm run build --prefix api
+
+      - name: Install API production dependencies for deploy
+        run: |
+          rm -rf node_modules api/node_modules
+          npm ci --prefix api --omit=dev
+
+      - name: Clean workspace for deployment
+        run: |
+          # Remove Android/iOS native app directories (not needed for web deployment)
+          rm -rf android ios
+          # Remove TypeScript source directories (built artifacts in dist/ are sufficient)
+          rm -rf components pages contexts services utils types scripts database infrastructure src
+          # Remove root-level source files not needed for deployment
+          find . -maxdepth 1 \( -name "*.ts" -o -name "*.tsx" \) -delete
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
-        env:
-          VITE_USE_MOCK_DATA: "false"
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "." # App source code path
-          api_location: "api" # Api source code path - optional
-          output_location: "dist" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
+          app_location: "/"
+          api_location: "api"
+          output_location: "dist"
+          skip_app_build: true
+          skip_api_build: true
+        env:
+          VITE_USE_MOCK_DATA: "false"
+          SqlConnectionString: ${{ secrets.SqlConnectionString }}
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
