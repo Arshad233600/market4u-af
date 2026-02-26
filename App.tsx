@@ -66,12 +66,14 @@ const AppContent: React.FC = () => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
   }, []);
 
-  // Sync user state when auth-change fires (e.g. 401 forces logout without page reload)
+  // Sync user state on mount and whenever auth-change fires (e.g. 401 forces logout, cross-tab, PWA reload)
   useEffect(() => {
     const handleAuthChange = () => {
       setUser(authService.getCurrentUser());
     };
     window.addEventListener('auth-change', handleAuthChange);
+    // Restore auth state from localStorage on mount (handles PWA/Service Worker cache scenarios)
+    window.dispatchEvent(new Event('auth-change'));
     return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
 
