@@ -1,7 +1,17 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/.auth/*", "/images/*", "/*.{png,jpg,jpeg,gif,svg,ico,webp,woff,woff2,ttf,eot}"]
+    "exclude": [
+      "/api/*",
+      "/.auth/*",
+      "/assets/*",
+      "/images/*",
+      "/service-worker.js",
+      "/manifest.json",
+      "/version.json",
+      "/diagnostics.html",
+      "/*.{ico,png,jpg,jpeg,gif,svg,webp,woff,woff2,ttf,eot}"
+    ]
   },
   "platform": {
     "apiRuntime": "node:20"
