@@ -5,6 +5,9 @@
 
 import { safeStorage } from './safeStorage';
 
+// __APP_VERSION__ is injected at build time by Vite's define option
+declare const __APP_VERSION__: string;
+
 interface ErrorLog {
   timestamp: string;
   errorCode: string;
@@ -18,23 +21,12 @@ interface ErrorLog {
 }
 
 class ErrorLogger {
-  private version: string = 'unknown';
+  private version: string = __APP_VERSION__ || 'dev';
   private maxLogs = 50;
   private storageKey = 'market4u_error_logs';
 
   constructor() {
-    this.loadVersion();
     this.setupGlobalHandlers();
-  }
-
-  private async loadVersion() {
-    try {
-      const response = await fetch('/version.json');
-      const data = await response.json();
-      this.version = data.version || 'unknown';
-    } catch {
-      this.version = 'dev';
-    }
   }
 
   private setupGlobalHandlers() {
