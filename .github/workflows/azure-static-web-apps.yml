@@ -44,13 +44,13 @@ jobs:
       - name: Build API
         run: npm run build --prefix api
 
-      - name: Install API production dependencies for deploy
-        run: |
-          rm -rf node_modules api/node_modules
-          npm ci --prefix api --omit=dev
-
       - name: Clean workspace for deployment
         run: |
+          # Remove node_modules – they add tens of thousands of files that push the
+          # SWA static-file count over Azure's limit.  Azure Static Web Apps
+          # automatically runs `npm install` for the managed-functions API at
+          # deployment time when node_modules is absent.
+          rm -rf node_modules api/node_modules
           # Remove Android/iOS native app directories (not needed for web deployment)
           rm -rf android ios
           # Remove TypeScript source directories (built artifacts in dist/ are sufficient)
