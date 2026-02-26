@@ -40,7 +40,7 @@ param geminiApiKey string = ''
 // Variables
 // =============================================================================
 var sqlServerName    = '${prefix}-sql-${uniqueString(resourceGroup().id)}'
-var sqlDbName        = 'Market4U'
+var sqlDbName        = 'market4u-db'
 var storageAccName   = '${prefix}stor${uniqueString(resourceGroup().id)}'
 var staticWebAppName = '${prefix}-app'
 var containerName    = 'product-images'
