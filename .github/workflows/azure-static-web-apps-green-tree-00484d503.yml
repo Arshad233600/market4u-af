@@ -53,8 +53,10 @@ jobs:
       - name: Build API
         run: npm run build --prefix api
 
-      - name: Remove API node_modules before deploy
-        run: rm -rf api/node_modules node_modules
+      - name: Install API production dependencies for deploy
+        run: |
+          rm -rf node_modules api/node_modules
+          npm ci --prefix api --omit=dev
 
       - name: Build And Deploy
         id: builddeploy
