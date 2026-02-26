@@ -28,6 +28,8 @@ function buildConfig(): SqlConfig | string {
             encrypt: true,
             trustServerCertificate: false
         },
+        connectionTimeout: 30000,
+        requestTimeout: 30000,
         pool: {
             max: 10,
             min: 0,
