@@ -190,7 +190,7 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
     const result = await pool
       .request()
       .input("UserId", sql.NVarChar, auth.userId)
-      .query("SELECT * FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
+      .query("SELECT * FROM Ads WHERE UserId = @UserId AND IsDeleted = 0 ORDER BY CreatedAt DESC");
 
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
@@ -291,7 +291,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
 
   try {
     const body = (await request.json()) as AdRequestBody;
-    const { title, price, location, category, description, imageUrls } = body;
+    const { title, price, location, category, subCategory, description, imageUrls } = body;
 
     const pool = await getPool();
     const transaction = new sql.Transaction(pool);
@@ -316,6 +316,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
         .input("Price", sql.Decimal(18, 2), Number(price ?? 0))
         .input("Location", sql.NVarChar, location ?? "")
         .input("Category", sql.NVarChar, category ?? "")
+        .input("SubCategory", sql.NVarChar, subCategory ?? "")
         .input("Description", sql.NVarChar, description ?? "")
         .input("MainImageUrl", sql.NVarChar, imageUrls?.[0] ?? null)
         .input("UpdatedAt", sql.DateTime, new Date())
@@ -325,6 +326,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
               Price = @Price,
               Location = @Location,
               Category = @Category,
+              SubCategory = @SubCategory,
               Description = @Description,
               MainImageUrl = @MainImageUrl,
               UpdatedAt = @UpdatedAt,
