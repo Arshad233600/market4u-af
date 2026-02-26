@@ -92,19 +92,34 @@ export async function register(request: HttpRequest, context: InvocationContext)
   try {
     const body = (await request.json()) as { name?: string; email?: string; password?: string; phone?: string };
     const name = String(body?.name ?? "").trim();
-    const email = String(body?.email ?? "").trim();
+    const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "");
     const phone = String(body?.phone ?? "").trim() || null;
 
-    if (!email || !password || !name) {
-      return badRequest("اطلاعات ناقص است.");
+    if (!name) {
+      return badRequest("نام الزامی است.");
     }
 
-    if (password.length < 6) {
-      return badRequest("رمز عبور باید حداقل ۶ کاراکتر باشد.");
+    if (!email) {
+      return badRequest("ایمیل الزامی است.");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return badRequest("فرمت ایمیل نامعتبر است.");
+    }
+
+    if (!password) {
+      return badRequest("رمز عبور الزامی است.");
+    }
+
+    if (password.length < 8) {
+      return badRequest("رمز عبور باید حداقل ۸ کاراکتر باشد.");
     }
 
     const pool = await getPool();
+    const emailDomain = email.split('@')[1] ?? 'unknown';
+    context.log(`Register attempt for domain: ${emailDomain}`);
     const id = `u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Check if email exists
@@ -134,6 +149,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
         VALUES (@Id, @Name, @Email, @Phone, @PasswordHash, @Role, 0, 0, @CreatedAt)
       `);
 
+    context.log(`User registered successfully: ${id}`);
     const token = signToken({ uid: id, iat: Date.now() });
 
     return success({

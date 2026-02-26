@@ -31,6 +31,11 @@ BEGIN
     BEGIN
         ALTER TABLE Users ADD DeletedAt DATETIME2 NULL;
     END
+    -- Add PasswordHash column if it doesn't exist (for existing databases missing it)
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'PasswordHash')
+    BEGIN
+        ALTER TABLE Users ADD PasswordHash NVARCHAR(500) NOT NULL DEFAULT '';
+    END
 END
 GO
 
