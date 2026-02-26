@@ -4,6 +4,7 @@ import { Buffer } from "buffer";
 import crypto from "crypto";
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "CHANGE_ME_IN_AZURE";
+const TOKEN_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export interface AuthResult {
     userId: string | null;
@@ -55,9 +56,9 @@ export const validateToken = (request: HttpRequest): AuthResult => {
             return { userId: null, isAuthenticated: false };
         }
 
-        // Check token age (24 hours)
+        // Check token age (30 days)
         const tokenAge = Date.now() - (payload.iat || 0);
-        if (tokenAge > 24 * 60 * 60 * 1000) {
+        if (tokenAge > TOKEN_EXPIRATION_MS) {
             return { userId: null, isAuthenticated: false };
         }
 
