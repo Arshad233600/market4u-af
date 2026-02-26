@@ -12,6 +12,75 @@ import { toastService } from './toastService';
 const CURRENT_USER_ID = 'user_123'; 
 const DB_PREFIX = 'bazar_db_';
 
+// --- MAP BACKEND (PascalCase SQL) RESPONSE TO FRONTEND Product TYPE ---
+interface AdRow { [key: string]: unknown; }
+
+interface InboxItem {
+    OtherUserId: string;
+    OtherUserName: string;
+    OtherUserAvatar: string;
+    LastMessage: string;
+    LastMessageTime: string;
+    UnreadCount: number;
+}
+
+interface MsgItem {
+    Id: string;
+    FromUserId: string;
+    Content: string;
+    IsRead: boolean;
+    CreatedAt: string;
+}
+
+interface ProfileRecord {
+    Id: string;
+    Name: string;
+    Email: string;
+    Phone: string;
+    AvatarUrl: string;
+    IsVerified: boolean;
+    Role: string;
+    CreatedAt: string;
+}
+
+interface TxRow {
+    Id: string;
+    UserId: string;
+    Amount: number;
+    Type: string;
+    Status: string;
+    Description: string;
+    CreatedAt: string;
+}
+
+function mapAdToProduct(row: AdRow): Product {
+    return {
+        id: String(row.Id || row.id || ''),
+        userId: String(row.UserId || row.userId || ''),
+        title: String(row.Title || row.title || ''),
+        price: Number(row.Price ?? row.price ?? 0),
+        currency: 'AFN',
+        location: String(row.Location || row.location || ''),
+        latitude: row.Latitude != null ? Number(row.Latitude) : row.latitude != null ? Number(row.latitude) : undefined,
+        longitude: row.Longitude != null ? Number(row.Longitude) : row.longitude != null ? Number(row.longitude) : undefined,
+        imageUrl: String(row.MainImageUrl || row.mainImageUrl || row.imageUrl || ''),
+        imageUrls: Array.isArray(row.images) ? row.images as string[] : [],
+        category: String(row.Category || row.category || ''),
+        subCategory: row.SubCategory != null ? String(row.SubCategory) : row.subCategory != null ? String(row.subCategory) : undefined,
+        description: String(row.Description || row.description || ''),
+        sellerName: String(row.SellerName || row.sellerName || ''),
+        postedDate: String(row.CreatedAt || row.createdAt || ''),
+        status: (String(row.Status || row.status || 'ACTIVE')) as AdStatus,
+        views: Number(row.Views ?? row.views ?? 0),
+        isPromoted: Boolean(row.IsPromoted ?? row.isPromoted ?? false),
+        isFavorite: Boolean(row.isFavorite ?? false),
+    };
+}
+
+function mapAdsToProducts(rows: AdRow[]): Product[] {
+    return (rows || []).map(mapAdToProduct);
+}
+
 // Type definitions for API data
 interface CreateAdData {
   title: string;
@@ -181,8 +250,6 @@ const triggerMockReply = async (conversationId: string, userText: string) => {
 export const azureService = {
 
   getUserProfile: async (): Promise<User> => {
-    const CACHE_KEY = `user_profile_${CURRENT_USER_ID}`;
-    
     if (USE_MOCK_DATA) {
       const sessionUser = authService.getCurrentUser();
       const user = sessionUser || {
@@ -199,9 +266,19 @@ export const azureService = {
       };
       return user;
     }
-    const data = await apiClient.get<User>('/user/profile');
-    cacheService.set(CACHE_KEY, data);
-    return data;
+    const sessionUser = authService.getCurrentUser();
+    if (sessionUser) return sessionUser;
+    const data = await apiClient.get<ProfileRecord>('/user/profile');
+    return {
+      id: data.Id,
+      name: data.Name,
+      email: data.Email,
+      phone: data.Phone || '',
+      avatarUrl: data.AvatarUrl || '',
+      isVerified: data.IsVerified,
+      role: data.Role as 'USER' | 'ADMIN',
+      joinDate: data.CreatedAt
+    };
   },
 
   updateUserProfile: async (data: Partial<User>): Promise<boolean> => {
@@ -387,7 +464,8 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.userId === CURRENT_USER_ID && p.status !== AdStatus.DELETED);
       }
-      return apiClient.get('/ads/my-ads');
+      const data = await apiClient.get<AdRow[]>('/ads/my-ads');
+      return mapAdsToProducts(data);
   },
   
   getSellerAds: async (id: string) => {
@@ -395,10 +473,11 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.userId === id && p.status === AdStatus.ACTIVE);
       }
-      return apiClient.get(`/ads/user/${id}`);
+      const data = await apiClient.get<AdRow[]>(`/ads/user/${id}`);
+      return mapAdsToProducts(data);
   },
   
-  getSellerReviews: async (id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : apiClient.get(`/users/${id}/reviews`),
+  getSellerReviews: async (id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : [],
   
   getProductById: async (id: string): Promise<Product | null> => {
       if (USE_MOCK_DATA) {
@@ -406,7 +485,8 @@ export const azureService = {
           return products.find(p => p.id === id) || null;
       }
       try {
-          return await apiClient.get<Product>(`/ads/${id}`);
+          const data = await apiClient.get<AdRow>(`/ads/${id}`);
+          return mapAdToProduct(data);
       } catch { return null; }
   },
 
@@ -415,7 +495,8 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.status === AdStatus.ACTIVE && p.category === cat && p.id !== id).slice(0, 4);
       }
-      return apiClient.get(`/ads/related`);
+      const data = await apiClient.get<AdRow[]>(`/ads?category=${encodeURIComponent(cat)}`);
+      return mapAdsToProducts(data).filter(p => p.id !== id).slice(0, 4);
   },
   
   searchAds: async (filters: SearchFilters): Promise<Product[]> => {
@@ -456,7 +537,17 @@ export const azureService = {
 
         return res;
     }
-    return apiClient.post('/search/index', filters);
+    const params = new URLSearchParams();
+    if (filters.category && filters.category !== 'all') params.append('category', filters.category);
+    if (filters.province && filters.province !== 'all') params.append('province', filters.province);
+    if (filters.district) params.append('district', filters.district);
+    if (filters.query) params.append('q', filters.query);
+    if (filters.minPrice) params.append('minPrice', String(filters.minPrice));
+    if (filters.maxPrice) params.append('maxPrice', String(filters.maxPrice));
+    if (filters.sort) params.append('sort', filters.sort);
+    const qs = params.toString();
+    const data = await apiClient.get<AdRow[]>(`/ads${qs ? '?' + qs : ''}`);
+    return mapAdsToProducts(data);
   },
 
   getSearchSuggestions: async (q: string): Promise<string[]> => {
@@ -464,14 +555,26 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.map(p => p.title).filter(t => t.includes(q)).slice(0, 5);
       }
-      return apiClient.get<string[]>(`/search/suggest?q=${q}`);
+      try {
+          const data = await apiClient.get<AdRow[]>(`/ads?q=${encodeURIComponent(q)}`);
+          return mapAdsToProducts(data).map(p => p.title).slice(0, 5);
+      } catch { return []; }
   },
   
   getWalletTransactions: async () => {
       if (USE_MOCK_DATA) {
           return db.get<WalletTransaction[]>('transactions', []);
       }
-      return apiClient.get('/wallet/transactions');
+      const data = await apiClient.get<TxRow[]>('/wallet/transactions');
+      return data.map(tx => ({
+          id: tx.Id,
+          userId: tx.UserId,
+          amount: tx.Amount,
+          type: tx.Type as WalletTransaction['type'],
+          date: tx.CreatedAt,
+          status: tx.Status as WalletTransaction['status'],
+          description: tx.Description || ''
+      }));
   },
   
   topUpWallet: async (amount: number, desc: string) => { 
@@ -515,7 +618,18 @@ export const azureService = {
           // Instant response for better feel
           return db.get<ChatConversation[]>('conversations', []);
       }
-      return apiClient.get('/chat/conversations');
+      const data = await apiClient.get<InboxItem[]>('/messages/inbox');
+      return data.map(item => ({
+          id: item.OtherUserId,
+          otherUserId: item.OtherUserId,
+          otherUserName: item.OtherUserName,
+          otherUserAvatar: item.OtherUserAvatar || '',
+          productId: '',
+          productTitle: '',
+          lastMessage: item.LastMessage,
+          lastMessageTime: new Date(item.LastMessageTime).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+          unreadCount: item.UnreadCount || 0
+      }));
   },
   
   getMessages: async (id: string): Promise<ChatMessage[]> => {
@@ -524,7 +638,17 @@ export const azureService = {
           const allMessages = db.get<MessageRecord>('messages', {});
           return allMessages[id] || [];
       }
-      return apiClient.get(`/chat/${id}/messages`);
+      const data = await apiClient.get<MsgItem[]>(`/messages/thread/${id}`);
+      return data.map(msg => ({
+          id: msg.Id,
+          senderId: msg.FromUserId,
+          text: msg.Content,
+          type: 'TEXT' as const,
+          timestamp: new Date(msg.CreatedAt).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+          isRead: msg.IsRead,
+          status: 'SENT' as const,
+          isDeleted: false
+      }));
   },
   
   sendMessage: async (id: string, text: string): Promise<ChatMessage> => {
@@ -563,7 +687,18 @@ export const azureService = {
 
           return newMessage;
       }
-      return apiClient.post<ChatMessage>(`/chat/${id}/messages`, { text });
+      const currentUser = authService.getCurrentUser();
+      await apiClient.post('/messages', { toUserId: id, content: text });
+      return {
+          id: `msg_${Date.now()}`,
+          senderId: currentUser?.id || '',
+          text,
+          type: 'TEXT',
+          timestamp: new Date().toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+          isRead: false,
+          status: 'SENT',
+          isDeleted: false
+      };
   },
 
   startConversation: async (productId: string): Promise<string> => {
@@ -601,7 +736,12 @@ export const azureService = {
           db.save('conversations', conversations);
           return newConvoId;
       }
-      return 'c1'; // Fallback for real API pending impl
+      try {
+          const ad = await apiClient.get<AdRow>(`/ads/${productId}`);
+          return String(ad.UserId || '');
+      } catch {
+          return '';
+      }
   },
 
   deleteMessage: async (messageId: string): Promise<boolean> => {
@@ -694,7 +834,19 @@ export const azureService = {
           db.save('favorites', favorites);
           return true;
       }
-      return apiClient.get('/user/favorites');
+      try {
+          await apiClient.post(`/favorites/${id}`, {});
+          return true;
+      } catch (err: unknown) {
+          // 409 = already favorited, so remove it
+          if (err instanceof Error && (err.message.includes('409') || err.message.includes('Already'))) {
+              try {
+                  await apiClient.delete(`/favorites/${id}`);
+                  return true;
+              } catch { return false; }
+          }
+          return false;
+      }
   },
 
   getFavorites: async () => {
@@ -704,7 +856,8 @@ export const azureService = {
           const favProducts = products.filter(p => favorites.includes(p.id));
           return favProducts.map(p => ({ ...p, isFavorite: true }));
       }
-      return apiClient.get('/user/favorites');
+      const data = await apiClient.get<AdRow[]>('/favorites');
+      return mapAdsToProducts(data).map(p => ({ ...p, isFavorite: true }));
   },
 
   // --- NOTIFICATIONS ---
@@ -712,7 +865,7 @@ export const azureService = {
       if (USE_MOCK_DATA) {
           return db.get<Notification[]>('notifications', []);
       }
-      return apiClient.get('/user/notifications');
+      return [];
   },
 
   markNotificationRead: async (id?: string) => {

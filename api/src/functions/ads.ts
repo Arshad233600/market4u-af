@@ -53,10 +53,15 @@ export async function getAds(request: HttpRequest, context: InvocationContext): 
   try {
     const pool = await getPool();
 
-    let queryStr = "SELECT TOP 50 * FROM Ads WHERE Status = 'ACTIVE' AND IsDeleted = 0";
-
     const category = q(request, "category");
     const province = q(request, "province");
+    const district = q(request, "district");
+    const searchQuery = q(request, "q");
+    const minPrice = q(request, "minPrice");
+    const maxPrice = q(request, "maxPrice");
+    const sort = q(request, "sort") || "newest";
+
+    let queryStr = "SELECT TOP 100 * FROM Ads WHERE Status = 'ACTIVE' AND IsDeleted = 0";
 
     if (category && category !== "all") {
       queryStr += " AND Category = @Category";
@@ -64,18 +69,60 @@ export async function getAds(request: HttpRequest, context: InvocationContext): 
     if (province && province !== "all") {
       queryStr += " AND Location LIKE '%' + @Province + '%'";
     }
+    if (district) {
+      queryStr += " AND Location LIKE '%' + @District + '%'";
+    }
+    if (searchQuery) {
+      queryStr += " AND (Title LIKE '%' + @SearchQuery + '%' OR Description LIKE '%' + @SearchQuery + '%')";
+    }
+    if (minPrice) {
+      queryStr += " AND Price >= @MinPrice";
+    }
+    if (maxPrice) {
+      queryStr += " AND Price <= @MaxPrice";
+    }
 
-    queryStr += " ORDER BY CreatedAt DESC";
+    if (sort === "price_low") {
+      queryStr += " ORDER BY Price ASC";
+    } else if (sort === "price_high") {
+      queryStr += " ORDER BY Price DESC";
+    } else if (sort === "most_viewed") {
+      queryStr += " ORDER BY Views DESC";
+    } else {
+      queryStr += " ORDER BY CreatedAt DESC";
+    }
 
     const req = pool.request();
     if (category && category !== "all") req.input("Category", sql.NVarChar, category);
     if (province && province !== "all") req.input("Province", sql.NVarChar, province);
+    if (district) req.input("District", sql.NVarChar, district);
+    if (searchQuery) req.input("SearchQuery", sql.NVarChar, searchQuery);
+    if (minPrice) req.input("MinPrice", sql.Decimal(18, 2), Number(minPrice));
+    if (maxPrice) req.input("MaxPrice", sql.Decimal(18, 2), Number(maxPrice));
 
     const result = await req.query(queryStr);
 
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getAds SQL Error", err);
+    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+  }
+}
+
+export async function getSellerAds(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const userId = request.params?.userId;
+  if (!userId) return { status: 400, jsonBody: { error: "User ID required" } };
+
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("UserId", sql.NVarChar, userId)
+      .query("SELECT TOP 50 * FROM Ads WHERE UserId = @UserId AND Status = 'ACTIVE' AND IsDeleted = 0 ORDER BY CreatedAt DESC");
+
+    return { status: 200, jsonBody: result.recordset };
+  } catch (err: unknown) {
+    context.error("getSellerAds Error", err);
     return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
   }
 }
@@ -349,6 +396,7 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
 app.http("getAds", { methods: ["GET"], authLevel: "anonymous", route: "ads", handler: getAds });
 app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id}", handler: getAdDetail });
 app.http("getMyAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/my-ads", handler: getMyAds });
+app.http("getSellerAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/user/{userId}", handler: getSellerAds });
 app.http("postAd", { methods: ["POST"], authLevel: "anonymous", route: "ads", handler: postAd });
 app.http("updateAd", { methods: ["PUT"], authLevel: "anonymous", route: "ads/{id}", handler: updateAd });
 app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/{id}", handler: deleteAd });
