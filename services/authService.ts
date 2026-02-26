@@ -39,16 +39,20 @@ export const authService = {
     }
   },
 
-  // Client-side check: returns true if no token or the 2-part signed token is older than 30 days.
-  // Unknown/mock token formats are treated as valid (server will be the final authority).
+  // Client-side check: returns true if no token or the JWT `exp` claim has passed.
+  // Non-standard/mock token formats (not 3-part JWTs) are treated as valid (server will be the final authority).
   isTokenExpired: (): boolean => {
     try {
       const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
       if (!token) return true;
       const parts = token.split('.');
-      if (parts.length !== 2) return false; // Non-standard (e.g. mock) token → assume valid
-      const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+      if (parts.length !== 3) return false; // Non-standard (e.g. mock) token → assume valid
+      // Decode the payload (middle part) of the JWT
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
+      // Use standard JWT `exp` claim (seconds since epoch) if available
+      if (payload.exp) return Date.now() / 1000 > payload.exp;
+      // Fall back to `iat` + custom expiry window
       const tokenAge = Date.now() - (payload.iat || 0);
       return tokenAge > TOKEN_EXPIRY_MS; // 30 days
     } catch {
