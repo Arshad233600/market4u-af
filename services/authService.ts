@@ -39,21 +39,40 @@ export const authService = {
     }
   },
 
-  // Client-side check: returns true if no token or the JWT `exp` claim has passed.
-  // Non-standard/mock token formats (not 3-part JWTs) are treated as valid (server will be the final authority).
+  // Client-side check: returns true if no token or the token's expiry has passed.
+  // Handles both:
+  //   - 2-part server-issued tokens: base64url(payload).base64url(signature)  [iat in ms]
+  //   - 3-part standard JWTs: header.payload.signature  [exp in seconds, iat in seconds]
+  // Unknown formats are treated as valid (server will be the final authority).
   isTokenExpired: (): boolean => {
     try {
       const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
       if (!token) return true;
       const parts = token.split('.');
-      if (parts.length !== 3) return false; // Non-standard (e.g. mock) token → assume valid
+
+      // 2-part server token: base64url(JSON payload).base64url(signature)
+      if (parts.length === 2) {
+        // Add padding required by atob for base64url-encoded strings
+        const padded = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+        const pad = padded.length % 4;
+        const b64 = pad ? padded + '='.repeat(4 - pad) : padded;
+        const payloadJson = atob(b64);
+        const payload = JSON.parse(payloadJson);
+        if (payload.iat) {
+          const tokenAge = Date.now() - payload.iat; // iat is stored in ms on server
+          return tokenAge > TOKEN_EXPIRY_MS;
+        }
+        return false; // No iat claim → cannot determine age → assume valid
+      }
+
+      if (parts.length !== 3) return false; // Unknown format → assume valid
       // Decode the payload (middle part) of the JWT
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
       // Use standard JWT `exp` claim (seconds since epoch) if available
       if (payload.exp) return Date.now() / 1000 > payload.exp;
-      // Fall back to `iat` + custom expiry window
-      const tokenAge = Date.now() - (payload.iat || 0);
+      // Fall back to `iat` (seconds) + custom expiry window
+      const tokenAge = Date.now() - (payload.iat || 0) * 1000;
       return tokenAge > TOKEN_EXPIRY_MS; // 30 days
     } catch {
       return false; // Cannot decode → let the server decide

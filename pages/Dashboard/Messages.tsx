@@ -91,6 +91,9 @@ const Messages: React.FC = () => {
   };
 
   useEffect(() => {
+    // Ensure WebSocket is connected when the user opens the Messages page
+    // (handles the case where the service loaded before the user logged in)
+    realtimeService.connect();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConvos();
 
