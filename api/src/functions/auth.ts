@@ -43,7 +43,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     const result = await pool
       .request()
       .input("Email", sql.NVarChar, email)
-      .query("SELECT TOP 1 Id, Name, Email, Role, IsVerified, PasswordHash FROM Users WHERE Email = @Email");
+      .query("SELECT TOP 1 Id, PasswordHash FROM Users WHERE Email = @Email AND IsDeleted = 0");
 
     const user = result.recordset?.[0];
     if (!user) {
@@ -56,6 +56,14 @@ export async function login(request: HttpRequest, context: InvocationContext): P
       return unauthorized("نام کاربری یا رمز عبور اشتباه است.");
     }
 
+    // Fetch full profile (without PasswordHash) for the response
+    const profileResult = await pool
+      .request()
+      .input("Id", sql.NVarChar, user.Id)
+      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, CreatedAt FROM Users WHERE Id = @Id");
+
+    const profile = profileResult.recordset[0];
+
     const token = signToken({
       uid: user.Id,
       iat: Date.now()
@@ -64,14 +72,14 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     return success({
       token,
       user: {
-        id: user.Id,
-        name: user.Name,
-        email: user.Email,
-        phone: user.Phone || '',
-        avatarUrl: user.AvatarUrl || '',
-        role: user.Role,
-        isVerified: user.IsVerified,
-        joinDate: user.CreatedAt
+        id: profile.Id,
+        name: profile.Name,
+        email: profile.Email,
+        phone: profile.Phone || '',
+        avatarUrl: profile.AvatarUrl || '',
+        role: profile.Role,
+        isVerified: profile.IsVerified,
+        joinDate: profile.CreatedAt
       }
     });
   } catch (err: unknown) {
@@ -86,7 +94,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
     const name = String(body?.name ?? "").trim();
     const email = String(body?.email ?? "").trim();
     const password = String(body?.password ?? "");
-    const phone = String(body?.phone ?? "").trim();
+    const phone = String(body?.phone ?? "").trim() || null;
 
     if (!email || !password || !name) {
       return badRequest("اطلاعات ناقص است.");
@@ -103,7 +111,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
     const check = await pool
       .request()
       .input("Email", sql.NVarChar, email)
-      .query("SELECT TOP 1 Id FROM Users WHERE Email = @Email");
+      .query("SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0");
 
     if (check.recordset.length > 0) {
       return error("این ایمیل قبلاً ثبت شده است.", 409);
