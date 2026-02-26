@@ -25,9 +25,7 @@ BEGIN
     -- Add IsDeleted column if it doesn't exist (for existing databases)
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsDeleted')
     BEGIN
-        ALTER TABLE Users ADD IsDeleted BIT NULL;
-        UPDATE Users SET IsDeleted = 0 WHERE IsDeleted IS NULL;
-        ALTER TABLE Users ALTER COLUMN IsDeleted BIT NOT NULL;
+        ALTER TABLE Users ADD IsDeleted BIT NOT NULL DEFAULT 0;
     END
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'DeletedAt')
     BEGIN
