@@ -4,6 +4,7 @@ import Icon from '../src/components/ui/Icon';
 import { CATEGORIES, PROVINCES, DISTRICTS, DISTRICT_LOCATIONS } from '../constants';
 import { generateAdDescription } from '../services/geminiService';
 import { azureService } from '../services/azureService';
+import { AuthError } from '../services/apiClient';
 import { Page, Product, ProductCondition } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TRANSLATIONS } from '../translations';
@@ -256,21 +257,30 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           condition, isNegotiable, deliveryAvailable
       };
 
-      let success = false;
-      if (existingAd) {
-          success = await azureService.updateAd(existingAd.id, adData);
-          if (success) toastService.success('آگهی با موفقیت ویرایش شد.');
-      } else {
-          success = await azureService.postAd(adData);
-          if (success) toastService.success('آگهی با موفقیت ثبت شد.');
-      }
-      
-      setIsSubmitting(false);
+      try {
+          let success = false;
+          if (existingAd) {
+              success = await azureService.updateAd(existingAd.id, adData);
+              if (success) toastService.success('آگهی با موفقیت ویرایش شد.');
+          } else {
+              success = await azureService.postAd(adData);
+              if (success) toastService.success('آگهی با موفقیت ثبت شد.');
+          }
 
-      if (success) {
-          onNavigate(Page.DASHBOARD_ADS);
-      } else {
-          toastService.error('خطا در ثبت اطلاعات.');
+          if (success) {
+              onNavigate(Page.DASHBOARD_ADS);
+          } else {
+              toastService.error('خطا در ثبت اطلاعات.');
+          }
+      } catch (err) {
+          // AuthError is already handled (logout + toast) in apiClient; navigate to login
+          if (err instanceof AuthError) {
+              onNavigate(Page.LOGIN);
+          } else {
+              toastService.error('خطا در ثبت اطلاعات.');
+          }
+      } finally {
+          setIsSubmitting(false);
       }
   }
 

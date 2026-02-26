@@ -388,7 +388,10 @@ export const azureService = {
     try {
         await apiClient.post('/ads', adData);
         return true;
-    } catch { return false; }
+    } catch (err) {
+        if (err instanceof AuthError) throw err;
+        return false;
+    }
   },
 
   updateAd: async (id: string, adData: UpdateAdData): Promise<boolean> => {
@@ -414,7 +417,10 @@ export const azureService = {
     try {
         await apiClient.put(`/ads/${id}`, adData);
         return true;
-    } catch { return false; }
+    } catch (err) {
+        if (err instanceof AuthError) throw err;
+        return false;
+    }
   },
 
   deleteAd: async (id: string): Promise<boolean> => {
