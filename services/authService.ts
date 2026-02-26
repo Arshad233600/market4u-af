@@ -30,7 +30,11 @@ export const authService = {
 
   // Get JWT Token for API Calls
   getToken: (): string | null => {
-    return localStorage.getItem(STORAGE_KEY_TOKEN);
+    try {
+      return localStorage.getItem(STORAGE_KEY_TOKEN);
+    } catch {
+      return null;
+    }
   },
 
   // Update Current User Session

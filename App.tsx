@@ -69,7 +69,12 @@ const AppContent: React.FC = () => {
   // Sync user state when auth-change fires (e.g. 401 forces logout without page reload)
   useEffect(() => {
     const handleAuthChange = () => {
-      setUser(authService.getCurrentUser());
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
+      // If session expired (user is now null) and we're on a protected page, navigate to login
+      if (!currentUser) {
+        setCurrentPage(Page.LOGIN);
+      }
     };
     window.addEventListener('auth-change', handleAuthChange);
     return () => window.removeEventListener('auth-change', handleAuthChange);
