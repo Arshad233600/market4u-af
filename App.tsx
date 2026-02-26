@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy, useEffect } from 'react';
+import React, { useState, Suspense, lazy, useEffect, useRef } from 'react';
 import { HashRouter } from 'react-router-dom';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
@@ -61,6 +61,11 @@ const AppContent: React.FC = () => {
   const [currentSeller, setCurrentSeller] = useState<{ id: string; name: string } | null>(null);
   const [currentLocationName, setCurrentLocationName] = useState<string>('کل افغانستان');
 
+  // Ref so the auth-change handler (registered once on mount) can read the current page
+  // without a stale closure.
+  const currentPageRef = useRef<Page | 'ADMIN_PANEL'>(currentPage);
+  useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+
   // Initialize error logger on app start
   useEffect(() => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
@@ -70,6 +75,14 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleAuthChange = () => {
       const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        // Session expired or forced logout – remember the current dashboard page so the user
+        // is sent back there after re-login (e.g. back to chat after token refresh).
+        const page = currentPageRef.current;
+        if (typeof page === 'string' && page.startsWith('dashboard')) {
+          setPendingPage(page as Page);
+        }
+      }
       setUser(currentUser);
       // Protected pages (dashboard, profile, etc.) already show the Login form via the
       // renderContent guard (`if (!user) return <Login …>`), so no explicit page redirect

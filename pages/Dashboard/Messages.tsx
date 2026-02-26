@@ -82,6 +82,12 @@ const Messages: React.FC = () => {
 
   // Load Conversations
   const loadConvos = async () => {
+      // Proactively check token before making API calls.
+      // authService.logout() fires auth-change → App.tsx sets user=null → Login form shown.
+      if (!authService.getToken() || authService.isTokenExpired()) {
+          authService.logout();
+          return;
+      }
       try {
           const data = await azureService.getConversations();
           setConversations(data);
