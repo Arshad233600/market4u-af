@@ -4,6 +4,7 @@ import { API_BASE_URL, USE_MOCK_DATA } from '../config';
 
 const STORAGE_KEY_USER = 'bazar_af_user';
 const STORAGE_KEY_TOKEN = 'bazar_af_token';
+const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (matches server TOKEN_EXPIRATION_MS)
 
 // Mock Data for Offline/Demo Mode
 const MOCK_USER: User = {
@@ -34,6 +35,23 @@ export const authService = {
       return localStorage.getItem(STORAGE_KEY_TOKEN);
     } catch {
       return null;
+    }
+  },
+
+  // Client-side check: returns true if no token or the 2-part signed token is older than 30 days.
+  // Unknown/mock token formats are treated as valid (server will be the final authority).
+  isTokenExpired: (): boolean => {
+    try {
+      const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+      if (!token) return true;
+      const parts = token.split('.');
+      if (parts.length !== 2) return false; // Non-standard (e.g. mock) token → assume valid
+      const base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      const tokenAge = Date.now() - (payload.iat || 0);
+      return tokenAge > TOKEN_EXPIRY_MS; // 30 days
+    } catch {
+      return false; // Cannot decode → let the server decide
     }
   },
 
