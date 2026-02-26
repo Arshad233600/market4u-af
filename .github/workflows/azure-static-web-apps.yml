@@ -44,25 +44,6 @@ jobs:
       - name: Build API
         run: npm run build --prefix api
 
-      - name: Clean workspace for deployment
-        run: |
-          # Remove node_modules – they add tens of thousands of files that push the
-          # SWA static-file count over Azure's limit.  Azure Static Web Apps
-          # automatically runs `npm install` for the managed-functions API at
-          # deployment time when node_modules is absent.
-          rm -rf node_modules api/node_modules
-          # Remove Android/iOS native app directories (not needed for web deployment)
-          rm -rf android ios
-          # Remove TypeScript source directories (built artifacts in dist/ are sufficient)
-          rm -rf components pages contexts services utils types scripts database infrastructure src
-          # Remove root-level source files not needed for deployment
-          find . -maxdepth 1 \( -name "*.ts" -o -name "*.tsx" \) -delete
-          # Remove root-level HTML/CSS/JS source files that conflict with the built dist/ output.
-          # Without this, the Azure SWA deploy action can upload the raw source index.html
-          # (which references index.tsx and /index.css) alongside the built dist/ files,
-          # causing a black screen: the browser loads unprocessed source instead of the bundle.
-          rm -f index.html index.css postcss.config.js eslint.config.js tailwind.config.js
-
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -70,9 +51,9 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
-          app_location: "."
+          app_location: "dist"
           api_location: "api"
-          output_location: "dist"
+          output_location: ""
           skip_app_build: true
         env:
           VITE_USE_MOCK_DATA: "false"
