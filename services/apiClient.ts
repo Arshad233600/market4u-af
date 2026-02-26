@@ -1,6 +1,7 @@
 
 import { API_BASE_URL } from '../config';
 import { authService } from './authService';
+import { toastService } from './toastService';
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -58,6 +59,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // 401 Unauthorized - No Retry, just logout and notify via event
     if (response.status === 401) {
       authService.logout();
+      toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
       throw new Error('نشست شما منقضی شده است.');
     }
 
