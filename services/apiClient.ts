@@ -64,15 +64,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-    // 401 Unauthorized - Only destroy the session when the client-side check
-    // also confirms the token is expired. A 401 on a seemingly-valid token is
-    // likely a transient backend issue (cold start, secret rotation) and should
-    // NOT log the user out; the caller's catch block handles the empty response.
+    // 401 Unauthorized – the server has rejected the token (invalid, expired, or
+    // missing secret). Always clear the local session so the user can re-login
+    // and obtain a fresh token. Keeping a server-rejected token alive would leave
+    // the user in a stuck state where the UI shows them as logged in but every
+    // authenticated request fails.
     if (response.status === 401) {
-      if (authService.isTokenExpired()) {
-        authService.logout();
-        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-      }
+      authService.logout();
+      toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
       throw new AuthError();
     }
 
