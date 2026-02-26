@@ -8,6 +8,7 @@ import { cacheService } from './cacheService';
 import { compressImage } from './imageCompression';
 import { generateChatReply } from './geminiService';
 import { toastService } from './toastService';
+import { safeStorage } from '../utils/safeStorage';
 
 const CURRENT_USER_ID = 'user_123'; 
 const DB_PREFIX = 'bazar_db_';
@@ -114,7 +115,7 @@ interface MessageRecord {
 const db = {
     get: <T>(table: string, defaultData: T): T => {
         try {
-            const data = localStorage.getItem(DB_PREFIX + table);
+            const data = safeStorage.getItem(DB_PREFIX + table);
             return data ? JSON.parse(data) : defaultData;
         } catch {
             return defaultData;
@@ -122,48 +123,48 @@ const db = {
     },
     save: <T>(table: string, data: T) => {
         try {
-            localStorage.setItem(DB_PREFIX + table, JSON.stringify(data));
+            safeStorage.setItem(DB_PREFIX + table, JSON.stringify(data));
         } catch (e) {
             console.error("Local DB Full", e);
             toastService.error('حافظه مرورگر پر شده است. لطفاً برخی از آگهی‌ها یا تصاویر را پاک کنید.');
         }
     },
     init: () => {
-        if (!localStorage.getItem(DB_PREFIX + 'products')) {
+        if (!safeStorage.getItem(DB_PREFIX + 'products')) {
             const seedProducts = MOCK_PRODUCTS.map(p => ({ ...p, userId: p.userId === 'user_mock_1' ? CURRENT_USER_ID : p.userId }));
-            localStorage.setItem(DB_PREFIX + 'products', JSON.stringify(seedProducts));
+            safeStorage.setItem(DB_PREFIX + 'products', JSON.stringify(seedProducts));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'users')) {
+        if (!safeStorage.getItem(DB_PREFIX + 'users')) {
             const seedUsers: User[] = [
                 { id: 'user_v1', name: 'کریم خان', phone: '0771112222', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'دیروز', role: 'USER', status: 'ACTIVE' },
                 { id: 'user_v2', name: 'گل‌ناز', phone: '0799888777', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'امروز', role: 'USER', status: 'ACTIVE' }
             ];
-            localStorage.setItem(DB_PREFIX + 'users', JSON.stringify(seedUsers));
+            safeStorage.setItem(DB_PREFIX + 'users', JSON.stringify(seedUsers));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'conversations')) {
-             localStorage.setItem(DB_PREFIX + 'conversations', JSON.stringify([]));
+        if (!safeStorage.getItem(DB_PREFIX + 'conversations')) {
+             safeStorage.setItem(DB_PREFIX + 'conversations', JSON.stringify([]));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'messages')) {
-             localStorage.setItem(DB_PREFIX + 'messages', JSON.stringify({}));
+        if (!safeStorage.getItem(DB_PREFIX + 'messages')) {
+             safeStorage.setItem(DB_PREFIX + 'messages', JSON.stringify({}));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'wallet')) {
-            localStorage.setItem(DB_PREFIX + 'wallet', '3450');
+        if (!safeStorage.getItem(DB_PREFIX + 'wallet')) {
+            safeStorage.setItem(DB_PREFIX + 'wallet', '3450');
         }
-        if (!localStorage.getItem(DB_PREFIX + 'transactions')) {
+        if (!safeStorage.getItem(DB_PREFIX + 'transactions')) {
              const seedTx: WalletTransaction[] = [{ id: 'tx1', userId: CURRENT_USER_ID, amount: 500, type: 'DEPOSIT', date: '۱۴۰۳/۱۰/۰۱', status: 'SUCCESS', description: 'شارژ کیف پول (هشت‌پیس)' }];
-             localStorage.setItem(DB_PREFIX + 'transactions', JSON.stringify(seedTx));
+             safeStorage.setItem(DB_PREFIX + 'transactions', JSON.stringify(seedTx));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'favorites')) {
-            localStorage.setItem(DB_PREFIX + 'favorites', JSON.stringify([]));
+        if (!safeStorage.getItem(DB_PREFIX + 'favorites')) {
+            safeStorage.setItem(DB_PREFIX + 'favorites', JSON.stringify([]));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'notifications')) {
+        if (!safeStorage.getItem(DB_PREFIX + 'notifications')) {
             const seedNotifs: Notification[] = [
                 { id: 'n1', title: 'خوش آمدید', message: 'به بازار افغان خوش آمدید. پروفایل خود را تکمیل کنید.', date: '۱۴۰۳/۱۰/۰۱', isRead: false, type: 'info' }
             ];
-            localStorage.setItem(DB_PREFIX + 'notifications', JSON.stringify(seedNotifs));
+            safeStorage.setItem(DB_PREFIX + 'notifications', JSON.stringify(seedNotifs));
         }
-        if (!localStorage.getItem(DB_PREFIX + 'settings')) {
-            localStorage.setItem(DB_PREFIX + 'settings', JSON.stringify({ notif_msg: true, notif_ad: true, notif_promo: true }));
+        if (!safeStorage.getItem(DB_PREFIX + 'settings')) {
+            safeStorage.setItem(DB_PREFIX + 'settings', JSON.stringify({ notif_msg: true, notif_ad: true, notif_promo: true }));
         }
     }
 };

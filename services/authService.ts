@@ -1,6 +1,7 @@
 
 import { User } from '../types';
 import { API_BASE_URL, USE_MOCK_DATA } from '../config';
+import { safeStorage } from '../utils/safeStorage';
 
 const STORAGE_KEY_USER = 'bazar_af_user';
 const STORAGE_KEY_TOKEN = 'bazar_af_token';
@@ -22,7 +23,7 @@ export const authService = {
   // Get Current User
   getCurrentUser: (): User | null => {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY_USER);
+        const stored = safeStorage.getItem(STORAGE_KEY_USER);
         return stored ? JSON.parse(stored) : null;
     } catch {
         return null;
@@ -32,7 +33,7 @@ export const authService = {
   // Get JWT Token for API Calls
   getToken: (): string | null => {
     try {
-      return localStorage.getItem(STORAGE_KEY_TOKEN);
+      return safeStorage.getItem(STORAGE_KEY_TOKEN);
     } catch {
       return null;
     }
@@ -42,7 +43,7 @@ export const authService = {
   // Unknown/mock token formats are treated as valid (server will be the final authority).
   isTokenExpired: (): boolean => {
     try {
-      const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+      const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
       if (!token) return true;
       const parts = token.split('.');
       if (parts.length !== 2) return false; // Non-standard (e.g. mock) token → assume valid
@@ -57,7 +58,7 @@ export const authService = {
 
   // Update Current User Session
   updateUserSession: (updatedUser: User) => {
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedUser));
+    safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedUser));
     window.dispatchEvent(new Event('auth-change'));
   },
 
@@ -70,8 +71,8 @@ export const authService = {
           if (email && password) {
             const mockToken = "mock_token_" + Date.now(); 
             const user = { ...MOCK_USER, email };
-            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-            localStorage.setItem(STORAGE_KEY_TOKEN, mockToken);
+            safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+            safeStorage.setItem(STORAGE_KEY_TOKEN, mockToken);
             resolve(user);
           } else {
             reject(new Error('ایمیل یا رمز عبور اشتباه است'));
@@ -99,8 +100,8 @@ export const authService = {
         if (!data.user || !data.token) {
           throw new Error('پاسخ سرور نامعتبر است. لطفاً دوباره تلاش کنید.');
         }
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
-        localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
+        safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+        safeStorage.setItem(STORAGE_KEY_TOKEN, data.token);
         
         return data.user;
     } catch (error) {
@@ -117,8 +118,8 @@ export const authService = {
         setTimeout(() => {
           const newUser = { ...MOCK_USER, name, email, id: `u_${Date.now()}` };
           const mockToken = "mock_token_" + Date.now();
-          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
-          localStorage.setItem(STORAGE_KEY_TOKEN, mockToken);
+          safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
+          safeStorage.setItem(STORAGE_KEY_TOKEN, mockToken);
           resolve(newUser);
         }, 1000);
       });
@@ -143,8 +144,8 @@ export const authService = {
         if (!data.user || !data.token) {
           throw new Error('پاسخ سرور نامعتبر است. لطفاً دوباره تلاش کنید.');
         }
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
-        localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
+        safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+        safeStorage.setItem(STORAGE_KEY_TOKEN, data.token);
         
         return data.user;
     } catch (error) {
@@ -158,16 +159,16 @@ export const authService = {
     return new Promise((resolve) => {
       setTimeout(() => {
         const googleUser = { ...MOCK_USER, name: 'کاربر گوگل', email: 'user@gmail.com' };
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
-        localStorage.setItem(STORAGE_KEY_TOKEN, "google_mock_token");
+        safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
+        safeStorage.setItem(STORAGE_KEY_TOKEN, "google_mock_token");
         resolve(googleUser);
       }, 1500);
     });
   },
 
   logout: () => {
-    localStorage.removeItem(STORAGE_KEY_USER);
-    localStorage.removeItem(STORAGE_KEY_TOKEN);
+    safeStorage.removeItem(STORAGE_KEY_USER);
+    safeStorage.removeItem(STORAGE_KEY_TOKEN);
     window.dispatchEvent(new Event('auth-change'));
   }
 };

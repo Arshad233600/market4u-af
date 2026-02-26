@@ -3,6 +3,8 @@
  * Captures errors for production debugging without external dependencies
  */
 
+import { safeStorage } from './safeStorage';
+
 interface ErrorLog {
   timestamp: string;
   errorCode: string;
@@ -89,7 +91,7 @@ class ErrorLogger {
 
   private storeLog(log: ErrorLog) {
     try {
-      const stored = localStorage.getItem(this.storageKey);
+      const stored = safeStorage.getItem(this.storageKey);
       const logs: ErrorLog[] = stored ? JSON.parse(stored) : [];
       
       logs.push(log);
@@ -99,7 +101,7 @@ class ErrorLogger {
         logs.shift();
       }
       
-      localStorage.setItem(this.storageKey, JSON.stringify(logs));
+      safeStorage.setItem(this.storageKey, JSON.stringify(logs));
     } catch (err) {
       console.warn('Failed to store error log:', err);
     }
@@ -107,7 +109,7 @@ class ErrorLogger {
 
   public getLogs(): ErrorLog[] {
     try {
-      const stored = localStorage.getItem(this.storageKey);
+      const stored = safeStorage.getItem(this.storageKey);
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
@@ -115,7 +117,7 @@ class ErrorLogger {
   }
 
   public clearLogs() {
-    localStorage.removeItem(this.storageKey);
+    safeStorage.removeItem(this.storageKey);
   }
 
   public getVersion(): string {

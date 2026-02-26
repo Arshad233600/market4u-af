@@ -1,3 +1,4 @@
+import { safeStorage } from '../utils/safeStorage';
 
 const DEFAULT_TTL = 1000 * 60 * 30; // 30 Minutes cache by default
 
@@ -13,22 +14,22 @@ export const cacheService = {
         data,
         expiry: Date.now() + ttl,
       };
-      localStorage.setItem(key, JSON.stringify(item));
+      safeStorage.setItem(key, JSON.stringify(item));
     } catch (e) {
       console.warn('Cache quota exceeded', e);
       // Optional: Clear old cache if full
-      localStorage.clear();
+      safeStorage.clear();
     }
   },
 
   get: <T>(key: string): T | null => {
     try {
-      const itemStr = localStorage.getItem(key);
+      const itemStr = safeStorage.getItem(key);
       if (!itemStr) return null;
 
       const item: CacheItem<T> = JSON.parse(itemStr);
       if (Date.now() > item.expiry) {
-        localStorage.removeItem(key);
+        safeStorage.removeItem(key);
         return null;
       }
       return item.data;
@@ -38,10 +39,10 @@ export const cacheService = {
   },
 
   remove: (key: string): void => {
-    localStorage.removeItem(key);
+    safeStorage.removeItem(key);
   },
 
   clearAll: (): void => {
-    localStorage.clear();
+    safeStorage.clear();
   }
 };
