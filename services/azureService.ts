@@ -672,7 +672,7 @@ export const azureService = {
               timestamp: new Date(msg.CreatedAt).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
               isRead: msg.IsRead,
               status: 'SENT' as const,
-              isDeleted: false
+              isDeleted: msg.Content === ''
           }));
       } catch { return []; }
   },
@@ -785,7 +785,10 @@ export const azureService = {
           if (found) db.save('messages', allMessages);
           return found;
       }
-      return false;
+      try {
+          await apiClient.delete(`/messages/${messageId}`);
+          return true;
+      } catch { return false; }
   },
 
   updateAdStatus: async (id: string, status: AdStatus) => {
