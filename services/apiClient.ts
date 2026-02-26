@@ -28,7 +28,7 @@ export const apiClient = {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function request<T>(endpoint: string, method: string, body?: unknown, retries = 3, backoff = 300): Promise<T> {
+async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300): Promise<T> {
   const token = authService.getToken();
   
   const headers: Record<string, string> = {
@@ -69,11 +69,13 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API Error: ${response.status}`);
+      const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string };
+      throw new Error(errorData.message || errorData.error || `API Error: ${response.status}`);
     }
 
-    return await response.json();
+    return await response.json().catch(() => {
+      throw new Error('Invalid JSON response from server');
+    });
   } catch (error) {
     // Network Errors (Offline) - Retryable
     if (retries > 0 && (error instanceof TypeError || (error as Error).message.includes('Failed to fetch'))) {

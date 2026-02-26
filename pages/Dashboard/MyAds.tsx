@@ -23,9 +23,14 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
 
   useEffect(() => {
     const loadAds = async () => {
-      const data = await azureService.getMyAds();
-      setAds(data);
+      try {
+        const data = await azureService.getMyAds();
+        setAds(data);
+      } catch {
+        setAds([]);
+      }
     };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAds();
   }, []);
 

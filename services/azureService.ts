@@ -78,7 +78,8 @@ function mapAdToProduct(row: AdRow): Product {
 }
 
 function mapAdsToProducts(rows: AdRow[]): Product[] {
-    return (rows || []).map(mapAdToProduct);
+    if (!Array.isArray(rows)) return [];
+    return rows.map(mapAdToProduct);
 }
 
 // Type definitions for API data
@@ -456,7 +457,11 @@ export const azureService = {
           walletBalance: balance
       };
     }
-    return apiClient.get<DashboardStats>('/dashboard/stats');
+    try {
+        return await apiClient.get<DashboardStats>('/dashboard/stats');
+    } catch {
+        return { totalAds: 0, activeAds: 0, totalViews: 0, unreadMessages: 0, walletBalance: 0 };
+    }
   },
   
   getMyAds: async () => {
@@ -464,8 +469,10 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.userId === CURRENT_USER_ID && p.status !== AdStatus.DELETED);
       }
-      const data = await apiClient.get<AdRow[]>('/ads/my-ads');
-      return mapAdsToProducts(data);
+      try {
+          const data = await apiClient.get<AdRow[]>('/ads/my-ads');
+          return mapAdsToProducts(data);
+      } catch { return []; }
   },
   
   getSellerAds: async (id: string) => {
@@ -473,8 +480,10 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.userId === id && p.status === AdStatus.ACTIVE);
       }
-      const data = await apiClient.get<AdRow[]>(`/ads/user/${id}`);
-      return mapAdsToProducts(data);
+      try {
+          const data = await apiClient.get<AdRow[]>(`/ads/user/${id}`);
+          return mapAdsToProducts(data);
+      } catch { return []; }
   },
   
   getSellerReviews: async (id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : [],
@@ -495,8 +504,10 @@ export const azureService = {
           const products = db.get<Product[]>('products', []);
           return products.filter(p => p.status === AdStatus.ACTIVE && p.category === cat && p.id !== id).slice(0, 4);
       }
-      const data = await apiClient.get<AdRow[]>(`/ads?category=${encodeURIComponent(cat)}`);
-      return mapAdsToProducts(data).filter(p => p.id !== id).slice(0, 4);
+      try {
+          const data = await apiClient.get<AdRow[]>(`/ads?category=${encodeURIComponent(cat)}`);
+          return mapAdsToProducts(data).filter(p => p.id !== id).slice(0, 4);
+      } catch { return []; }
   },
   
   searchAds: async (filters: SearchFilters): Promise<Product[]> => {
@@ -565,16 +576,19 @@ export const azureService = {
       if (USE_MOCK_DATA) {
           return db.get<WalletTransaction[]>('transactions', []);
       }
-      const data = await apiClient.get<TxRow[]>('/wallet/transactions');
-      return data.map(tx => ({
-          id: tx.Id,
-          userId: tx.UserId,
-          amount: tx.Amount,
-          type: tx.Type as WalletTransaction['type'],
-          date: tx.CreatedAt,
-          status: tx.Status as WalletTransaction['status'],
-          description: tx.Description || ''
-      }));
+      try {
+          const data = await apiClient.get<TxRow[]>('/wallet/transactions');
+          if (!Array.isArray(data)) return [];
+          return data.map(tx => ({
+              id: tx.Id,
+              userId: tx.UserId,
+              amount: tx.Amount,
+              type: tx.Type as WalletTransaction['type'],
+              date: tx.CreatedAt,
+              status: tx.Status as WalletTransaction['status'],
+              description: tx.Description || ''
+          }));
+      } catch { return []; }
   },
   
   topUpWallet: async (amount: number, desc: string) => { 
@@ -618,18 +632,21 @@ export const azureService = {
           // Instant response for better feel
           return db.get<ChatConversation[]>('conversations', []);
       }
-      const data = await apiClient.get<InboxItem[]>('/messages/inbox');
-      return data.map(item => ({
-          id: item.OtherUserId,
-          otherUserId: item.OtherUserId,
-          otherUserName: item.OtherUserName,
-          otherUserAvatar: item.OtherUserAvatar || '',
-          productId: '',
-          productTitle: '',
-          lastMessage: item.LastMessage,
-          lastMessageTime: new Date(item.LastMessageTime).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
-          unreadCount: item.UnreadCount || 0
-      }));
+      try {
+          const data = await apiClient.get<InboxItem[]>('/messages/inbox');
+          if (!Array.isArray(data)) return [];
+          return data.map(item => ({
+              id: item.OtherUserId,
+              otherUserId: item.OtherUserId,
+              otherUserName: item.OtherUserName,
+              otherUserAvatar: item.OtherUserAvatar || '',
+              productId: '',
+              productTitle: '',
+              lastMessage: item.LastMessage,
+              lastMessageTime: new Date(item.LastMessageTime).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+              unreadCount: item.UnreadCount || 0
+          }));
+      } catch { return []; }
   },
   
   getMessages: async (id: string): Promise<ChatMessage[]> => {
@@ -638,17 +655,20 @@ export const azureService = {
           const allMessages = db.get<MessageRecord>('messages', {});
           return allMessages[id] || [];
       }
-      const data = await apiClient.get<MsgItem[]>(`/messages/thread/${id}`);
-      return data.map(msg => ({
-          id: msg.Id,
-          senderId: msg.FromUserId,
-          text: msg.Content,
-          type: 'TEXT' as const,
-          timestamp: new Date(msg.CreatedAt).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
-          isRead: msg.IsRead,
-          status: 'SENT' as const,
-          isDeleted: false
-      }));
+      try {
+          const data = await apiClient.get<MsgItem[]>(`/messages/thread/${id}`);
+          if (!Array.isArray(data)) return [];
+          return data.map(msg => ({
+              id: msg.Id,
+              senderId: msg.FromUserId,
+              text: msg.Content,
+              type: 'TEXT' as const,
+              timestamp: new Date(msg.CreatedAt).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+              isRead: msg.IsRead,
+              status: 'SENT' as const,
+              isDeleted: false
+          }));
+      } catch { return []; }
   },
   
   sendMessage: async (id: string, text: string): Promise<ChatMessage> => {
@@ -856,8 +876,10 @@ export const azureService = {
           const favProducts = products.filter(p => favorites.includes(p.id));
           return favProducts.map(p => ({ ...p, isFavorite: true }));
       }
-      const data = await apiClient.get<AdRow[]>('/favorites');
-      return mapAdsToProducts(data).map(p => ({ ...p, isFavorite: true }));
+      try {
+          const data = await apiClient.get<AdRow[]>('/favorites');
+          return mapAdsToProducts(data).map(p => ({ ...p, isFavorite: true }));
+      } catch { return []; }
   },
 
   // --- NOTIFICATIONS ---
@@ -894,7 +916,10 @@ export const azureService = {
          const products = db.get<Product[]>('products', []);
          return products.filter(p => p.status === AdStatus.PENDING);
      }
-     return apiClient.get('/admin/ads/pending');
+     try {
+         const data = await apiClient.get<AdRow[]>('/admin/ads/pending');
+         return mapAdsToProducts(data);
+     } catch { return []; }
   },
   
   adminGetPendingVerifications: async (): Promise<User[]> => {
@@ -902,7 +927,9 @@ export const azureService = {
           const users = db.get<User[]>('users', []);
           return users.filter(u => u.verificationStatus === 'PENDING');
       }
-      return apiClient.get('/admin/users/pending-verification');
+      try {
+          return await apiClient.get('/admin/users/pending-verification');
+      } catch { return []; }
   },
 
   adminApproveAd: async (id: string): Promise<boolean> => {

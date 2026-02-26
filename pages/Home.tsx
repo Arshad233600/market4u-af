@@ -51,7 +51,7 @@ const FilterSection: React.FC<{
 const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, onLocationChange }) => {
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -166,8 +166,8 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, on
         try {
             const data = await azureService.searchAds(filters);
             setProducts(data);
-        } catch (error) {
-            console.error(error);
+        } catch {
+            setProducts([]);
         } finally {
             setLoading(false);
         }
