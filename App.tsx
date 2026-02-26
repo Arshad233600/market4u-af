@@ -66,19 +66,17 @@ const AppContent: React.FC = () => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
   }, []);
 
-  // Sync user state on mount and whenever auth-change fires (e.g. 401 forces logout, cross-tab, PWA reload)
+  // Sync user state whenever auth-change fires (e.g. 401 forces logout, cross-tab, PWA reload)
   useEffect(() => {
     const handleAuthChange = () => {
       const currentUser = authService.getCurrentUser();
       setUser(currentUser);
-      // If session expired (user is now null) and we're on a protected page, navigate to login
-      if (!currentUser) {
-        setCurrentPage(Page.LOGIN);
-      }
+      // Protected pages (dashboard, profile, etc.) already show the Login form via the
+      // renderContent guard (`if (!user) return <Login …>`), so no explicit page redirect
+      // is needed here. Unconditionally redirecting to Page.LOGIN would prevent unauthenticated
+      // users from browsing public pages and would also log out users on every page refresh.
     };
     window.addEventListener('auth-change', handleAuthChange);
-    // Restore auth state from localStorage on mount (handles PWA/Service Worker cache scenarios)
-    window.dispatchEvent(new Event('auth-change'));
     return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
 
