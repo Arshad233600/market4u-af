@@ -26,7 +26,9 @@ function buildConfig(): SqlConfig | string {
         password: DB_PASSWORD,
         options: {
             encrypt: true,
-            trustServerCertificate: false
+            trustServerCertificate: false,
+            multiSubnetFailover: true,
+            appName: 'market4u-api'
         },
         connectionTimeout: 30000,
         requestTimeout: 30000,

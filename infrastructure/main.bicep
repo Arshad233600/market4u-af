@@ -71,6 +71,15 @@ resource sqlFirewallAzureServices 'Microsoft.Sql/servers/firewallRules@2023-05-0
   }
 }
 
+// Set connection policy to Redirect for lower latency (clients connect directly to the database node)
+resource sqlConnectionPolicy 'Microsoft.Sql/servers/connectionPolicies@2023-05-01-preview' = {
+  parent: sqlServer
+  name: 'default'
+  properties: {
+    connectionType: 'Redirect'
+  }
+}
+
 // =============================================================================
 // 2. Azure SQL Database (Basic tier - ~$5/month)
 // =============================================================================
@@ -162,7 +171,7 @@ resource staticWebAppSettings 'Microsoft.Web/staticSites/config@2023-01-01' = {
   parent: staticWebApp
   name: 'appsettings'
   properties: {
-    SqlConnectionString: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};User Id=${sqlAdminUsername};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;'
+    SqlConnectionString: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDbName};Persist Security Info=False;User ID=${sqlAdminUsername};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;ApplicationName=market4u-api;'
     AUTH_SECRET: authSecret
     AZURE_STORAGE_CONNECTION_STRING: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
     AZURE_STORAGE_CONTAINER: containerName
