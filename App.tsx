@@ -57,12 +57,22 @@ const AppContent: React.FC = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
+  const [pendingPage, setPendingPage] = useState<Page | null>(null);
   const [currentSeller, setCurrentSeller] = useState<{ id: string; name: string } | null>(null);
   const [currentLocationName, setCurrentLocationName] = useState<string>('کل افغانستان');
 
   // Initialize error logger on app start
   useEffect(() => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
+  }, []);
+
+  // Sync user state when auth-change fires (e.g. 401 forces logout without page reload)
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setUser(authService.getCurrentUser());
+    };
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => window.removeEventListener('auth-change', handleAuthChange);
   }, []);
 
   // Deep-link: navigate to product when ?product=<id> is present in URL
@@ -94,6 +104,7 @@ const AppContent: React.FC = () => {
         page === Page.FAVORITES) &&
       !authService.getCurrentUser()
     ) {
+      setPendingPage(page);
       setCurrentPage(Page.LOGIN);
       return;
     }
@@ -122,7 +133,9 @@ const AppContent: React.FC = () => {
   const handleLoginSuccess = () => {
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
-    navigateTo(Page.DASHBOARD);
+    const destination = pendingPage || Page.DASHBOARD;
+    setPendingPage(null);
+    navigateTo(destination);
   };
 
   const handleLogout = () => {

@@ -55,10 +55,9 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-    // 401 Unauthorized - No Retry, just logout
+    // 401 Unauthorized - No Retry, just logout and notify via event
     if (response.status === 401) {
       authService.logout();
-      window.location.reload();
       throw new Error('نشست شما منقضی شده است.');
     }
 
