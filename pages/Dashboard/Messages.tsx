@@ -99,12 +99,15 @@ const Messages: React.FC = () => {
 
     // Subscribe to Realtime Updates
     const unsubscribe = realtimeService.subscribe((incomingMsg) => {
-        setMessages(prev => {
-            if (prev.some(m => m.id === incomingMsg.id)) return prev;
-            return [...prev, incomingMsg];
-        });
+        // Only add the message to the current thread if it's from the active conversation.
+        if (activeChatId && incomingMsg.senderId === activeChatId) {
+            setMessages(prev => {
+                if (prev.some(m => m.id === incomingMsg.id)) return prev;
+                return [...prev, incomingMsg];
+            });
+            scrollToBottom();
+        }
         loadConvos();
-        if (activeChatId) scrollToBottom();
     });
 
     return () => {
