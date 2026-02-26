@@ -140,7 +140,9 @@ const AppContent: React.FC = () => {
   const handleLoginSuccess = () => {
     const currentUser = authService.getCurrentUser();
     setUser(currentUser);
-    const destination = pendingPage || Page.DASHBOARD;
+    // Default to HOME (not DASHBOARD) so that a 401-triggered logout doesn't
+    // send the user straight back to a protected page that will fail again.
+    const destination = pendingPage || Page.HOME;
     setPendingPage(null);
     navigateTo(destination);
   };
