@@ -4,8 +4,9 @@
 CREATE TABLE Users (
     Id NVARCHAR(50) PRIMARY KEY,
     Name NVARCHAR(100),
-    Phone NVARCHAR(20) UNIQUE,
-    Email NVARCHAR(100),
+    Phone NVARCHAR(20) NULL,           -- NULL allowed so UNIQUE index permits multiple users without phone
+    Email NVARCHAR(100) NOT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL,  -- bcrypt hash of user password
     AvatarUrl NVARCHAR(500),
     IsVerified BIT DEFAULT 0,
     Role NVARCHAR(20) DEFAULT 'USER', -- ADMIN, USER
@@ -16,6 +17,11 @@ CREATE TABLE Users (
     UpdatedAt DATETIME DEFAULT GETDATE(),
     RowVersion ROWVERSION -- Optimistic Concurrency
 );
+
+-- Unique email per active user
+CREATE UNIQUE INDEX UQ_Users_Email ON Users(Email) WHERE IsDeleted = 0;
+-- Unique phone only for non-null, active users
+CREATE UNIQUE INDEX UQ_Users_Phone ON Users(Phone) WHERE Phone IS NOT NULL AND IsDeleted = 0;
 
 CREATE TABLE Ads (
     Id NVARCHAR(50) PRIMARY KEY,

@@ -22,8 +22,11 @@ interface AdRequestBody {
   price?: number;
   location?: string;
   category?: string;
+  subCategory?: string;
   description?: string;
   imageUrls?: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 /** Safely read query params in both possible shapes (URLSearchParams or plain object). */
@@ -172,7 +175,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     }
 
     const body = (await request.json()) as AdRequestBody;
-    const { title, price, location, category, description, imageUrls } = body;
+    const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude } = body;
 
     if (!title || price === undefined || price === null) {
       return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"] } };
@@ -190,16 +193,19 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         .input("Id", sql.NVarChar, id)
         .input("UserId", sql.NVarChar, auth.userId)
         .input("Title", sql.NVarChar, title)
-        .input("Price", sql.Decimal(18, 2), Number(price)) // safer
+        .input("Price", sql.Decimal(18, 2), Number(price))
         .input("Location", sql.NVarChar, location ?? "")
         .input("Category", sql.NVarChar, category ?? "")
+        .input("SubCategory", sql.NVarChar, subCategory ?? "")
         .input("Description", sql.NVarChar, description ?? "")
         .input("MainImageUrl", sql.NVarChar, mainImageUrl)
+        .input("Latitude", sql.Float, latitude ?? null)
+        .input("Longitude", sql.Float, longitude ?? null)
         .input("Status", sql.NVarChar, "ACTIVE")
         .input("CreatedAt", sql.DateTime, new Date())
         .query(`
-          INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, Description, MainImageUrl, Status, CreatedAt)
-          VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @Description, @MainImageUrl, @Status, @CreatedAt)
+          INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Status, CreatedAt)
+          VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Status, @CreatedAt)
         `);
 
       if (Array.isArray(imageUrls) && imageUrls.length > 0) {
