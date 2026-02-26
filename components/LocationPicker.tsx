@@ -127,12 +127,23 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng,
 
   const handleGetCurrentLocation = () => {
     if (navigator.geolocation && mapInstanceRef.current && markerInstanceRef.current) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        mapInstanceRef.current.setView([latitude, longitude], 15);
-        markerInstanceRef.current.setLatLng([latitude, longitude]);
-        onLocationSelect(latitude, longitude);
-      });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          mapInstanceRef.current.setView([latitude, longitude], 15);
+          markerInstanceRef.current.setLatLng([latitude, longitude]);
+          onLocationSelect(latitude, longitude);
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            toastService.warning('دسترسی به موقعیت مکانی رد شد.');
+          } else {
+            toastService.warning('دریافت موقعیت مکانی ممکن نیست. لطفاً روی نقشه کلیک کنید.');
+          }
+          console.warn('LocationPicker geolocation error:', error);
+        },
+        { enableHighAccuracy: false, timeout: 10000 /* 10 s */, maximumAge: 60000 /* 1 min */ }
+      );
     } else {
         toastService.warning('دسترسی به موقعیت مکانی امکان‌پذیر نیست.');
     }
