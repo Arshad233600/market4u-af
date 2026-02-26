@@ -14,8 +14,8 @@ function buildConfig(): SqlConfig | string {
 
     if (!DB_SERVER || !DB_NAME || !DB_USER || !DB_PASSWORD) {
         throw new Error(
-            "Database not configured. Add SqlConnectionString to Azure Static Web App environment variables. " +
-            "See AZURE_DEPLOY_GUIDE.md for setup instructions."
+            "Database not configured. Set SqlConnectionString or AZURE_SQL_CONNECTION_STRING in Azure App Service environment variables (Configuration > Application settings). " +
+            "Format: Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;User Id=<username>;Password=<password>;Encrypt=True;TrustServerCertificate=False;"
         );
     }
 
