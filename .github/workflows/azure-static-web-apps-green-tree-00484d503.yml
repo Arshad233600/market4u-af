@@ -51,6 +51,9 @@ jobs:
       - name: Build API
         run: npm run build --prefix api
 
+      - name: Remove API node_modules before deploy
+        run: rm -rf api/node_modules node_modules
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
