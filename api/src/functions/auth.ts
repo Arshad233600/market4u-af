@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { getPool } from "../db";
 import * as sql from "mssql";
 import crypto from "crypto";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { validateToken } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
@@ -130,8 +130,8 @@ export async function register(request: HttpRequest, context: InvocationContext)
       .input("Role", sql.NVarChar, "USER")
       .input("CreatedAt", sql.DateTime, new Date())
       .query(`
-        INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, CreatedAt)
-        VALUES (@Id, @Name, @Email, @Phone, @PasswordHash, @Role, @CreatedAt)
+        INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, IsDeleted, CreatedAt)
+        VALUES (@Id, @Name, @Email, @Phone, @PasswordHash, @Role, 0, 0, @CreatedAt)
       `);
 
     const token = signToken({ uid: id, iat: Date.now() });
