@@ -4,12 +4,12 @@
     "AzureWebJobsStorage": "",
     "FUNCTIONS_WORKER_RUNTIME": "node",
 
-    "SqlConnectionString": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;User Id=YOUR_USER;Password=YOUR_PASSWORD;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;Connection Timeout=30;",
+    "SqlConnectionString": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;Persist Security Info=False;User ID=YOUR_USER;Password=YOUR_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;ApplicationName=market4u-api;",
     "_note_Connection_Timeout": "Connection Timeout is in seconds here; in db.ts config object it maps to connectionTimeout in milliseconds (30000ms = 30s)",
 
     "AUTH_SECRET": "change-this-to-a-random-string-min-32-characters-long",
 
-    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net",
+    "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net",
     "AZURE_STORAGE_CONTAINER": "product-images",
 
     "GEMINI_API_KEY": ""
