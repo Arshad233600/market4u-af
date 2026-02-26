@@ -178,15 +178,25 @@ export const authService = {
   },
 
   loginWithGoogle: async (): Promise<User> => {
-    // This would typically involve redirecting to an OAuth provider
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const googleUser = { ...MOCK_USER, name: 'کاربر گوگل', email: 'user@gmail.com' };
-        safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
-        safeStorage.setItem(STORAGE_KEY_TOKEN, "google_mock_token");
-        resolve(googleUser);
-      }, 1500);
-    });
+    // MOCK MODE: simulate Google login with demo data
+    if (USE_MOCK_DATA) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const googleUser = { ...MOCK_USER, name: 'کاربر گوگل', email: 'user@gmail.com' };
+          safeStorage.setItem(STORAGE_KEY_USER, JSON.stringify(googleUser));
+          safeStorage.setItem(STORAGE_KEY_TOKEN, "google_mock_token");
+          resolve(googleUser);
+        }, 1500);
+      });
+    }
+
+    // PRODUCTION MODE: redirect to Azure SWA built-in Google auth provider.
+    // After sign-in, Azure SWA automatically provides the x-ms-client-principal
+    // header on all API requests so no token needs to be stored client-side.
+    const redirectUri = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/.auth/login/google?post_login_redirect_uri=${redirectUri}`;
+    // This promise never resolves because the page is being redirected.
+    return new Promise(() => {});
   },
 
   logout: () => {

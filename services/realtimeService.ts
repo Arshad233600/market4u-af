@@ -5,22 +5,29 @@ import { ChatMessage } from '../types';
 
 type MessageHandler = (message: ChatMessage) => void;
 
-const MAX_RECONNECT_DELAY = 60000; // 1 minute cap
+/** Polling interval for new messages (Azure SWA does not support WebSocket). */
+const POLL_INTERVAL_MS = 15_000;
+
+interface InboxSnapshot {
+  lastMessageTime: string;
+}
 
 class RealtimeService {
-  private socket: WebSocket | null = null;
   private messageHandlers: MessageHandler[] = [];
   private isConnected = false;
-  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-  private reconnectDelay = 5000; // start at 5 s, doubles on each failure
+  private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private mockEventListener: ((e: Event) => void) | null = null;
+  /** Tracks the last seen message time per conversation to detect new messages. */
+  private inboxSnapshot = new Map<string, InboxSnapshot>();
+  /** True after the first successful poll (used to skip notifications on init). */
+  private initialized = false;
 
   constructor() {
     this.connect();
   }
 
   public connect() {
-    // 1. MOCK MODE: Use Window Events instead of WebSocket
+    // 1. MOCK MODE: Use Window Events instead of polling
     if (USE_MOCK_DATA) {
         if (this.isConnected) return;
         
@@ -37,72 +44,72 @@ class RealtimeService {
         return;
     }
 
-    // 2. REAL MODE: Use WebSocket
-    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-        return;
-    }
+    // 2. REAL MODE: HTTP Polling
+    // Azure Static Web Apps does not support WebSocket for managed Functions.
+    // We poll /messages/inbox on a fixed interval to detect new incoming messages.
+    if (this.pollingInterval) return; // already polling
 
     const token = authService.getToken();
     if (!token) return;
 
-    // Convert HTTP URL to WS URL
-    const wsUrl = API_BASE_URL ? API_BASE_URL.replace(/^http/, 'ws') + '/chat/hub?access_token=' + token : '';
+    this.isConnected = true;
+    // Initial poll to populate the snapshot without triggering notifications.
+    this.pollInbox();
+    this.pollingInterval = setInterval(() => this.pollInbox(), POLL_INTERVAL_MS);
+  }
+
+  private async pollInbox() {
+    const token = authService.getToken();
+    if (!token) {
+        this.disconnect();
+        return;
+    }
 
     try {
-        this.socket = new WebSocket(wsUrl);
+        const response = await fetch(`${API_BASE_URL}/messages/inbox`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
 
-        this.socket.onopen = () => {
-            console.log('Realtime Chat Connected');
-            this.isConnected = true;
-            this.reconnectDelay = 5000; // reset backoff on successful connection
-            this.clearReconnectTimeout();
-        };
+        if (response.status === 401) {
+            // Token rejected by server – stop polling; apiClient will handle logout.
+            this.disconnect();
+            return;
+        }
 
-        this.socket.onmessage = (event) => {
-            try {
-                const message: ChatMessage = JSON.parse(event.data);
-                this.notifyHandlers(message);
-            } catch (e) {
-                console.error('Error parsing WS message', e);
+        if (!response.ok) return;
+
+        const items: Array<{
+            OtherUserId: string;
+            LastMessage: string;
+            LastMessageTime: string;
+            UnreadCount: number;
+        }> = await response.json();
+
+        for (const item of items) {
+            const prev = this.inboxSnapshot.get(item.OtherUserId);
+            const curTime = item.LastMessageTime;
+
+            if (this.initialized && prev !== undefined && prev.lastMessageTime !== curTime && item.UnreadCount > 0) {
+                // New message detected – notify subscribers.
+                this.notifyHandlers({
+                    id: `poll_${item.OtherUserId}_${curTime}_${Math.random().toString(36).slice(2, 9)}`,
+                    senderId: item.OtherUserId,
+                    text: item.LastMessage,
+                    type: 'TEXT',
+                    timestamp: new Date(curTime).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
+                    isRead: false,
+                    status: 'SENT',
+                    isDeleted: false,
+                });
             }
-        };
 
-        this.socket.onclose = () => {
-            console.log('Realtime Chat Disconnected');
-            this.isConnected = false;
-            this.scheduleReconnect();
-        };
+            this.inboxSnapshot.set(item.OtherUserId, { lastMessageTime: curTime });
+        }
 
-        this.socket.onerror = () => {
-            // onerror is always followed by onclose; let onclose handle reconnect
-            this.socket?.close();
-        };
-
-    } catch (e) {
-        console.error('WS Connection Failed', e);
-        this.scheduleReconnect();
+        this.initialized = true;
+    } catch {
+        // Ignore transient network errors; next poll will retry.
     }
-  }
-
-  private clearReconnectTimeout() {
-      if (this.reconnectTimeout) {
-          clearTimeout(this.reconnectTimeout);
-          this.reconnectTimeout = null;
-      }
-  }
-
-  private scheduleReconnect() {
-      if (USE_MOCK_DATA) return;
-      if (this.reconnectTimeout) return; // already scheduled
-
-      this.reconnectTimeout = setTimeout(() => {
-          this.reconnectTimeout = null;
-          console.log(`Attempting to reconnect (next attempt in ${Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY)}ms if it fails)...`);
-          this.connect();
-      }, this.reconnectDelay);
-
-      // Exponential backoff, capped at MAX_RECONNECT_DELAY
-      this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY);
   }
 
   public subscribe(handler: MessageHandler) {
@@ -116,18 +123,14 @@ class RealtimeService {
       this.messageHandlers.forEach(handler => handler(message));
   }
 
-  public sendMessage(conversationId: string, text: string) {
-      // Mock mode: Azure service handles storage and event firing
+  public sendMessage(_conversationId: string, _text: string) {
+      // Mock mode: Azure service handles storage and event firing.
       if (USE_MOCK_DATA) {
-          return false; // Return false to let the calling component fallback to REST/LocalStorage logic
+          return false; // Let the calling component fall back to REST/LocalStorage logic.
       }
 
-      if (this.isConnected && this.socket) {
-          const payload = JSON.stringify({ conversationId, text, type: 'TEXT' });
-          this.socket.send(payload);
-          return true; // Sent via Socket
-      }
-      return false; // Fallback to REST required
+      // In real mode, REST API is always used (no WebSocket).
+      return false;
   }
 
   public disconnect() {
@@ -135,11 +138,13 @@ class RealtimeService {
           window.removeEventListener('mock-message-received', this.mockEventListener);
           this.mockEventListener = null;
       }
-      this.clearReconnectTimeout();
-      if (this.socket) {
-          this.socket.close();
+      if (this.pollingInterval) {
+          clearInterval(this.pollingInterval);
+          this.pollingInterval = null;
       }
       this.isConnected = false;
+      this.initialized = false;
+      this.inboxSnapshot.clear();
   }
 }
 
