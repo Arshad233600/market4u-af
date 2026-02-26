@@ -23,8 +23,8 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         const containerClient = blobServiceClient.getContainerClient(containerName);
         await containerClient.createIfNotExists();
 
-        // Safe name
-        const safeName = fileName.replace(/[^\w.-]/g, "_");
+        // Unique safe name to prevent collisions
+        const safeName = `${crypto.randomUUID()}-${fileName.replace(/[^\w.-]/g, "_")}`;
         const blobClient = containerClient.getBlockBlobClient(safeName);
 
         await blobClient.uploadData(buffer, {
