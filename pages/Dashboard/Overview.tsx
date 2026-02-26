@@ -65,12 +65,20 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     const loadData = async () => {
-      const s = await azureService.getDashboardStats();
-      setStats(s);
-      
-      const acts = await azureService.getRecentActivities();
-      setActivities(acts);
+      try {
+        const s = await azureService.getDashboardStats();
+        setStats(s);
+      } catch {
+        // API unavailable - stats remain null (handled in render)
+      }
+      try {
+        const acts = await azureService.getRecentActivities();
+        setActivities(acts);
+      } catch {
+        // API unavailable - activities remain empty
+      }
     };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, []);
 

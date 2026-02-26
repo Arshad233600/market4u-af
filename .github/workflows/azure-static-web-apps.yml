@@ -57,6 +57,11 @@ jobs:
           rm -rf components pages contexts services utils types scripts database infrastructure src
           # Remove root-level source files not needed for deployment
           find . -maxdepth 1 \( -name "*.ts" -o -name "*.tsx" \) -delete
+          # Remove root-level HTML/CSS/JS source files that conflict with the built dist/ output.
+          # Without this, the Azure SWA deploy action can upload the raw source index.html
+          # (which references index.tsx and /index.css) alongside the built dist/ files,
+          # causing a black screen: the browser loads unprocessed source instead of the bundle.
+          rm -f index.html index.css postcss.config.js eslint.config.js tailwind.config.js
 
       - name: Build And Deploy
         id: builddeploy

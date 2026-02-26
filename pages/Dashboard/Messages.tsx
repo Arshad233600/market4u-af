@@ -82,8 +82,12 @@ const Messages: React.FC = () => {
 
   // Load Conversations
   const loadConvos = async () => {
-      const data = await azureService.getConversations();
-      setConversations(data);
+      try {
+          const data = await azureService.getConversations();
+          setConversations(data);
+      } catch {
+          setConversations([]);
+      }
   };
 
   useEffect(() => {

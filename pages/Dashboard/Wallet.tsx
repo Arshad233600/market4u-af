@@ -23,10 +23,14 @@ const WalletPage: React.FC = () => {
   const [topUpInputValue, setTopUpInputValue] = useState('1000');
 
   const fetchData = useCallback(async () => {
-    const stats = await azureService.getDashboardStats();
-    const txs = await azureService.getWalletTransactions();
-    setBalance(stats.walletBalance);
-    setTransactions(txs);
+    try {
+      const stats = await azureService.getDashboardStats();
+      const txs = await azureService.getWalletTransactions();
+      setBalance(stats.walletBalance);
+      setTransactions(txs);
+    } catch {
+      // API unavailable - keep default empty state
+    }
   }, []);
 
   useEffect(() => {

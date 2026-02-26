@@ -4,50 +4,43 @@
 const BUILD_VERSION = '__BUILD_VERSION__';
 const CACHE_NAME = `market4u-v${BUILD_VERSION}`;
 
-// Static assets to cache (excluding index.html for version safety)
+// Static assets to cache on install
 const STATIC_CACHE = [
   '/manifest.json',
 ];
 
-// Install event - cache static assets
+// Install event - cache static assets only, do NOT skip waiting automatically.
+// Waiting ensures that pages loaded with the old SW continue to use the old
+// cached bundle until the user explicitly approves the update (via UpdateBanner).
+// Automatic skipWaiting() can cause old HTML to reference new JS bundle hashes
+// that no longer exist → 404 → black screen.
 self.addEventListener('install', (event) => {
-  console.log(`[SW] Installing version ${BUILD_VERSION}`);
-  
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching static assets');
       return cache.addAll(STATIC_CACHE);
-    }).then(() => {
-      // Skip waiting to activate immediately
-      return self.skipWaiting();
     })
   );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches, then claim clients
 self.addEventListener('activate', (event) => {
-  console.log(`[SW] Activating version ${BUILD_VERSION}`);
-  
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Delete old caches with different versions
           if (cacheName.startsWith('market4u-v') && cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
           return Promise.resolve();
         })
       );
     }).then(() => {
-      // Take control of all clients immediately
       return self.clients.claim();
     })
   );
 });
 
-// Fetch event - stale-while-revalidate for HTML, cache-first for assets
+// Fetch event - network-first for HTML, cache-first for versioned assets
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
@@ -56,33 +49,37 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Stale-while-revalidate for navigation (HTML) requests:
-  // Serve cached version immediately while fetching a fresh copy in background.
-  // This is the key strategy for low-bandwidth environments – the page appears instantly.
+  // Skip API requests entirely - always go to network
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Network-first for navigation (HTML) requests.
+  // Always fetch fresh index.html so the correct content-hashed JS/CSS bundle
+  // URLs are served. Fall back to cache only if the network is unavailable.
   if (
-    event.request.mode === 'navigate' || 
-    url.pathname === '/' || 
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
     url.pathname === '/index.html'
   ) {
     event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match('/index.html').then((cached) => {
-          const networkFetch = fetch(event.request).then((response) => {
-            if (response.status === 200) {
-              cache.put('/index.html', response.clone());
-            }
-            return response;
-          }).catch(() => cached || new Response('Offline', { status: 503 }));
-
-          // Return cached immediately if available; otherwise wait for network
-          return cached || networkFetch;
-        });
+      fetch(event.request).then((response) => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+        }
+        return response;
+      }).catch(() => {
+        return caches.match('/index.html').then(
+          (cached) => cached || new Response('Offline', { status: 503 })
+        );
       })
     );
     return;
   }
 
-  // Cache-first strategy for static assets (JS, CSS, images, fonts)
+  // Cache-first strategy for versioned static assets (JS, CSS, images, fonts).
+  // These files have content-hash names so they are safe to cache indefinitely.
   if (
     url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|ico)$/)
   ) {
@@ -91,9 +88,7 @@ self.addEventListener('fetch', (event) => {
         if (cached) {
           return cached;
         }
-        
         return fetch(event.request).then((response) => {
-          // Cache successful responses
           if (response.status === 200) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -107,7 +102,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for API calls and other requests
+  // Network-first for everything else (version.json, manifest.json, etc.)
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request);
@@ -115,7 +110,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Message handler for skip waiting from client
+// Message handler: skip waiting when user approves the update via UpdateBanner
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
