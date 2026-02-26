@@ -3,6 +3,14 @@ import { API_BASE_URL } from '../config';
 import { authService } from './authService';
 import { toastService } from './toastService';
 
+/** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
+export class AuthError extends Error {
+  constructor() {
+    super('نشست شما منقضی شده است.');
+    this.name = 'AuthError';
+  }
+}
+
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
   retries?: number;
@@ -60,7 +68,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     if (response.status === 401) {
       authService.logout();
       toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-      throw new Error('نشست شما منقضی شده است.');
+      throw new AuthError();
     }
 
     // 5xx Server Errors - Retryable
@@ -83,8 +91,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         await wait(backoff);
         return request<T>(endpoint, method, body, retries - 1, backoff * 2);
     }
-    
-    console.error(`API Request Failed [${method} ${endpoint}]:`, error);
+
+    // Auth errors are already handled (logout + toast) above; skip duplicate logging
+    if (!(error instanceof AuthError)) {
+      console.error(`API Request Failed [${method} ${endpoint}]:`, error);
+    }
     throw error;
   }
 }

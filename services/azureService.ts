@@ -1,7 +1,7 @@
 
 import { Product, User, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification } from '../types';
 import { MOCK_PRODUCTS } from '../constants';
-import { apiClient } from './apiClient';
+import { apiClient, AuthError } from './apiClient';
 import { USE_MOCK_DATA } from '../config';
 import { authService } from './authService';
 import { cacheService } from './cacheService';
@@ -457,11 +457,15 @@ export const azureService = {
           walletBalance: balance
       };
     }
-    try {
-        return await apiClient.get<DashboardStats>('/dashboard/stats');
-    } catch {
+    // Auth errors (401) must propagate so the auth-change redirect can proceed
+    // without briefly flashing zero stats. Non-auth errors (network outage, etc.)
+    // fall back to safe defaults so the dashboard still renders.
+    return await apiClient.get<DashboardStats>('/dashboard/stats').catch((err: unknown) => {
+        if (err instanceof AuthError) {
+            throw err;
+        }
         return { totalAds: 0, activeAds: 0, totalViews: 0, unreadMessages: 0, walletBalance: 0 };
-    }
+    });
   },
   
   getMyAds: async () => {

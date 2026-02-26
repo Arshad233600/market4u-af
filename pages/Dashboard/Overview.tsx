@@ -5,6 +5,7 @@ import {
   MessageSquare, Zap, Activity, Clock
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
+import { AuthError } from '../../services/apiClient';
 import { DashboardStats, Page } from '../../types';
 import { authService } from '../../services/authService';
 
@@ -61,25 +62,34 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, onClick }: 
 const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
+  const [isAuthError, setIsAuthError] = useState(false);
   const user = authService.getCurrentUser();
 
   useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
         const s = await azureService.getDashboardStats();
-        setStats(s);
-      } catch {
-        // API unavailable - stats remain null (handled in render)
+        if (!cancelled) setStats(s);
+      } catch (err) {
+        // Auth errors (401): apiClient has already triggered logout + auth-change redirect.
+        // We just flag this so we don't keep showing the spinner with stale messaging.
+        if (!cancelled) {
+          if (err instanceof AuthError) {
+            setIsAuthError(true);
+          }
+          // For other errors (network outage etc.) stats remains null → spinner
+        }
       }
       try {
         const acts = await azureService.getRecentActivities();
-        setActivities(acts);
+        if (!cancelled) setActivities(acts);
       } catch {
         // API unavailable - activities remain empty
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
+    return () => { cancelled = true; };
   }, []);
 
   const getGreeting = () => {
@@ -88,6 +98,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
       if (hour < 18) return 'عصر بخیر';
       return 'شب بخیر';
   };
+
+  if (isAuthError) return (
+    <div className="flex flex-col items-center justify-center h-96 gap-3">
+      <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
+      <span className="text-ui-muted font-medium">نشست شما منقضی شده است. در حال انتقال به صفحه ورود...</span>
+    </div>
+  );
 
   if (!stats) return (
     <div className="flex flex-col items-center justify-center h-96">
