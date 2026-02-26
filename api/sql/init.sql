@@ -13,10 +13,26 @@ BEGIN
         AvatarUrl NVARCHAR(1000),
         Role NVARCHAR(50) DEFAULT 'USER',
         IsVerified BIT DEFAULT 0,
+        IsDeleted BIT DEFAULT 0,
+        DeletedAt DATETIME2 NULL,
         CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
         UpdatedAt DATETIME2 DEFAULT GETUTCDATE()
     );
     CREATE INDEX IX_Users_Email ON Users(Email);
+END
+ELSE
+BEGIN
+    -- Add IsDeleted column if it doesn't exist (for existing databases)
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'IsDeleted')
+    BEGIN
+        ALTER TABLE Users ADD IsDeleted BIT NULL;
+        UPDATE Users SET IsDeleted = 0 WHERE IsDeleted IS NULL;
+        ALTER TABLE Users ALTER COLUMN IsDeleted BIT NOT NULL;
+    END
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'DeletedAt')
+    BEGIN
+        ALTER TABLE Users ADD DeletedAt DATETIME2 NULL;
+    END
 END
 GO
 

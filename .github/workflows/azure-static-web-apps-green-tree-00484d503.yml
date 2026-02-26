@@ -44,6 +44,8 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+        env:
+          VITE_USE_MOCK_DATA: 'false'
 
       - name: Install API dependencies
         run: npm ci --prefix api --ignore-scripts
@@ -65,6 +67,14 @@ jobs:
           output_location: "dist"
           skip_app_build: true
           skip_api_build: true
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          # Both connection string names are required: db.ts reads SqlConnectionString first,
+          # then falls back to AZURE_SQL_CONNECTION_STRING
+          SqlConnectionString: ${{ secrets.SqlConnectionString }}
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
