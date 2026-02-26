@@ -31,7 +31,7 @@ export async function getDashboardStats(request: HttpRequest, context: Invocatio
     const walletResult = await pool
       .request()
       .input("UserId", sql.NVarChar, auth.userId)
-      .query("SELECT ISNULL(SUM(Amount), 0) AS walletBalance FROM WalletTransactions WHERE UserId = @UserId AND Status = 'COMPLETED'");
+      .query("SELECT ISNULL(SUM(Amount), 0) AS walletBalance FROM WalletTransactions WHERE UserId = @UserId AND Status != 'FAILED'");
 
     const ads = adsResult.recordset[0];
     const msgs = msgResult.recordset[0];
