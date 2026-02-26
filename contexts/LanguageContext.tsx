@@ -1,6 +1,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { TRANSLATIONS, Language } from '../translations';
+import { safeStorage } from '../utils/safeStorage';
 
 interface LanguageContextType {
   language: Language;
@@ -12,12 +13,12 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('app_language');
+    const saved = safeStorage.getItem('app_language');
     return (saved === 'fa' || saved === 'ps') ? saved : 'fa';
   });
 
   useEffect(() => {
-    localStorage.setItem('app_language', language);
+    safeStorage.setItem('app_language', language);
   }, [language]);
 
   const toggleLanguage = () => {

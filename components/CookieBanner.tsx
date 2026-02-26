@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Icon from '../src/components/ui/Icon';
+import { safeStorage } from '../utils/safeStorage';
 
 const CookieBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie_consent');
+    const consent = safeStorage.getItem('cookie_consent');
     if (!consent) {
       // Show banner after a short delay
       const timer = setTimeout(() => setIsVisible(true), 2000);
@@ -15,7 +16,7 @@ const CookieBanner: React.FC = () => {
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('cookie_consent', 'true');
+    safeStorage.setItem('cookie_consent', 'true');
     setIsVisible(false);
   };
 

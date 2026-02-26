@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Icon from '../src/components/ui/Icon';
+import { safeStorage } from '../utils/safeStorage';
 
 // PWA Install Prompt Event interface
 interface BeforeInstallPromptEvent extends Event {
@@ -27,7 +28,7 @@ const InstallPrompt: React.FC = () => {
   const [isIOSPrompt, setIsIOSPrompt] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('install_dismissed')) return;
+    if (safeStorage.getItem('install_dismissed')) return;
 
     // iOS/Safari: show manual "Add to Home Screen" instructions
     if (isIOS() && !isInStandaloneMode()) {
@@ -62,7 +63,7 @@ const InstallPrompt: React.FC = () => {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    localStorage.setItem('install_dismissed', 'true');
+    safeStorage.setItem('install_dismissed', 'true');
   };
 
   if (!isVisible) return null;
