@@ -63,6 +63,8 @@ const Messages: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isListening, setIsListening] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string; avatarUrl: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +89,48 @@ const Messages: React.FC = () => {
           setConversations(data);
       } catch {
           setConversations([]);
+      }
+  };
+
+  // Debounced user search
+  useEffect(() => {
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+          if (searchQuery.trim()) {
+              const results = await azureService.searchUsers(searchQuery);
+              if (!cancelled) setSearchResults(results);
+          } else {
+              setSearchResults([]);
+          }
+      }, 300);
+      return () => {
+          cancelled = true;
+          clearTimeout(timer);
+      };
+  }, [searchQuery]);
+
+  const handleSelectUser = (user: { id: string; name: string; avatarUrl: string }) => {
+      setSearchQuery('');
+      setSearchResults([]);
+      // Find or create conversation
+      const existing = conversations.find(c => c.otherUserId === user.id);
+      if (existing) {
+          setActiveChatId(existing.id);
+      } else {
+          const newConvoId = user.id;
+          const newConvo: ChatConversation = {
+              id: newConvoId,
+              otherUserId: user.id,
+              otherUserName: user.name,
+              otherUserAvatar: user.avatarUrl,
+              productId: '',
+              productTitle: '',
+              lastMessage: '',
+              lastMessageTime: '',
+              unreadCount: 0
+          };
+          setConversations(prev => [newConvo, ...prev]);
+          setActiveChatId(newConvoId);
       }
   };
 
@@ -205,8 +249,30 @@ const Messages: React.FC = () => {
          <div className="p-4 border-b border-ui-border bg-ui-surface2/50">
             <h2 className="font-bold text-ui-text mb-3">پیام‌ها</h2>
             <div className="relative">
-               <input type="text" placeholder="جستجو..." className="w-full bg-ui-surface border border-ui-border rounded-xl pr-9 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500" />
+               <input
+                 type="text"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 placeholder="جستجوی کاربر..."
+                 className="w-full bg-ui-surface border border-ui-border rounded-xl pr-9 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+               />
                <Search className="absolute right-3 top-3 w-4 h-4 text-ui-muted" />
+               {searchResults.length > 0 && (
+                 <div className="absolute top-full right-0 left-0 mt-1 bg-ui-surface border border-ui-border rounded-xl shadow-lg z-20 overflow-hidden">
+                   {searchResults.map(user => (
+                     <button
+                       key={user.id}
+                       onClick={() => handleSelectUser(user)}
+                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-ui-surface2 text-sm text-ui-text text-right transition-colors"
+                     >
+                       <div className="w-8 h-8 bg-brand-100 rounded-full flex-shrink-0 flex items-center justify-center text-brand-600 font-bold text-xs">
+                         {user.name.charAt(0)}
+                       </div>
+                       <span>{user.name}</span>
+                     </button>
+                   ))}
+                 </div>
+               )}
             </div>
          </div>
          <div className="flex-1 overflow-y-auto">

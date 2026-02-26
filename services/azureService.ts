@@ -788,6 +788,23 @@ export const azureService = {
       return false;
   },
 
+  searchUsers: async (q: string): Promise<{ id: string; name: string; avatarUrl: string }[]> => {
+      if (!q.trim()) return [];
+      if (USE_MOCK_DATA) {
+          const users = db.get<User[]>('users', []);
+          const lower = q.toLowerCase();
+          return users
+              .filter(u => u.id !== CURRENT_USER_ID && u.name.toLowerCase().includes(lower))
+              .slice(0, 10)
+              .map(u => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }));
+      }
+      try {
+          const data = await apiClient.get<{ Id: string; Name: string; AvatarUrl: string }[]>(`/users/search?q=${encodeURIComponent(q)}`);
+          if (!Array.isArray(data)) return [];
+          return data.map(u => ({ id: u.Id, name: u.Name, avatarUrl: u.AvatarUrl || '' }));
+      } catch { return []; }
+  },
+
   updateAdStatus: async (id: string, status: AdStatus) => {
       if (USE_MOCK_DATA) {
           const products = db.get<Product[]>('products', []);
