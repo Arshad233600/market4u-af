@@ -36,6 +36,24 @@ BEGIN
     BEGIN
         ALTER TABLE Users ADD PasswordHash NVARCHAR(500) NOT NULL DEFAULT '';
     END
+    -- Add UNIQUE constraint on Email if it doesn't exist (prevents duplicate profiles)
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes i
+        JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+        JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+        WHERE i.object_id = OBJECT_ID('Users') AND i.is_unique = 1 AND c.name = 'Email'
+    )
+    BEGIN
+        -- Remove any duplicate emails before adding constraint (keep the most recently created active record)
+        WITH CTE AS (
+            SELECT Id, Email, IsDeleted, CreatedAt,
+                   ROW_NUMBER() OVER (PARTITION BY Email ORDER BY IsDeleted ASC, CreatedAt DESC) AS rn
+            FROM Users
+        )
+        UPDATE CTE SET IsDeleted = 1, DeletedAt = GETUTCDATE() WHERE rn > 1;
+
+        ALTER TABLE Users ADD CONSTRAINT UQ_Users_Email UNIQUE (Email);
+    END
 END
 GO
 

@@ -77,3 +77,40 @@ app.http('updateUserProfile', {
     route: 'user/profile',
     handler: updateUserProfile
 });
+
+export async function deleteAccount(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    const auth = validateToken(request);
+    if (!auth.isAuthenticated) {
+        return { status: 401, body: JSON.stringify({ message: "لطفا وارد حساب کاربری شوید." }) };
+    }
+
+    try {
+        const pool = await getPool();
+        const deletedAt = new Date();
+
+        // Soft-delete user's ads
+        await pool.request()
+            .input("UserId", sql.NVarChar, auth.userId)
+            .input("DeletedAt", sql.DateTime, deletedAt)
+            .query("UPDATE Ads SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE UserId = @UserId AND IsDeleted = 0");
+
+        // Soft-delete the user account
+        await pool.request()
+            .input("UserId", sql.NVarChar, auth.userId)
+            .input("DeletedAt", sql.DateTime, deletedAt)
+            .query("UPDATE Users SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE Id = @UserId");
+
+        context.log(`Account soft-deleted: ${auth.userId}`);
+        return { status: 200, jsonBody: { success: true } };
+    } catch (error) {
+        context.error("Delete Account Error", error);
+        return { status: 500, body: JSON.stringify({ message: "خطای سرور" }) };
+    }
+}
+
+app.http('deleteAccount', {
+    methods: ['DELETE'],
+    authLevel: 'anonymous',
+    route: 'user/account',
+    handler: deleteAccount
+});

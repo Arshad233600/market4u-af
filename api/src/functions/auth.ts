@@ -138,11 +138,11 @@ export async function register(request: HttpRequest, context: InvocationContext)
     telemetry?.trackEvent({ name: "RegisterAttempted", properties: { emailDomain } });
     const id = `u_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Check if email exists
+    // Check if email exists (including soft-deleted accounts to avoid UNIQUE constraint violations)
     const check = await pool
       .request()
       .input("Email", sql.NVarChar, email)
-      .query("SELECT TOP 1 Id FROM Users WHERE Email = @Email AND IsDeleted = 0");
+      .query("SELECT TOP 1 Id FROM Users WHERE Email = @Email");
 
     if (check.recordset.length > 0) {
       telemetry?.trackEvent({ name: "RegisterFailed", properties: { reason: "EmailAlreadyExists" } });

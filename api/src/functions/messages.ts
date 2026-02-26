@@ -190,3 +190,47 @@ app.http("sendMessage", {
   route: "messages",
   handler: sendMessage
 });
+
+export async function deleteMessage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const auth = validateToken(request);
+  if (!auth.isAuthenticated) {
+    return { status: 401, jsonBody: { error: "Unauthorized" } };
+  }
+
+  const messageId = request.params?.messageId;
+  if (!messageId) {
+    return { status: 400, jsonBody: { error: "Message ID required" } };
+  }
+
+  try {
+    const pool = await getPool();
+
+    // Verify the message belongs to the requesting user before deleting
+    const check = await pool
+      .request()
+      .input("MessageId", sql.NVarChar, messageId)
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query("SELECT Id FROM Messages WHERE Id = @MessageId AND FromUserId = @UserId");
+
+    if (check.recordset.length === 0) {
+      return { status: 403, jsonBody: { error: "Message not found or access denied" } };
+    }
+
+    await pool
+      .request()
+      .input("MessageId", sql.NVarChar, messageId)
+      .query("UPDATE Messages SET Content = '' WHERE Id = @MessageId");
+
+    return { status: 200, jsonBody: { success: true } };
+  } catch (err: unknown) {
+    context.error("deleteMessage Error", err);
+    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+  }
+}
+
+app.http("deleteMessage", {
+  methods: ["DELETE"],
+  authLevel: "anonymous",
+  route: "messages/{messageId}",
+  handler: deleteMessage
+});
