@@ -10,6 +10,7 @@ import { azureService, SearchFilters } from '../services/azureService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { toastService } from '../services/toastService';
 import { findClosestProvince } from '../utils/locationUtils';
+import { safeStorage } from '../utils/safeStorage';
 
 interface HomeProps {
   onProductClick: (product: Product) => void;
@@ -95,10 +96,10 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, on
 
   // Automatic Location Detection on First Load
   useEffect(() => {
-      const hasCheckedLocation = sessionStorage.getItem('location_checked');
+      const hasCheckedLocation = safeStorage.getItem('location_checked');
       if (!hasCheckedLocation && navigator.geolocation) {
           handleSmartLocation();
-          sessionStorage.setItem('location_checked', 'true');
+          safeStorage.setItem('location_checked', 'true');
       }
   }, []);
 
