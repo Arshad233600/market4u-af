@@ -329,27 +329,28 @@ export const azureService = {
     }
     
     try {
-        // 1. Get SAS Token from API
-        const sasResponse = await apiClient.post<{ sasUrl: string, blobUrl: string, uniqueName: string }>('/upload/sas-token', { 
-            fileName: fileToUpload.name,
-            fileType: fileToUpload.type 
+        // Convert file to base64 and upload via API proxy to avoid browser CORS restrictions
+        const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                resolve(result.split(',')[1]); // strip data URL prefix
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(fileToUpload);
         });
 
-        // 2. Upload directly to Azure Blob Storage
-        const uploadResponse = await fetch(sasResponse.sasUrl, {
-            method: 'PUT',
-            headers: { 
-                'x-ms-blob-type': 'BlockBlob', 
-                'Content-Type': fileToUpload.type 
-            },
-            body: fileToUpload
+        const uploadResponse = await apiClient.post<{ ok: boolean, url: string }>('/upload', {
+            fileName: fileToUpload.name,
+            contentType: fileToUpload.type,
+            base64,
         });
 
         if (uploadResponse.ok) {
-            return sasResponse.blobUrl;
+            return uploadResponse.url;
         }
-        
-        console.error('Blob upload failed:', uploadResponse.statusText);
+
+        console.error('Blob upload failed');
         return null;
     } catch (error) {
         console.error('Upload process error:', error);
