@@ -127,7 +127,12 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, on
               setIsLocating(false);
           },
           (error) => {
-              console.error('Location Error:', error);
+              // PERMISSION_DENIED (code 1) is expected when user declines - log as warn, not error
+              if (error.code === error.PERMISSION_DENIED) {
+                  console.warn('Location permission denied by user.');
+              } else {
+                  console.warn('Location Error:', error);
+              }
               // Don't spam error toast on automatic check, only log
               setIsLocating(false);
           },

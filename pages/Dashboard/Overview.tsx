@@ -68,6 +68,11 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
   useEffect(() => {
     let cancelled = false;
     const loadData = async () => {
+      // Skip API calls if we already know the token is missing or expired
+      if (!authService.getToken() || authService.isTokenExpired()) {
+        if (!cancelled) setIsAuthError(true);
+        return;
+      }
       try {
         const s = await azureService.getDashboardStats();
         if (!cancelled) setStats(s);
