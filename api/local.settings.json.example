@@ -4,7 +4,8 @@
     "AzureWebJobsStorage": "",
     "FUNCTIONS_WORKER_RUNTIME": "node",
 
-    "SqlConnectionString": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;User Id=YOUR_USER;Password=YOUR_PASSWORD;Encrypt=True;TrustServerCertificate=False;",
+    "SqlConnectionString": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;User Id=YOUR_USER;Password=YOUR_PASSWORD;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=False;Connection Timeout=30;",
+    "_note_Connection_Timeout": "Connection Timeout is in seconds here; in db.ts config object it maps to connectionTimeout in milliseconds (30000ms = 30s)",
 
     "AUTH_SECRET": "change-this-to-a-random-string-min-32-characters-long",
 
