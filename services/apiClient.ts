@@ -117,6 +117,13 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // PHASE 3: warn when token is missing for known protected endpoints
+  // (storage may be blocked by Safari ITP / PWA restrictions)
+  const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard)/;
+  if (PROTECTED_ENDPOINT_PATTERN.test(endpoint) && !headers['Authorization']) {
+    console.warn(`[apiClient] token missing for protected endpoint ${method} ${endpoint} — storage may be blocked`);
+  }
+
   // PHASE 0: log outgoing request details (no token value)
   logApiCall(method, endpoint, authAttached, correlationId);
 

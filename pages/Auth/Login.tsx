@@ -3,6 +3,9 @@ import Icon from '../../src/components/ui/Icon';
 import { Page } from '../../types';
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
+import { safeStorage } from '../../utils/safeStorage';
+
+const STORAGE_BLOCKED_MSG = 'مرورگر اجازه ذخیره‌سازی را نمیدهد. لطفاً از حالت عادی Safari یا Chrome استفاده کنید.';
 
 interface LoginProps {
   onNavigate: (page: Page) => void;
@@ -14,6 +17,7 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const storageBlocked = !safeStorage.isAvailable();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +55,12 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
       </button>
 
       <div className="w-full max-w-md space-y-8">
+        {storageBlocked && (
+          <div className="flex items-start gap-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-300" role="alert">
+            <Icon name="AlertTriangle" size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-yellow-400" />
+            <span>{STORAGE_BLOCKED_MSG}</span>
+          </div>
+        )}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-brand-400 tracking-tighter mb-2">
             Market<span className="text-ui-text">4U</span>
