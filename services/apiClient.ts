@@ -49,6 +49,11 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // in-flight at any time. Subsequent callers await the same promise.
 let pendingRefreshPromise: Promise<string | null> | null = null;
 
+// Deduplicate auth-error toasts: only show once every 60 seconds to prevent
+// repeated toasts from background polling (e.g. notification polling every 10s).
+let lastAuthWarningMs = 0;
+const AUTH_WARN_COOLDOWN_MS = 60_000;
+
 function tryRefreshToken(): Promise<string | null> {
   if (!pendingRefreshPromise) {
     pendingRefreshPromise = authService.refreshToken().finally(() => {
@@ -118,10 +123,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
 
-      // Helper: only show the auth-error toast when the user was authenticated.
-      // Unauthenticated users browsing public pages must never see an auth error toast.
+      // Helper: only show the auth-error toast when the user was authenticated,
+      // and at most once every AUTH_WARN_COOLDOWN_MS to prevent background polling
+      // (e.g. notification polling every 10s) from flooding the user with toasts.
       const warnIfAuthenticated = () => {
-        if (storedToken) toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+        if (storedToken && Date.now() - lastAuthWarningMs > AUTH_WARN_COOLDOWN_MS) {
+          lastAuthWarningMs = Date.now();
+          toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+        }
       };
 
       // If the token is expired, attempt a silent refresh before giving up.
