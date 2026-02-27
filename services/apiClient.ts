@@ -51,6 +51,16 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const recentAuthFailures = new Map<string, number>();
 const AUTH_FAILURE_WINDOW_MS = 60_000; // 60 seconds
 
+// Clear all tracked 401 failure records whenever the session changes (login,
+// logout, or forced invalidation). This prevents stale failure records from a
+// previous session triggering a spurious logout in the new session when the
+// same API endpoint is called again within the 60-second window.
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth-change', () => {
+    recentAuthFailures.clear();
+  });
+}
+
 // Reasons returned by the backend that confirm the token is genuinely invalid.
 // Server configuration issues (missing_auth_secret, insecure_default_secret)
 // are intentionally excluded — logging out won't help if the server is mis-configured.

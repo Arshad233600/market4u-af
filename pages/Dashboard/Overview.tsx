@@ -2,10 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   TrendingUp, Wallet, Plus, AlertTriangle, Eye, MousePointerClick,
-  MessageSquare, Zap, Activity, Clock, LogOut
+  MessageSquare, Zap, Activity, Clock, LogOut, RefreshCw
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
-import { AuthError } from '../../services/apiClient';
 import { DashboardStats, Page } from '../../types';
 import { authService } from '../../services/authService';
 
@@ -63,68 +62,48 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, onClick }: 
 const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
-  const [isAuthError, setIsAuthError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadKey, setLoadKey] = useState(0);
   const [chartPeriod, setChartPeriod] = useState<'7' | '30'>('7');
   const user = authService.getCurrentUser();
 
   useEffect(() => {
     let cancelled = false;
     const loadData = async () => {
-      // Skip API calls if we already know the token is missing or expired.
-      // Call onAuthInvalid to clear auth state and fire the auth-change event;
-      // App.tsx will handle the redirect to Login via the auth-change listener.
+      if (!cancelled) {
+        setStats(null);
+        setLoadError(null);
+      }
+      // Client-side expiry check: if the token is already known to be invalid,
+      // trigger session invalidation immediately instead of making a doomed request.
       if (!authService.getToken() || authService.isTokenExpired()) {
-        if (!cancelled) {
-          authService.onAuthInvalid('token_expired');
-          setIsAuthError(true);
-        }
+        authService.onAuthInvalid('token_expired');
         return;
       }
       try {
         const s = await azureService.getDashboardStats();
         if (!cancelled) setStats(s);
       } catch (err) {
-        // Auth errors (401): only treat as confirmed session expiry when the backend
-        // explicitly returns a known invalid-session reason. Transient 401s (server
-        // config issues, cold starts) must not trigger a logout.
+        // Auth errors (confirmed invalid session) are handled by apiClient which
+        // already called onAuthInvalid and fired the auth-change event. App.tsx
+        // will unmount this component and show the Login form.
+        // For all other errors (network outage, server error, non-confirmed 401),
+        // show an error message with a retry option instead of an infinite spinner.
         if (!cancelled) {
-          if (err instanceof AuthError) {
-            const confirmedExpiry =
-              err.reason === 'token_expired' ||
-              err.reason === 'invalid_token' ||
-              err.reason === 'signature_mismatch' ||
-              err.reason === 'missing_token';
-            if (confirmedExpiry) {
-              setIsAuthError(true);
-            }
-            // For other auth errors apiClient has already handled the invalidation if needed.
-          }
-          // For other errors (network outage etc.) stats remains null → spinner
+          const msg = err instanceof Error ? err.message : 'خطای ناشناخته';
+          setLoadError(msg);
         }
       }
       try {
         const acts = await azureService.getRecentActivities();
         if (!cancelled) setActivities(acts);
       } catch {
-        // API unavailable - activities remain empty
+        // Activities are non-critical; silently ignore failures.
       }
     };
     loadData();
     return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (isAuthError) {
-      // Auth state has already been cleared by apiClient (onAuthInvalid) or by the
-      // client-side expiry check above. Call onLogout() after a brief delay only as
-      // a UI safety net to ensure the parent navigates away from the protected page
-      // in case the auth-change event hasn't propagated to React state yet.
-      const timer = setTimeout(() => {
-        onLogout();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthError, onLogout]);
+  }, [loadKey]);
 
   const getGreeting = () => {
       const hour = new Date().getHours();
@@ -133,10 +112,17 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
       return 'شب بخیر';
   };
 
-  if (isAuthError) return (
-    <div className="flex flex-col items-center justify-center h-96 gap-3">
-      <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
-      <span className="text-ui-muted font-medium">نشست شما منقضی شده است. در حال انتقال به صفحه ورود...</span>
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center h-96 gap-4">
+      <AlertTriangle className="w-12 h-12 text-yellow-500" />
+      <p className="text-ui-muted font-medium text-center max-w-sm">خطا در بارگذاری اطلاعات. لطفاً دوباره تلاش کنید.</p>
+      <button
+        onClick={() => setLoadKey(k => k + 1)}
+        className="flex items-center gap-2 px-5 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors"
+      >
+        <RefreshCw className="w-4 h-4" />
+        تلاش مجدد
+      </button>
     </div>
   );
 
