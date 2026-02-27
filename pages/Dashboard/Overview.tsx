@@ -75,37 +75,25 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
         setLoadError(null);
       }
       // Client-side pre-flight check:
-      // 1. No token at all → invalidate immediately (nothing to refresh).
-      // 2. Token is client-side expired → attempt a silent refresh first.
-      //    The server accepts tokens up to 7 days past the 30-day window, so
-      //    we should not invalidate without giving the refresh endpoint a chance.
-      //    Only invalidate if the refresh also fails.
-      if (!authService.getToken()) {
-        authService.onAuthInvalid('missing_token');
-        return;
-      }
+      // If the token is client-side expired, attempt a silent refresh first.
+      // We never invalidate the session automatically — the user must log out
+      // explicitly. If no token exists or refresh fails, just proceed and let
+      // the API layer surface any errors to the UI.
       if (authService.isTokenExpired()) {
-        let newToken: string | null = null;
         try {
-          newToken = await authService.refreshToken();
-        } catch {
-          // Refresh request failed (e.g. network error); treat as expired.
+          await authService.refreshToken();
+        } catch (err) {
+          // Refresh request failed (e.g. network error); proceed anyway.
+          console.warn('[auth] Token refresh failed in Overview pre-flight:', err instanceof Error ? err.message : err);
         }
-        if (!newToken) {
-          authService.onAuthInvalid('token_expired');
-          return;
-        }
-        // Refresh succeeded – proceed with API calls below.
       }
       try {
         const s = await azureService.getDashboardStats();
         if (!cancelled) setStats(s);
       } catch (err) {
-        // Auth errors (confirmed invalid session) are handled by apiClient which
-        // already called onAuthInvalid and fired the auth-change event. App.tsx
-        // will unmount this component and show the Login form.
-        // For all other errors (network outage, server error, non-confirmed 401),
+        // For all errors (network outage, server error, auth errors),
         // show an error message with a retry option instead of an infinite spinner.
+        // The session is never invalidated automatically.
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : 'خطای ناشناخته';
           setLoadError(msg);

@@ -237,12 +237,12 @@ app.http("getMe", {
   handler: getMe
 });
 
-/** How long after expiry a token can still be refreshed (7-day grace window). */
-const TOKEN_REFRESH_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+/** How long after expiry a token can still be refreshed (30-day grace window). */
+const TOKEN_REFRESH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /**
  * POST /api/auth/refresh
- * Accepts a Bearer token that is valid or recently expired (within the 7-day grace
+ * Accepts a Bearer token that is valid or recently expired (within the 30-day grace
  * window) and issues a fresh token for the same user.  Tokens older than
  * TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS are rejected with reason "token_too_old".
  */
