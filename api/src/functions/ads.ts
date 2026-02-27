@@ -309,7 +309,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         return { status: 400, jsonBody: { error: "Request body must be a JSON object", category: "VALIDATION", requestId } };
       }
       body = raw as AdRequestBody;
-    } catch (_parseErr: unknown) {
+    } catch {
       return { status: 400, jsonBody: { error: "Invalid or missing request body", category: "VALIDATION", requestId } };
     }
 

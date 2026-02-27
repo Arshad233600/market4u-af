@@ -4,7 +4,7 @@ import Icon from '../src/components/ui/Icon';
 import { CATEGORIES, PROVINCES, DISTRICTS, DISTRICT_LOCATIONS } from '../constants';
 import { generateAdDescription } from '../services/geminiService';
 import { azureService } from '../services/azureService';
-import { AuthError } from '../services/apiClient';
+import { AuthError, ApiError } from '../services/apiClient';
 import { authService } from '../services/authService';
 import { Page, Product, ProductCondition } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -307,7 +307,18 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           // AuthError: apiClient already showed an auth warning toast via warnIfAuthenticated().
           // For non-auth errors (network, DB, validation, etc.) resolve a descriptive message.
           if (!(err instanceof AuthError)) {
-              toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
+              if (err instanceof ApiError) {
+                  const baseMsg = resolveAdPostError(err.message);
+                  const shortId = err.requestId ? err.requestId.slice(0, 8) : null;
+                  const parts = [
+                      `کد: ${err.status}`,
+                      err.category ? `دسته: ${err.category}` : null,
+                      shortId ? `ID: ${shortId}` : null,
+                  ].filter(Boolean).join(' | ');
+                  toastService.error(`${baseMsg} [${parts}]`);
+              } else {
+                  toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
+              }
           }
       } finally {
           setIsSubmitting(false);
