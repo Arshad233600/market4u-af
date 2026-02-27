@@ -405,6 +405,8 @@ export const azureService = {
         db.save('products', [newProduct, ...products]);
         return true;
     }
+    const token = authService.getToken();
+    console.warn("[postAd] hasToken=", !!token, "authHeaderSet=", !!token);
     await apiClient.post('/ads', adData);
     return true;
   },

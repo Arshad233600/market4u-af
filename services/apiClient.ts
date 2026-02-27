@@ -159,13 +159,15 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       // Uses a 60-second cooldown to prevent iOS Safari polling spam.
       const warnIfAuthenticated = () => {
         if (silent) return;
-        if (!storedToken) {
-          // Token was never stored — likely iOS Safari Tracking Prevention blocked storage.
-          toastService.authWarning(
-            'توکن ذخیره نشده. Safari مانع ذخیره‌سازی شد. لطفاً از Chrome یا حالت عادی Safari استفاده کنید.'
-          );
+        if (reason === 'missing_token' || !storedToken) {
+          // Authorization header was absent (no token stored or race condition clearing it).
+          toastService.authWarning('توکن ارسال نشد. لطفاً دوباره وارد شوید.');
+        } else if (reason === 'token_expired') {
+          toastService.authWarning('نشست شما منقضی شد. دوباره وارد شوید.');
+        } else if (reason === 'signature_mismatch') {
+          toastService.authWarning('تنظیمات سرور تغییر کرده. دوباره وارد شوید.');
         } else {
-          // Token present but rejected — session expired or signature mismatch.
+          // Token present but rejected — session expired or unknown server-side reason.
           toastService.authWarning('نشست شما منقضی شده. دوباره وارد شوید.');
         }
       };
