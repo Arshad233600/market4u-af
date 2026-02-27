@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken } from "../utils/authUtils";
+import { resolveRequestId } from "../utils/uuidUtils";
 
 // In-memory rate limit for anonymous (unauthenticated) submissions: IP → last submission timestamp.
 const guestRateLimit = new Map<string, number>();
@@ -225,11 +226,12 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   // after a successful commit (prevents false throttling on failed attempts).
   let guestClientIp: string | null = null;
 
+  // Prefer the client-supplied correlation ID (validated as UUID v4) so both sides share the same
+  // tracing token. Rejects arbitrary strings to guard logging/monitoring pipelines.
+  const requestId = resolveRequestId(request.headers.get("x-client-request-id"));
+
   try {
     const pool = await getPool();
-
-    // Short request ID for tracing in logs and error responses.
-    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
     if (auth.isAuthenticated && auth.userId) {
       // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
@@ -269,7 +271,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     if (!title || price === undefined || price === null) {
-      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"] } };
+      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], requestId } };
     }
 
     // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
@@ -337,14 +339,14 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       if (guestClientIp) {
         guestRateLimit.set(guestClientIp, Date.now());
       }
-      return { status: 201, jsonBody: { success: true, id } };
+      return { status: 201, jsonBody: { success: true, id, requestId } };
     } catch (err: unknown) {
       await transaction.rollback();
       throw err;
     }
   } catch (err: unknown) {
     context.error("postAd Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err), requestId } };
   }
 }
 
