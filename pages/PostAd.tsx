@@ -12,6 +12,32 @@ import { TRANSLATIONS } from '../translations';
 import LocationPicker from '../components/LocationPicker';
 import { toastService } from '../services/toastService';
 
+/**
+ * Map an API error message (English or Persian) to a user-friendly Persian string.
+ * Categories: validation (400), rate-limit (429), server/db (5xx), network, generic.
+ */
+function resolveAdPostError(apiMsg?: string): string {
+  if (!apiMsg) return 'خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.';
+  // Already a Persian message from the backend (e.g. rate-limit) — show it directly.
+  if (/[\u0600-\u06FF]/.test(apiMsg)) return apiMsg;
+  // Network / offline
+  if (/Failed to fetch|NetworkError|Network request failed/i.test(apiMsg))
+    return 'خطای اتصال به سرور. لطفاً اینترنت خود را بررسی کنید.';
+  // Validation / missing fields
+  if (/Missing required|required fields/i.test(apiMsg))
+    return 'اطلاعات ناقص است. لطفاً عنوان و قیمت را وارد کنید.';
+  // Rate-limit (English fallback)
+  if (/API Error: 429/i.test(apiMsg))
+    return 'لطفاً کمی صبر کنید و دوباره تلاش کنید.';
+  // Other client errors (4xx)
+  if (/API Error: 4/i.test(apiMsg))
+    return 'اطلاعات نادرست است. لطفاً بررسی کنید.';
+  // Server / database errors (5xx)
+  if (/Database error|API Error: 5|constraint|SQL/i.test(apiMsg))
+    return 'خطای سرور. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.';
+  return 'خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.';
+}
+
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
@@ -271,13 +297,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           if (success) {
               onNavigate(authService.getCurrentUser() ? Page.DASHBOARD_ADS : Page.HOME);
           } else {
-              toastService.error('خطا در ثبت اطلاعات.');
+              // success===false without a thrown error only occurs in the mock
+              // implementation (e.g. updateAd when the ad is not found locally).
+              // No specific API message is available here, so use the generic fallback.
+              toastService.error(resolveAdPostError());
           }
       } catch (err) {
           // AuthError: apiClient already showed an auth warning toast via warnIfAuthenticated().
-          // For non-auth errors (network, DB, etc.) show a generic data error message.
+          // For non-auth errors (network, DB, validation, etc.) resolve a descriptive message.
           if (!(err instanceof AuthError)) {
-              toastService.error('خطا در ثبت اطلاعات.');
+              toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
           }
       } finally {
           setIsSubmitting(false);
