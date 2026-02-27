@@ -49,6 +49,8 @@ export interface AuthResult {
 }
 
 export const validateToken = (request: HttpRequest): AuthResult => {
+    const correlationId = request.headers.get('x-client-request-id') ?? 'no-correlation-id';
+
     // 1. Check for Azure Static Web Apps Built-in Auth Header
     const swaHeader = request.headers.get("x-ms-client-principal");
     if (swaHeader) {
@@ -65,6 +67,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     const authHeader = request.headers.get("authorization");
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.warn(`[auth] missing_token correlationId=${correlationId}`);
         return { userId: null, isAuthenticated: false, reason: "missing_token" };
     }
 
@@ -75,7 +78,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
       secret = getAuthSecretOrThrow();
     } catch (err) {
       const isInsecureDefault = (err as Error).message.includes('insecure default');
-      console.warn('[Auth] Token validation skipped:', (err as Error).message);
+      console.warn('[Auth] Token validation skipped:', (err as Error).message, `correlationId=${correlationId}`);
       return {
         userId: null,
         isAuthenticated: false,
@@ -87,7 +90,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         // Token format: base64url(payload).base64url(signature)
         const parts = token.split('.');
         if (parts.length !== 2) {
-            console.warn("[Auth] Token validation failed: unexpected token format (parts=" + parts.length + ")");
+            console.warn("[Auth] Token validation failed: unexpected token format (parts=" + parts.length + ") correlationId=" + correlationId);
             return { userId: null, isAuthenticated: false, reason: "invalid_token" };
         }
 
@@ -96,7 +99,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         // Verify signature
         const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
         if (sigB64 !== expectedSig) {
-            console.warn("[Auth] Token validation failed: signature mismatch — likely AUTH_SECRET mismatch between deployments");
+            console.warn("[Auth] Token validation failed: signature mismatch — likely AUTH_SECRET mismatch between deployments correlationId=" + correlationId);
             return { userId: null, isAuthenticated: false, reason: "signature_mismatch" };
         }
 
@@ -105,17 +108,20 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         const payload = JSON.parse(payloadJson);
 
         if (!payload.uid) {
+            console.warn("[Auth] Token validation failed: missing uid claim correlationId=" + correlationId);
             return { userId: null, isAuthenticated: false, reason: "invalid_token" };
         }
 
         // Check token age (30 days)
         const tokenAge = Date.now() - (payload.iat || 0);
         if (tokenAge > TOKEN_EXPIRATION_MS) {
+            console.warn(`[Auth] Token expired: age=${tokenAge}ms correlationId=${correlationId}`);
             return { userId: null, isAuthenticated: false, reason: "token_expired" };
         }
 
         return { userId: payload.uid, isAuthenticated: true };
     } catch {
+        console.warn(`[Auth] Token decode error correlationId=${correlationId}`);
         return { userId: null, isAuthenticated: false, reason: "invalid_token" };
     }
 };

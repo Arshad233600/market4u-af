@@ -70,9 +70,14 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
   useEffect(() => {
     let cancelled = false;
     const loadData = async () => {
-      // Skip API calls if we already know the token is missing or expired
+      // Skip API calls if we already know the token is missing or expired.
+      // Call onAuthInvalid to clear auth state and fire the auth-change event;
+      // App.tsx will handle the redirect to Login via the auth-change listener.
       if (!authService.getToken() || authService.isTokenExpired()) {
-        if (!cancelled) setIsAuthError(true);
+        if (!cancelled) {
+          authService.onAuthInvalid('token_expired');
+          setIsAuthError(true);
+        }
         return;
       }
       try {
@@ -92,7 +97,7 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
             if (confirmedExpiry) {
               setIsAuthError(true);
             }
-            // For other auth errors apiClient has already handled the logout if needed.
+            // For other auth errors apiClient has already handled the invalidation if needed.
           }
           // For other errors (network outage etc.) stats remains null → spinner
         }
@@ -110,10 +115,10 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
 
   useEffect(() => {
     if (isAuthError) {
-      // apiClient has already called authService.logout() for confirmed session expiry,
-      // triggering the auth-change event that will redirect to Login. We just give a
-      // brief moment for the user to read the message before the redirect happens.
-      // Call onLogout() as a safety net in case the redirect hasn't fired yet.
+      // Auth state has already been cleared by apiClient (onAuthInvalid) or by the
+      // client-side expiry check above. Call onLogout() after a brief delay only as
+      // a UI safety net to ensure the parent navigates away from the protected page
+      // in case the auth-change event hasn't propagated to React state yet.
       const timer = setTimeout(() => {
         onLogout();
       }, 1500);
