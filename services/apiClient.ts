@@ -45,22 +45,6 @@ export const apiClient = {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Track 401 failures per endpoint as a fallback for older endpoints that don't
-// return a structured reason. Uses a generous 60-second window to avoid false
-// logouts caused by quick back-and-forth navigation between dashboard pages.
-const recentAuthFailures = new Map<string, number>();
-const AUTH_FAILURE_WINDOW_MS = 60_000; // 60 seconds
-
-// Clear all tracked 401 failure records whenever the session changes (login,
-// logout, or forced invalidation). This prevents stale failure records from a
-// previous session triggering a spurious logout in the new session when the
-// same API endpoint is called again within the 60-second window.
-if (typeof window !== 'undefined') {
-  window.addEventListener('auth-change', () => {
-    recentAuthFailures.clear();
-  });
-}
-
 // Deduplicate concurrent token refresh calls: at most one refresh request is
 // in-flight at any time. Subsequent callers await the same promise.
 let pendingRefreshPromise: Promise<string | null> | null = null;
@@ -73,25 +57,6 @@ function tryRefreshToken(): Promise<string | null> {
   }
   return pendingRefreshPromise;
 }
-
-// Reasons returned by the backend that confirm the token is genuinely invalid.
-// Server configuration issues (missing_auth_secret, insecure_default_secret)
-// are intentionally excluded — logging out won't help if the server is mis-configured.
-const CONFIRMED_INVALID_SESSION_REASONS = new Set([
-  'token_expired',
-  'invalid_token',
-  'signature_mismatch',
-  'missing_token',
-  'token_too_old',
-]);
-
-// Reasons that indicate a server-side configuration problem rather than an
-// invalid user session. These must NEVER trigger a logout — the problem cannot
-// be resolved by the user re-authenticating.
-const SERVER_CONFIG_ERROR_REASONS = new Set([
-  'missing_auth_secret',
-  'insecure_default_secret',
-]);
 
 /** Generate a short random correlation ID for request tracing. */
 function generateCorrelationId(): string {
@@ -142,8 +107,6 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     logApiResponse(method, endpoint, response.status, correlationId);
 
     if (response.status === 401) {
-      const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
-
       // Parse structured reason from backend response (may be absent for older responses).
       let reason: string | undefined;
       try {
@@ -151,10 +114,9 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         reason = errBody.reason;
       } catch { /* ignore parse failures */ }
 
+      const storedToken = authService.getToken();
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
-
-      const failureKey = `${method}:${endpoint}`;
 
       // If the token is expired, attempt a silent refresh before giving up.
       // Skip if we already tried once for this request (prevents infinite loops).
@@ -164,40 +126,17 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
           // Refresh succeeded — retry the original request with the new token.
           return request<T>(endpoint, method, body, retries, backoff, true);
         }
-        // Refresh failed — fall through to session invalidation below.
-      }
-
-      // If the backend explicitly confirms the session is invalid, invalidate immediately.
-      if (reason && CONFIRMED_INVALID_SESSION_REASONS.has(reason)) {
-        recentAuthFailures.delete(failureKey);
-        authService.onAuthInvalid(reason);
-        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+        // Refresh failed — throw without invalidating the session.
+        // The user must log out explicitly; we never auto-logout.
+        toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
         throw new AuthError(reason);
       }
 
-      // For unknown/server-config reasons: use a conservative soft-fail with a 60-second
-      // window. Two unconfirmed 401s within the window are treated as genuine expiry.
-      // Exception: server configuration errors (AUTH_SECRET missing/insecure) must never
-      // trigger a logout — the user cannot fix a server misconfiguration by re-logging in.
-      if (!reason || !SERVER_CONFIG_ERROR_REASONS.has(reason)) {
-        const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
-        const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
-        recentAuthFailures.set(failureKey, Date.now());
-
-        if (isRecentFailure) {
-          // Second unconfirmed 401 within window: treat as genuine expiry.
-          recentAuthFailures.delete(failureKey);
-          authService.onAuthInvalid(logReason);
-          toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-        }
-      }
-      // First unconfirmed 401 (or any server-config error): throw without invalidating.
+      // For all other 401 reasons: throw the error without invalidating the session.
+      // Automatic logout is disabled — users are never logged out without their action.
+      toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
       throw new AuthError(reason ?? logReason);
     }
-
-    // Clear any soft-fail record on success so a previous transient 401 doesn't
-    // count toward the next failure window for this endpoint.
-    recentAuthFailures.delete(`${method}:${endpoint}`);
 
     // 5xx Server Errors - Retryable
     if (response.status >= 500 && retries > 0) {
