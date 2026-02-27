@@ -151,7 +151,7 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
                u.AvatarUrl as SellerAvatar, 
                u.IsVerified as SellerVerified
         FROM Ads a
-        JOIN Users u ON a.UserId = u.Id
+        LEFT JOIN Users u ON a.UserId = u.Id
         WHERE a.Id = @Id AND a.IsDeleted = 0
       `);
 
@@ -199,25 +199,28 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
   }
 }
 
+const GUEST_USER_ID = "guest_user_0";
+
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "برای ثبت آگهی باید وارد شوید.", reason: auth.reason } };
-  }
+  // Allow unauthenticated (guest) posting; fall back to a shared guest user.
+  const userId = auth.isAuthenticated ? auth.userId! : GUEST_USER_ID;
 
   try {
     const pool = await getPool();
 
-    // Rate limiting (max 1 ad per 60 sec)
-    const recentAd = await pool
-      .request()
-      .input("UserId", sql.NVarChar, auth.userId)
-      .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
+    // Rate limiting (max 1 ad per 60 sec) — only apply to authenticated users.
+    if (auth.isAuthenticated) {
+      const recentAd = await pool
+        .request()
+        .input("UserId", sql.NVarChar, userId)
+        .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
 
-    if (recentAd.recordset.length > 0) {
-      const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
-      if (Date.now() - lastAdTime < 60000) {
-        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
+      if (recentAd.recordset.length > 0) {
+        const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
+        if (Date.now() - lastAdTime < 60000) {
+          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
+        }
       }
     }
 
@@ -238,7 +241,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       const adRequest = new sql.Request(transaction);
       await adRequest
         .input("Id", sql.NVarChar, id)
-        .input("UserId", sql.NVarChar, auth.userId)
+        .input("UserId", sql.NVarChar, userId)
         .input("Title", sql.NVarChar, title)
         .input("Price", sql.Decimal(18, 2), Number(price))
         .input("Location", sql.NVarChar, location ?? "")

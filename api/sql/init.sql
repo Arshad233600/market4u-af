@@ -197,4 +197,12 @@ BEGIN
 END
 GO
 
+-- Add guest user for unauthenticated ad posts
+IF NOT EXISTS (SELECT * FROM Users WHERE Id = 'guest_user_0')
+BEGIN
+    INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+    VALUES ('guest_user_0', N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE());
+END
+GO
+
 PRINT 'Database schema created successfully!';
