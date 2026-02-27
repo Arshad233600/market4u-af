@@ -160,8 +160,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       throw new AuthError(reason ?? logReason);
     }
 
-    // 5xx Server Errors - Retryable
-    if (response.status >= 500 && retries > 0) {
+    // 5xx Server Errors - Retryable only for idempotent methods (GET, DELETE, PUT).
+    // POST/PATCH are not retried: POST is not idempotent (creates a new resource each call),
+    // and PATCH semantics vary per endpoint.
+    const isIdempotent = method === 'GET' || method === 'DELETE' || method === 'PUT';
+    if (response.status >= 500 && retries > 0 && isIdempotent) {
         await wait(backoff);
         return request<T>(endpoint, method, body, retries - 1, backoff * 2, refreshAttempted, silent);
     }
