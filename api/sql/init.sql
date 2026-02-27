@@ -78,6 +78,10 @@ BEGIN
         Latitude FLOAT,
         Longitude FLOAT,
         MainImageUrl NVARCHAR(1000),
+        Condition NVARCHAR(50) DEFAULT 'used',
+        IsNegotiable BIT DEFAULT 0,
+        DeliveryAvailable BIT DEFAULT 0,
+        DynamicFields NVARCHAR(MAX),
         IsPromoted BIT DEFAULT 0,
         Status NVARCHAR(50) DEFAULT 'PENDING',
         IsDeleted BIT DEFAULT 0,
@@ -91,6 +95,29 @@ BEGIN
     CREATE INDEX IX_Ads_Category ON Ads(Category);
     CREATE INDEX IX_Ads_Status ON Ads(Status);
     CREATE INDEX IX_Ads_CreatedAt ON Ads(CreatedAt DESC);
+END
+ELSE
+BEGIN
+    -- Add Condition column if it doesn't exist (for existing databases)
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'Condition')
+    BEGIN
+        ALTER TABLE Ads ADD Condition NVARCHAR(50) DEFAULT 'used';
+    END
+    -- Add IsNegotiable column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'IsNegotiable')
+    BEGIN
+        ALTER TABLE Ads ADD IsNegotiable BIT DEFAULT 0;
+    END
+    -- Add DeliveryAvailable column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'DeliveryAvailable')
+    BEGIN
+        ALTER TABLE Ads ADD DeliveryAvailable BIT DEFAULT 0;
+    END
+    -- Add DynamicFields column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'DynamicFields')
+    BEGIN
+        ALTER TABLE Ads ADD DynamicFields NVARCHAR(MAX) NULL;
+    END
 END
 GO
 
