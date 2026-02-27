@@ -216,6 +216,38 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
   }
 }
 
+/**
+ * Classify an error thrown in postAd into an HTTP status code and category string.
+ *
+ * Categories (returned in every error response for client-side handling):
+ *   VALIDATION      – 400  request body missing / malformed JSON
+ *   RATE_LIMIT      – 429  too many submissions (already handled before this path)
+ *   DB_UNAVAILABLE  – 503  transient DB/network issue; client should retry later
+ *   UNEXPECTED      – 500  truly unexpected bug; use requestId to look up in logs
+ */
+function classifyPostAdError(err: unknown): { status: number; category: string } {
+  const msg = errMessage(err);
+
+  // Malformed / missing JSON body (SyntaxError from request.json())
+  if (err instanceof SyntaxError || /Unexpected (end|token)/i.test(msg)) {
+    return { status: 400, category: "VALIDATION" };
+  }
+
+  // mssql ConnectionError – server unreachable, TCP error, login failure
+  if (err instanceof sql.ConnectionError) {
+    return { status: 503, category: "DB_UNAVAILABLE" };
+  }
+
+  // Infrastructure / configuration errors → 503
+  if (
+    /Database not configured|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed/i.test(msg)
+  ) {
+    return { status: 503, category: "DB_UNAVAILABLE" };
+  }
+
+  return { status: 500, category: "UNEXPECTED" };
+}
+
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   // Reuse the shared guest account so the FK constraint on Ads.UserId is satisfied.
@@ -247,7 +279,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         if (elapsed < 60000) {
           const retryAfterMs = 60000 - elapsed;
           context.warn(`[postAd] rate_limited userId=${auth.userId} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
-          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", requestId, retryAfterMs } };
+          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", category: "RATE_LIMIT", requestId, retryAfterMs } };
         }
       }
     } else {
@@ -261,17 +293,30 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       if (lastSubmit && Date.now() - lastSubmit < GUEST_RATE_LIMIT_MS) {
         const retryAfterMs = GUEST_RATE_LIMIT_MS - (Date.now() - lastSubmit);
         context.warn(`[postAd] rate_limited ip=${clientIp} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
-        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", requestId, retryAfterMs } };
+        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", category: "RATE_LIMIT", requestId, retryAfterMs } };
       }
       // NOTE: guestRateLimit is recorded only after a successful commit (see below)
       // so that transient server/DB errors do not block the next legitimate attempt.
     }
 
-    const body = (await request.json()) as AdRequestBody;
+    // Parse the request body separately so that a malformed / missing JSON body
+    // returns HTTP 400 (VALIDATION) instead of falling through to the generic
+    // HTTP 500 catch block and misleading both the caller and the logs.
+    let body: AdRequestBody;
+    try {
+      const raw = await request.json();
+      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+        return { status: 400, jsonBody: { error: "Request body must be a JSON object", category: "VALIDATION", requestId } };
+      }
+      body = raw as AdRequestBody;
+    } catch (_parseErr: unknown) {
+      return { status: 400, jsonBody: { error: "Invalid or missing request body", category: "VALIDATION", requestId } };
+    }
+
     const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     if (!title || price === undefined || price === null) {
-      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], requestId } };
+      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], category: "VALIDATION", requestId } };
     }
 
     // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
@@ -347,12 +392,19 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       }
       return { status: 201, jsonBody: { success: true, id, requestId } };
     } catch (err: unknown) {
-      await transaction.rollback();
+      // Rollback on any inner error. Ignore rollback failures so the original
+      // error (not the rollback error) propagates to the outer catch for logging.
+      try { await transaction.rollback(); } catch (rollbackErr: unknown) { context.warn(`[postAd] rollback failed requestId=${requestId}`, rollbackErr); }
       throw err;
     }
   } catch (err: unknown) {
-    context.error("postAd Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err), requestId } };
+    context.error(`[postAd] Error requestId=${requestId}`, err);
+    const { status, category: errCategory } = classifyPostAdError(err);
+    if (status === 503) {
+      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, requestId } };
+    }
+    // 500: do not expose internal error details (use requestId to trace in logs)
+    return { status: 500, jsonBody: { error: "Database error", category: errCategory, requestId } };
   }
 }
 
