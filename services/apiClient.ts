@@ -118,6 +118,12 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
 
+      // Helper: only show the auth-error toast when the user was authenticated.
+      // Unauthenticated users browsing public pages must never see an auth error toast.
+      const warnIfAuthenticated = () => {
+        if (storedToken) toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+      };
+
       // If the token is expired, attempt a silent refresh before giving up.
       // Skip if we already tried once for this request (prevents infinite loops).
       if (reason === 'token_expired' && !refreshAttempted) {
@@ -128,13 +134,13 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         }
         // Refresh failed — throw without invalidating the session.
         // The user must log out explicitly; we never auto-logout.
-        toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+        warnIfAuthenticated();
         throw new AuthError(reason);
       }
 
       // For all other 401 reasons: throw the error without invalidating the session.
       // Automatic logout is disabled — users are never logged out without their action.
-      toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+      warnIfAuthenticated();
       throw new AuthError(reason ?? logReason);
     }
 
