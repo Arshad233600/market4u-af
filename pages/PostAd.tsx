@@ -308,14 +308,24 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           // For non-auth errors (network, DB, validation, etc.) resolve a descriptive message.
           if (!(err instanceof AuthError)) {
               if (err instanceof ApiError) {
-                  const baseMsg = resolveAdPostError(err.message);
-                  const shortId = err.requestId ? err.requestId.slice(0, 8) : null;
-                  const parts = [
-                      `کد: ${err.status}`,
-                      err.category ? `دسته: ${err.category}` : null,
-                      shortId ? `ID: ${shortId}` : null,
-                  ].filter(Boolean).join(' | ');
-                  toastService.error(`${baseMsg} [${parts}]`);
+                  const cat = err.category?.toUpperCase();
+                  const reqId = err.requestId ?? null;
+                  if (!reqId) {
+                      console.warn('[PostAd] error response missing requestId — full error:', err);
+                  }
+                  if (cat === 'VALIDATION') {
+                      toastService.error(resolveAdPostError(err.message));
+                  } else if (cat === 'DB_UNAVAILABLE' || cat === 'STORAGE_ERROR') {
+                      toastService.error('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
+                  } else {
+                      // UNEXPECTED or unknown: show full requestId and instruct contact support
+                      const msg = 'خطای سرور. برای پیگیری با پشتیبانی تماس بگیرید.';
+                      if (reqId) {
+                          toastService.errorWithId(msg, reqId);
+                      } else {
+                          toastService.error(`${msg} [ID: missing]`);
+                      }
+                  }
               } else {
                   toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
               }

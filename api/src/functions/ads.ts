@@ -261,6 +261,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   // Prefer the client-supplied correlation ID (validated as UUID v4) so both sides share the same
   // tracing token. Rejects arbitrary strings to guard logging/monitoring pipelines.
   const requestId = resolveRequestId(request.headers.get("x-client-request-id"));
+  context.log(`[postAd] ads.create.begin requestId=${requestId} userId=${userId}`);
 
   try {
     const pool = await getPool();
@@ -309,6 +310,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         return { status: 400, jsonBody: { error: "Request body must be a JSON object", category: "VALIDATION", requestId } };
       }
       body = raw as AdRequestBody;
+      context.log(`[postAd] ads.body.parsed requestId=${requestId}`);
     } catch {
       return { status: 400, jsonBody: { error: "Invalid or missing request body", category: "VALIDATION", requestId } };
     }
@@ -318,6 +320,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     if (!title || price === undefined || price === null) {
       return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], category: "VALIDATION", requestId } };
     }
+    context.log(`[postAd] ads.auth.checked requestId=${requestId} authenticated=${auth.isAuthenticated}`);
+    context.log(`[postAd] ads.validate.ok requestId=${requestId} title="${title}" price=${price}`);
 
     // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
     // This is idempotent — no-op when guest_user_0 is already present (normal case).
@@ -338,6 +342,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
+    context.log(`[postAd] ads.db.tx.begin requestId=${requestId}`);
 
     try {
       // Use UUID to avoid primary-key collisions on concurrent submissions.
@@ -367,6 +372,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
           INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Condition, IsNegotiable, DeliveryAvailable, DynamicFields, Status, CreatedAt)
           VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Condition, @IsNegotiable, @DeliveryAvailable, @DynamicFields, @Status, @CreatedAt)
         `);
+      context.log(`[postAd] ads.db.insert.ads.ok requestId=${requestId} adId=${id}`);
 
       if (Array.isArray(imageUrls) && imageUrls.length > 0) {
         for (let i = 0; i < imageUrls.length; i++) {
@@ -381,15 +387,18 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
               VALUES (@Id, @AdId, @Url, @SortOrder)
             `);
         }
+        context.log(`[postAd] ads.db.insert.images.ok requestId=${requestId} count=${imageUrls.length}`);
       }
 
       await transaction.commit();
+      context.log(`[postAd] ads.db.commit.ok requestId=${requestId}`);
       // Record the anonymous IP in the rate-limit store only after a successful
       // commit so that failed attempts (DB errors, validation, etc.) never consume
       // the user's quota and block the next legitimate submission.
       if (guestClientIp) {
         guestRateLimit.set(guestClientIp, Date.now());
       }
+      context.log(`[postAd] ads.create.success requestId=${requestId} adId=${id}`);
       return { status: 201, jsonBody: { success: true, id, requestId } };
     } catch (err: unknown) {
       // Rollback on any inner error. Ignore rollback failures so the original
@@ -398,7 +407,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       throw err;
     }
   } catch (err: unknown) {
-    context.error(`[postAd] Error requestId=${requestId}`, err);
+    context.error(`[postAd] ads.create.error requestId=${requestId}`, err);
     const { status, category: errCategory } = classifyPostAdError(err);
     if (status === 503) {
       return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, requestId } };

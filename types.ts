@@ -144,6 +144,8 @@ export interface ToastMessage {
   id: string;
   type: ToastType;
   message: string;
+  /** Full UUID v4 requestId – when present a "Copy ID" button is shown. */
+  requestId?: string;
 }
 
 export interface Notification {
