@@ -299,9 +299,18 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   return (
     <div className="max-w-3xl mx-auto pb-24 pt-6 px-4">
-      <h2 className="text-2xl font-bold text-ui-text mb-6 flex items-center gap-2">
-          {existingAd ? t('post_title_edit') : t('post_title')}
-      </h2>
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => onNavigate(existingAd ? Page.DASHBOARD_ADS : Page.HOME)}
+          className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors"
+          aria-label="بازگشت"
+        >
+          <Icon name="ArrowRight" size={20} strokeWidth={2} />
+        </button>
+        <h2 className="text-2xl font-bold text-ui-text flex items-center gap-2">
+            {existingAd ? t('post_title_edit') : t('post_title')}
+        </h2>
+      </div>
       
       
       <form onSubmit={handleSubmit} className="space-y-6">

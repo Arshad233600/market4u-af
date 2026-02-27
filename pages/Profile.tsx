@@ -10,6 +10,16 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ user, onNavigate }) => {
   return (
     <div className="pb-24 pt-6 px-4 max-w-2xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => onNavigate(Page.HOME)}
+          className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors"
+          aria-label="بازگشت"
+        >
+          <Icon name="ArrowRight" size={20} strokeWidth={2} />
+        </button>
+        <h2 className="text-xl font-bold text-ui-text">پروفایل</h2>
+      </div>
       <div className="flex flex-col items-center mb-8">
         <div className="w-24 h-24 bg-brand-100 rounded-full flex items-center justify-center text-brand-700 text-3xl font-bold mb-3 border-4 border-white shadow-lg relative overflow-hidden">
           {user.avatarUrl ? (

@@ -1,10 +1,24 @@
 
 import React from 'react';
 import Icon from '../../src/components/ui/Icon';
+import { Page } from '../../types';
 
-const SafetyTips: React.FC = () => {
+interface StaticPageProps {
+  onNavigate: (page: Page) => void;
+}
+
+const SafetyTips: React.FC<StaticPageProps> = ({ onNavigate }) => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 pb-20">
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          onClick={() => onNavigate(Page.HOME)}
+          className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors shrink-0"
+          aria-label="بازگشت"
+        >
+          <Icon name="ArrowRight" size={20} strokeWidth={2} />
+        </button>
+      </div>
       <div className="bg-brand-600 bg-gradient-to-br from-brand-800 via-brand-600 to-brand-500 text-white rounded-3xl p-8 mb-10 text-center shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-ui-surface/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
           <div className="relative z-10">

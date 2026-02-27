@@ -188,10 +188,10 @@ const AppContent: React.FC = () => {
 
     // Static Pages
     if (currentPage === Page.ABOUT_US) return <AboutUs onNavigate={navigateTo} />;
-    if (currentPage === Page.TERMS) return <Terms />;
-    if (currentPage === Page.PRIVACY) return <PrivacyPolicy />;
-    if (currentPage === Page.SAFETY) return <SafetyTips />;
-    if (currentPage === Page.CONTACT_US) return <ContactUs />;
+    if (currentPage === Page.TERMS) return <Terms onNavigate={navigateTo} />;
+    if (currentPage === Page.PRIVACY) return <PrivacyPolicy onNavigate={navigateTo} />;
+    if (currentPage === Page.SAFETY) return <SafetyTips onNavigate={navigateTo} />;
+    if (currentPage === Page.CONTACT_US) return <ContactUs onNavigate={navigateTo} />;
     if (currentPage === Page.NOT_FOUND) return <NotFound onNavigate={navigateTo} />;
 
     if (typeof currentPage === 'string' && currentPage.startsWith('dashboard')) {
@@ -200,7 +200,7 @@ const AppContent: React.FC = () => {
       let DashboardContent;
       switch (currentPage) {
         case Page.DASHBOARD:
-          DashboardContent = <Overview onNavigate={navigateTo} />;
+          DashboardContent = <Overview onNavigate={navigateTo} onLogout={handleLogout} />;
           break;
         case Page.DASHBOARD_ADS:
           DashboardContent = <MyAds onEdit={handleEditAd} />;

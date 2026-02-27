@@ -2,8 +2,13 @@
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
+import { Page } from '../../types';
 
-const ContactUs: React.FC = () => {
+interface StaticPageProps {
+  onNavigate: (page: Page) => void;
+}
+
+const ContactUs: React.FC<StaticPageProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -19,6 +24,15 @@ const ContactUs: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 pb-24">
+       <div className="flex items-center gap-3 mb-8">
+         <button
+           onClick={() => onNavigate(Page.HOME)}
+           className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors shrink-0"
+           aria-label="بازگشت"
+         >
+           <Icon name="ArrowRight" size={20} strokeWidth={2} />
+         </button>
+       </div>
        <div className="text-center mb-12">
            <h1 className="text-3xl font-bold text-ui-text mb-4">تماس با پشتیبانی Market4U</h1>
            <p className="text-ui-muted max-w-xl mx-auto">
