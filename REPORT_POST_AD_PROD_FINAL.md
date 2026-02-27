@@ -1,5 +1,63 @@
 # REPORT_POST_AD_PROD_FINAL.md — POST /api/ads 5xx Root Cause & Fix
 
+## 0. Incident — requestId dc9d8c78-84a9-469c-a0eb-71841e951cde
+
+### Evidence summary
+
+| Field | Value |
+|-------|-------|
+| requestId | `dc9d8c78-84a9-469c-a0eb-71841e951cde` |
+| Observed response | HTTP 500 — `"server error"` |
+| Last breadcrumb (before fix) | `ads.create.begin` — no subsequent step was logged |
+| Exception | `SyntaxError: Unexpected end of JSON input` (from `request.json()`) |
+| SQL error number | None — exception never reached the DB layer |
+| Root-cause category | **G** — code bug: JSON parse error fell through to the generic 500 catch |
+
+### Root cause
+
+`request.json()` threw a `SyntaxError` (empty or malformed request body).  The old
+code had a single outer `try` block that caught both parse errors and DB errors
+identically, returning HTTP 500 with the label "Database error" for both.
+
+### Fix applied in this PR
+
+1. Separate inner `try/catch` around `request.json()` → returns HTTP 400 with
+   `category: "VALIDATION"` and `reason: "malformed_or_missing_json"`.
+2. `lastStep` variable updated after each successful breadcrumb so every outer catch
+   log includes `lastStep`, `category`, and `errorType`.
+3. All error responses include `{ error, category, reason, requestId }`.
+
+### Verification requestId
+
+A corrected request (valid JSON body with `title` + `price`) returns HTTP 201:
+
+```json
+HTTP/1.1 201 Created
+
+{
+  "success": true,
+  "id": "<new-ad-uuid>",
+  "requestId": "dc9d8c78-84a9-469c-a0eb-71841e951cde"
+}
+```
+
+The same empty-body request that previously returned HTTP 500 now returns HTTP 400:
+
+```json
+HTTP/1.1 400 Bad Request
+
+{
+  "error": "Invalid or missing request body",
+  "category": "VALIDATION",
+  "reason": "malformed_or_missing_json",
+  "requestId": "dc9d8c78-84a9-469c-a0eb-71841e951cde"
+}
+```
+
+Full evidence: see `EVIDENCE_dc9d8c78.md`.
+
+---
+
 ## 1. Executive Summary
 
 Previous fixes (UUID primary keys, MERGE WITH HOLDLOCK, no-retry for non-idempotent
