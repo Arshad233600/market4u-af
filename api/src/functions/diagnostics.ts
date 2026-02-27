@@ -3,6 +3,7 @@ import { getPool } from "../db";
 import { isAuthSecretInsecure, getAuthSecretOrThrow } from "../utils/authUtils";
 import { getBlobContainerClient } from "../blob";
 import { checkRateLimit } from "../utils/rateLimit";
+import { checkAdsSchema, AdsSchemaResult } from "../utils/schemaCheck";
 import crypto from "crypto";
 
 /**
@@ -202,6 +203,7 @@ export async function diagnostics(
   let dbStatus: "connected" | "disconnected" | "skipped" = "skipped";
   let dbDetails: Record<string, unknown> = {};
   let dbError: string | null = null;
+  let adsSchema: AdsSchemaResult = { schemaOk: false, missingColumns: [] };
 
   if (sqlConnAvailable) {
     try {
@@ -228,11 +230,16 @@ export async function diagnostics(
       const foundTables = schemaResult.recordset.map((r: { TABLE_NAME: string }) => r.TABLE_NAME);
       const missingTables = knownTables.filter((t) => !foundTables.includes(t));
 
+      // Check Ads required columns (used by POST /api/ads)
+      adsSchema = await checkAdsSchema();
+
       dbDetails = {
         dbName: meta.dbName,
         sysUser: meta.sysUser,
         foundTables,
         missingTables,
+        adsSchemaOk: adsSchema.schemaOk,
+        adsMissingColumns: adsSchema.missingColumns,
       };
 
       if (missingTables.length > 0) {
@@ -243,6 +250,17 @@ export async function diagnostics(
           rootCause: "Schema migrations have not been applied to this database",
           severity: "Critical",
           fix: "Run database/schema.sql against the Azure SQL database",
+        });
+      }
+
+      if (!adsSchema.schemaOk) {
+        issues.push({
+          phase: "Phase 3",
+          issue: "Ads table missing required columns",
+          evidence: `Missing columns: ${adsSchema.missingColumns.join(", ")}`,
+          rootCause: "Schema migrations have not been applied to this database",
+          severity: "Critical",
+          fix: "Run migrations/2026_02_27_add_missing_ads_columns.sql against the Azure SQL database",
         });
       }
     } catch (err: unknown) {

@@ -3,6 +3,7 @@ import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
+import { checkAdsSchema } from "../utils/schemaCheck";
 
 // In-memory rate limit for anonymous (unauthenticated) submissions: IP → last submission timestamp.
 const guestRateLimit = new Map<string, number>();
@@ -270,6 +271,21 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
   try {
     const pool = await getPool();
+
+    // Guard: if the Ads table is missing required columns (schema outdated),
+    // return 503 immediately without attempting a doomed INSERT.
+    const adsSchema = await checkAdsSchema();
+    if (!adsSchema.schemaOk) {
+      context.warn(`[postAd] db_schema_outdated requestId=${requestId} missingColumns=${adsSchema.missingColumns.join(",")}`);
+      return {
+        status: 503,
+        jsonBody: {
+          error: "db_schema_outdated",
+          missingColumns: adsSchema.missingColumns,
+          requestId,
+        },
+      };
+    }
 
     if (auth.isAuthenticated && auth.userId) {
       // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
