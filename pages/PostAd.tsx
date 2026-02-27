@@ -14,17 +14,18 @@ import { toastService } from '../services/toastService';
 
 /**
  * Map an API error message (English or Persian) to a user-friendly Persian string.
- * Categories: validation (400), rate-limit (429), server/db (5xx), network, generic.
+ * Categories: validation (400), rate-limit (429), service-unavailable (503),
+ *             server/db (500), network, generic.
  */
 function resolveAdPostError(apiMsg?: string): string {
   if (!apiMsg) return 'خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.';
-  // Already a Persian message from the backend (e.g. rate-limit) — show it directly.
+  // Already a Persian message from the backend (e.g. rate-limit, 503) — show it directly.
   if (/[\u0600-\u06FF]/.test(apiMsg)) return apiMsg;
   // Network / offline
   if (/Failed to fetch|NetworkError|Network request failed/i.test(apiMsg))
     return 'خطای اتصال به سرور. لطفاً اینترنت خود را بررسی کنید.';
   // Validation / missing fields
-  if (/Missing required|required fields/i.test(apiMsg))
+  if (/Missing required|required fields|Invalid.*body/i.test(apiMsg))
     return 'اطلاعات ناقص است. لطفاً عنوان و قیمت را وارد کنید.';
   // Rate-limit (English fallback)
   if (/API Error: 429/i.test(apiMsg))
