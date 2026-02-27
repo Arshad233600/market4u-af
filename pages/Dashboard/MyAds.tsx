@@ -30,7 +30,6 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
         setAds([]);
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAds();
   }, []);
 

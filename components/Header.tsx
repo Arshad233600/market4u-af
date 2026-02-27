@@ -33,6 +33,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   }, [user]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchNotifications();
     const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);

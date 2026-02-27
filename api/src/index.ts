@@ -4,6 +4,7 @@ import "./functions/dashboard";
 import "./functions/favorites";
 import "./functions/messages";
 import "./functions/generateDescription";
+import "./functions/notifications";
 import "./functions/upload";
 import "./functions/uploadSas";
 import "./functions/user";

@@ -299,7 +299,6 @@ export const azureService = {
     } catch { return false; }
   },
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   uploadVerificationDocs: async (_frontImage: File, _backImage: File): Promise<boolean> => {
       await new Promise(r => setTimeout(r, 1500));
       // In a real app, this would trigger a status change to PENDING
@@ -498,7 +497,8 @@ export const azureService = {
       } catch { return []; }
   },
   
-  getSellerReviews: async (id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : [],
+  // TODO: implement real reviews API when backend support is added
+  getSellerReviews: async (_id: string) => USE_MOCK_DATA ? [{ id: 'r1', userId: 'u55', userName: 'کریم', rating: 5, comment: 'فروشنده بسیار خوش برخورد.', date: '۲ روز پیش' }] : [],
   
   getProductById: async (id: string): Promise<Product | null> => {
       if (USE_MOCK_DATA) {
@@ -635,7 +635,10 @@ export const azureService = {
 
           return true; 
       }
-      return true;
+      try {
+          await apiClient.post('/wallet/top-up', { amount, description: desc });
+          return true;
+      } catch { return false; }
   },
   
   // --- REAL-TIME CHAT IMPLEMENTATION (LOCAL STORAGE) ---
@@ -804,7 +807,10 @@ export const azureService = {
           db.save('products', updated);
           return true;
       }
-      return true;
+      try {
+          await apiClient.patch(`/ads/${id}/status`, { status });
+          return true;
+      } catch { return false; }
   },
   
   promoteAd: async (id: string, plan: string) => {
@@ -852,10 +858,12 @@ export const azureService = {
           }
           return false; // Insufficient funds
       }
-      return true;
+      try {
+          await apiClient.post(`/ads/${id}/promote`, { plan });
+          return true;
+      } catch { return false; }
   },
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   reportAd: async (_id: string, _reason: string) => true,
 
   toggleFavorite: async (id: string) => {
@@ -902,7 +910,21 @@ export const azureService = {
       if (USE_MOCK_DATA) {
           return db.get<Notification[]>('notifications', []);
       }
-      return [];
+      try {
+          const data = await apiClient.get<Array<{
+              Id: string; UserId: string; Title: string; Message: string;
+              Type: string; IsRead: boolean; CreatedAt: string;
+          }>>('/notifications');
+          if (!Array.isArray(data)) return [];
+          return data.map(n => ({
+              id: n.Id,
+              title: n.Title,
+              message: n.Message,
+              date: new Date(n.CreatedAt).toLocaleDateString('fa-AF'),
+              isRead: n.IsRead,
+              type: n.Type as Notification['type']
+          }));
+      } catch { return []; }
   },
 
   markNotificationRead: async (id?: string) => {
@@ -914,7 +936,11 @@ export const azureService = {
               notifs = notifs.map(n => ({ ...n, isRead: true }));
           }
           db.save('notifications', notifs);
+          return;
       }
+      try {
+          await apiClient.patch('/notifications/read', id ? { id } : {});
+      } catch { /* silent – non-critical */ }
   },
 
   // --- SETTINGS ---

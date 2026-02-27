@@ -394,7 +394,6 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
   }
 }
 
-// Routes
 app.http("getAds", { methods: ["GET"], authLevel: "anonymous", route: "ads", handler: getAds });
 app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id}", handler: getAdDetail });
 app.http("getMyAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/my-ads", handler: getMyAds });
@@ -402,3 +401,121 @@ app.http("getSellerAds", { methods: ["GET"], authLevel: "anonymous", route: "ads
 app.http("postAd", { methods: ["POST"], authLevel: "anonymous", route: "ads", handler: postAd });
 app.http("updateAd", { methods: ["PUT"], authLevel: "anonymous", route: "ads/{id}", handler: updateAd });
 app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/{id}", handler: deleteAd });
+
+export async function updateAdStatus(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const auth = validateToken(request);
+  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized" } };
+
+  const id = request.params?.id;
+  if (!id) return { status: 400, jsonBody: { error: "ID required" } };
+
+  try {
+    const body = (await request.json()) as { status?: string };
+    const { status } = body;
+
+    const allowed = ["ACTIVE", "SOLD", "INACTIVE", "PENDING"];
+    if (!status || !allowed.includes(status)) {
+      return { status: 400, jsonBody: { error: `Invalid status. Must be one of: ${allowed.join(", ")}` } };
+    }
+
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("Id", sql.NVarChar, id)
+      .input("UserId", sql.NVarChar, auth.userId)
+      .input("Status", sql.NVarChar, status)
+      .input("UpdatedAt", sql.DateTime, new Date())
+      .query("UPDATE Ads SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND UserId = @UserId AND IsDeleted = 0");
+
+    if (result.rowsAffected[0] === 0) {
+      return { status: 404, jsonBody: { error: "Ad not found or unauthorized" } };
+    }
+
+    return { status: 200, jsonBody: { success: true } };
+  } catch (err: unknown) {
+    context.error("updateAdStatus Error", err);
+    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+  }
+}
+
+app.http("updateAdStatus", { methods: ["PATCH"], authLevel: "anonymous", route: "ads/{id}/status", handler: updateAdStatus });
+
+/** Promotion plan costs in AFN. */
+const PROMO_COSTS: Record<string, number> = { URGENT: 200, LADDER: 50 };
+
+export async function promoteAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const auth = validateToken(request);
+  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized" } };
+
+  const id = request.params?.id;
+  if (!id) return { status: 400, jsonBody: { error: "ID required" } };
+
+  try {
+    const body = (await request.json()) as { plan?: string };
+    const { plan } = body;
+
+    const cost = PROMO_COSTS[plan ?? ""] ?? 0;
+    if (!cost) {
+      return { status: 400, jsonBody: { error: `Invalid plan. Must be one of: ${Object.keys(PROMO_COSTS).join(", ")}` } };
+    }
+
+    const pool = await getPool();
+
+    // Check ownership
+    const adCheck = await pool
+      .request()
+      .input("Id", sql.NVarChar, id)
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query("SELECT Id FROM Ads WHERE Id = @Id AND UserId = @UserId AND IsDeleted = 0");
+
+    if (adCheck.recordset.length === 0) {
+      return { status: 404, jsonBody: { error: "Ad not found or unauthorized" } };
+    }
+
+    // Check wallet balance
+    const walletResult = await pool
+      .request()
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query("SELECT ISNULL(SUM(Amount), 0) AS balance FROM WalletTransactions WHERE UserId = @UserId AND Status != 'FAILED'");
+
+    const balance: number = walletResult.recordset[0]?.balance ?? 0;
+    if (balance < cost) {
+      return { status: 400, jsonBody: { error: "موجودی کافی نیست", required: cost, available: balance } };
+    }
+
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      // Deduct wallet balance
+      const txId = `tx_${Date.now()}`;
+      const planLabel = plan === "URGENT" ? "فوری و ویژه" : "نردبان";
+      await new sql.Request(transaction)
+        .input("Id", sql.NVarChar, txId)
+        .input("UserId", sql.NVarChar, auth.userId)
+        .input("Amount", sql.Decimal(18, 2), -cost)
+        .input("Type", sql.NVarChar, "PAYMENT_AD_PROMO")
+        .input("Status", sql.NVarChar, "SUCCESS")
+        .input("Description", sql.NVarChar, `ارتقای آگهی (${planLabel})`)
+        .input("CreatedAt", sql.DateTime, new Date())
+        .query("INSERT INTO WalletTransactions (Id, UserId, Amount, Type, Status, Description, CreatedAt) VALUES (@Id, @UserId, @Amount, @Type, @Status, @Description, @CreatedAt)");
+
+      // Mark ad as promoted
+      await new sql.Request(transaction)
+        .input("Id", sql.NVarChar, id)
+        .input("UpdatedAt", sql.DateTime, new Date())
+        .query("UPDATE Ads SET IsPromoted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id");
+
+      await transaction.commit();
+      return { status: 200, jsonBody: { success: true } };
+    } catch (err: unknown) {
+      await transaction.rollback();
+      throw err;
+    }
+  } catch (err: unknown) {
+    context.error("promoteAd Error", err);
+    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+  }
+}
+
+app.http("promoteAd", { methods: ["POST"], authLevel: "anonymous", route: "ads/{id}/promote", handler: promoteAd });

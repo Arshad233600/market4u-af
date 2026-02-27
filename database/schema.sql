@@ -107,3 +107,17 @@ CREATE TABLE WalletTransactions (
 
 CREATE INDEX IX_WalletTransactions_UserId ON WalletTransactions(UserId);
 CREATE INDEX IX_WalletTransactions_CreatedAt ON WalletTransactions(CreatedAt DESC);
+
+CREATE TABLE Notifications (
+    Id NVARCHAR(100) PRIMARY KEY,
+    UserId NVARCHAR(100) NOT NULL,
+    Title NVARCHAR(255) NOT NULL,
+    Message NVARCHAR(1000) NOT NULL,
+    Type NVARCHAR(50) DEFAULT 'info',
+    IsRead BIT DEFAULT 0,
+    CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+    FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+CREATE INDEX IX_Notifications_UserId ON Notifications(UserId);
+CREATE INDEX IX_Notifications_CreatedAt ON Notifications(CreatedAt DESC);
