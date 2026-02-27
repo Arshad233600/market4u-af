@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken } from "../utils/authUtils";
-import { resolveRequestId } from "../utils/uuidUtils";
+import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 
 // In-memory rate limit for anonymous (unauthenticated) submissions: IP → last submission timestamp.
 const guestRateLimit = new Map<string, number>();
@@ -277,12 +277,17 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
     // This is idempotent — no-op when guest_user_0 is already present (normal case).
     if (!auth.isAuthenticated || !auth.userId) {
+      // Use MERGE WITH (HOLDLOCK) so the check-and-insert is fully atomic, preventing
+      // a race condition where two concurrent anonymous requests both see the row absent
+      // and both attempt INSERT → PK violation → HTTP 500.
       await pool.request()
         .input("GuestId", sql.NVarChar, GUEST_USER_ID)
         .query(`
-          IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = @GuestId)
-            INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
-            VALUES (@GuestId, N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE())
+          MERGE Users WITH (HOLDLOCK) AS target
+          USING (SELECT @GuestId AS Id) AS source ON target.Id = source.Id
+          WHEN NOT MATCHED THEN
+            INSERT (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+            VALUES (@GuestId, N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE());
         `);
     }
 
@@ -290,7 +295,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     await transaction.begin();
 
     try {
-      const id = `ad_${Date.now()}`;
+      // Use UUID to avoid primary-key collisions on concurrent submissions.
+      const id = generateUUID();
       const mainImageUrl = Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : null;
 
       const adRequest = new sql.Request(transaction);
@@ -321,7 +327,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         for (let i = 0; i < imageUrls.length; i++) {
           const imgRequest = new sql.Request(transaction);
           await imgRequest
-            .input("Id", sql.NVarChar, `img_${Date.now()}_${i}`)
+            .input("Id", sql.NVarChar, generateUUID())
             .input("AdId", sql.NVarChar, id)
             .input("Url", sql.NVarChar, imageUrls[i])
             .input("SortOrder", sql.Int, i)
@@ -422,7 +428,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
       if (Array.isArray(imageUrls) && imageUrls.length > 0) {
         for (let i = 0; i < imageUrls.length; i++) {
           await new sql.Request(transaction)
-            .input("Id", sql.NVarChar, `img_${Date.now()}_${i}`)
+            .input("Id", sql.NVarChar, generateUUID())
             .input("AdId", sql.NVarChar, id)
             .input("Url", sql.NVarChar, imageUrls[i])
             .input("SortOrder", sql.Int, i)
