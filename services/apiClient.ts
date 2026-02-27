@@ -15,6 +15,20 @@ export class AuthError extends Error {
   }
 }
 
+/** Thrown for any non-2xx, non-401 HTTP response. Carries structured debug fields. */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly requestId?: string;
+  readonly category?: string;
+  constructor(message: string, status: number, requestId?: string, category?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.requestId = requestId;
+    this.category = category;
+  }
+}
+
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
   retries?: number;
@@ -170,13 +184,13 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string };
+      const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string; requestId?: string; category?: string };
       // For 5xx server errors prefer the high-level "error" label so raw SQL/internal details
       // are not surfaced to the browser; for 4xx use the more-specific "message" first.
       const msg = response.status >= 500
         ? errorData.error || errorData.message
         : errorData.message || errorData.error;
-      throw new Error(msg || `API Error: ${response.status}`);
+      throw new ApiError(msg || `API Error: ${response.status}`, response.status, errorData.requestId, errorData.category);
     }
 
     return await response.json().catch(() => {
