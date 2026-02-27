@@ -14,19 +14,6 @@ export class AuthError extends Error {
   }
 }
 
-/**
- * Reasons that indicate a definitive, unrecoverable auth failure.
- * On these reasons the client should log out immediately rather than
- * attempting a soft-fail / retry.
- */
-const DEFINITIVE_AUTH_REASONS = new Set([
-  'signature_mismatch',
-  'token_expired',
-  'missing_auth_secret',
-  'insecure_default_secret',
-  'invalid_token',
-]);
-
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
   retries?: number;
@@ -106,13 +93,6 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason}`);
-
-      // Definitive reasons: logout immediately (no retry window needed)
-      if (reason && DEFINITIVE_AUTH_REASONS.has(reason)) {
-        authService.logout();
-        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-        throw new AuthError(reason);
-      }
 
       const failureKey = `${method}:${endpoint}`;
       const lastFailure = recentAuthFailures.get(failureKey) ?? 0;

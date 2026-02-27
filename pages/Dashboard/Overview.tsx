@@ -99,13 +99,10 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (isAuthError) {
-      // Brief pause so the user can read the "session expired" message before being redirected
-      const timer = setTimeout(() => {
-        onNavigate(Page.LOGIN);
-      }, 1500);
-      return () => clearTimeout(timer);
+      // Clear the session and fire auth-change so App.tsx redirects to login
+      authService.logout();
     }
-  }, [isAuthError, onNavigate]);
+  }, [isAuthError]);
 
   const getGreeting = () => {
       const hour = new Date().getHours();
