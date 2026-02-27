@@ -45,6 +45,9 @@ export const authService = {
         safeStorage.removeItem(STORAGE_KEY_TOKEN);
         safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
         safeStorage.removeItem(STORAGE_KEY_USER);
+        // Notify the UI so React state reflects the cleared session immediately,
+        // rather than waiting for a subsequent 401 to trigger the logout flow.
+        window.dispatchEvent(new Event('auth-change'));
         return null;
       }
       return token;

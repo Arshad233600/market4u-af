@@ -5,6 +5,7 @@ import { CATEGORIES, PROVINCES, DISTRICTS, DISTRICT_LOCATIONS } from '../constan
 import { generateAdDescription } from '../services/geminiService';
 import { azureService } from '../services/azureService';
 import { AuthError } from '../services/apiClient';
+import { authService } from '../services/authService';
 import { Page, Product, ProductCondition } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { TRANSLATIONS } from '../translations';
@@ -273,9 +274,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               toastService.error('خطا در ثبت اطلاعات.');
           }
       } catch (err) {
-          // AuthError is already handled (logout + toast) in apiClient; navigate to login
+          // AuthError: apiClient handles logout + toast for definitive failures
+          // (repeated 401, token_expired, signature_mismatch, etc.) — do not show a
+          // duplicate toast in that case. For soft-fail (first unknown 401), the user
+          // is still authenticated; show a retry hint without implying logout.
           if (err instanceof AuthError) {
-              onNavigate(Page.LOGIN);
+              if (authService.getCurrentUser()) {
+                  // Soft-fail — user still logged in; suggest retry
+                  toastService.error('خطا در احراز هویت. لطفاً دوباره تلاش کنید.');
+              }
+              // else: apiClient already showed session-expired toast + triggered auth-change
           } else {
               toastService.error('خطا در ثبت اطلاعات.');
           }
