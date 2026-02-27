@@ -14,19 +14,6 @@ export class AuthError extends Error {
   }
 }
 
-/**
- * Reasons that indicate a definitive, unrecoverable auth failure.
- * On these reasons the client should log out immediately rather than
- * attempting a soft-fail / retry.
- */
-const DEFINITIVE_AUTH_REASONS = new Set([
-  'signature_mismatch',
-  'token_expired',
-  'missing_auth_secret',
-  'insecure_default_secret',
-  'invalid_token',
-]);
-
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
   retries?: number;
@@ -88,10 +75,10 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-    // 401 Unauthorized – soft-fail: re-check token before triggering logout.
-    // A single 401 immediately after login may indicate a stale mock token that
-    // getToken() already cleaned up (returning null). In that case the caller
-    // should redirect to login rather than call logout() which dispatches auth-change.
+    // 401 Unauthorized – soft-fail: require two consecutive 401s from the same
+    // endpoint within a short window before triggering logout. A single 401
+    // (e.g. from a server restart, AUTH_SECRET rotation, or transient config
+    // issue) must not immediately log the user out and force a re-login.
     if (response.status === 401) {
       const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
 
@@ -107,21 +94,16 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason}`);
 
-      // Definitive reasons: logout immediately (no retry window needed)
-      if (reason && DEFINITIVE_AUTH_REASONS.has(reason)) {
-        authService.logout();
-        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-        throw new AuthError(reason);
-      }
-
+      // Soft-fail: require two 401s from the same endpoint within the window before
+      // logging out. This prevents a single transient 401 (e.g. due to a brief server
+      // misconfiguration or deployment restart) from immediately logging the user out.
       const failureKey = `${method}:${endpoint}`;
       const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
       const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
       recentAuthFailures.set(failureKey, Date.now());
 
       if (!isRecentFailure) {
-        // First 401 within window: token may have just been cleaned up (mock token).
-        // Throw AuthError without calling logout so the UI can show a soft warning.
+        // First 401 within window: throw AuthError without calling logout.
         throw new AuthError(reason ?? logReason);
       }
 

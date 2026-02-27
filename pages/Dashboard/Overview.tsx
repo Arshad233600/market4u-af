@@ -99,13 +99,16 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (isAuthError) {
-      // Brief pause so the user can read the "session expired" message before being redirected
+      // Brief pause so the user can read the "session expired" message before being
+      // redirected. Call authService.logout() so storage is cleared and the auth-change
+      // mechanism shows the Login form automatically (rather than just navigating to
+      // Page.LOGIN while leaving a stale session in storage).
       const timer = setTimeout(() => {
-        onNavigate(Page.LOGIN);
+        authService.logout();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isAuthError, onNavigate]);
+  }, [isAuthError]);
 
   const getGreeting = () => {
       const hour = new Date().getHours();
