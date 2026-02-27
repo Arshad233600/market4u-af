@@ -269,7 +269,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           }
 
           if (success) {
-              onNavigate(Page.DASHBOARD_ADS);
+              onNavigate(authService.getCurrentUser() ? Page.DASHBOARD_ADS : Page.HOME);
           } else {
               toastService.error('خطا در ثبت اطلاعات.');
           }

@@ -5,10 +5,9 @@ import { Page, User } from '../types';
 interface ProfileProps {
   user: User;
   onNavigate: (page: Page) => void;
-  onLogout: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, onNavigate, onLogout }) => {
+const Profile: React.FC<ProfileProps> = ({ user, onNavigate }) => {
   return (
     <div className="pb-24 pt-6 px-4 max-w-2xl mx-auto">
       <div className="flex flex-col items-center mb-8">
@@ -56,17 +55,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onNavigate, onLogout }) => {
       <div className="bg-ui-surface rounded-xl shadow-sm border border-ui-border overflow-hidden">
         <button 
             onClick={() => onNavigate(Page.DASHBOARD_SETTINGS)}
-            className="w-full p-4 border-b border-ui-border flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
+            className="w-full p-4 flex items-center gap-3 hover:bg-ui-surface2 transition-colors text-right"
         >
             <Icon name="Settings" size={20} strokeWidth={1.8} className="text-ui-muted" />
             <span className="flex-1 font-medium text-ui-muted">تنظیمات</span>
-        </button>
-        <button 
-            onClick={onLogout}
-            className="w-full p-4 flex items-center gap-3 hover:bg-red-50 transition-colors text-red-600 text-right"
-        >
-            <Icon name="LogOut" size={20} strokeWidth={1.8} />
-            <span className="flex-1 font-medium">خروج از حساب</span>
         </button>
       </div>
 
