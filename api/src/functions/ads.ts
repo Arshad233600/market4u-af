@@ -251,16 +251,22 @@ function classifyPostAdError(err: unknown): { status: number; category: string }
 }
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  const auth = validateToken(request);
-  const authErr = authResponse(auth);
-  if (authErr || !auth.userId) {
-    return authErr ?? { status: 401, jsonBody: { error: "Unauthorized", reason: "missing_token" } };
-  }
-  const userId = auth.userId;
-
   // Prefer the client-supplied correlation ID (validated as UUID v4) so both sides share the same
   // tracing token. Rejects arbitrary strings to guard logging/monitoring pipelines.
   const requestId = resolveRequestId(request.headers.get("x-client-request-id"));
+
+  const auth = validateToken(request);
+  const authErr = authResponse(auth);
+  if (authErr || !auth.userId) {
+    const reason = auth.reason ?? "missing_token";
+    const authHeaderPresent = !!request.headers.get("authorization");
+    context.warn(`[postAd] 401 requestId=${requestId} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
+    // For server misconfiguration (503) return the standard response; for all other auth
+    // failures return 401 with structured category, reason and requestId for client diagnosis.
+    if (authErr && authErr.status === 503) return authErr;
+    return { status: 401, jsonBody: { error: "Unauthorized", category: "AUTH_REQUIRED", reason, requestId } };
+  }
+  const userId = auth.userId;
 
   // lastStep tracks the most-recently completed breadcrumb; logged in catch so
   // on-call engineers can identify exactly which layer failed without grepping logs.

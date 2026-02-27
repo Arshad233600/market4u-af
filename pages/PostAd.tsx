@@ -274,6 +274,13 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       e.preventDefault();
       if (!province) { alert("لطفا ولایت را انتخاب کنید"); return; }
       if (!title || !price) { alert("لطفا عنوان و قیمت را وارد کنید"); return; }
+
+      // Upfront token check: block submission if no token and redirect to login.
+      if (!authService.getToken()) {
+          toastService.error('توکن ارسال نشد. لطفاً دوباره وارد شوید.');
+          onNavigate(Page.LOGIN);
+          return;
+      }
       
       setIsSubmitting(true);
       const fullLocation = district ? `${province} - ${district}` : province;

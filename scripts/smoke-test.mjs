@@ -67,12 +67,20 @@ const adPayload = {
   location: 'Smoke City',
 };
 
+const postAdRequestHeaders = {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+};
+
+// Assert the Authorization header is present before sending (regression guard)
+assert(
+  'Authorization' in postAdRequestHeaders && postAdRequestHeaders.Authorization.startsWith('Bearer '),
+  'Authorization header is present in POST /api/ads request'
+);
+
 const postAdRes = await fetch(`${BASE_URL}/api/ads`, {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  },
+  headers: postAdRequestHeaders,
   body: JSON.stringify(adPayload),
 });
 
