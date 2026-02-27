@@ -1,7 +1,20 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import * as crypto from "crypto";
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken } from "../utils/authUtils";
+
+// In-memory rate limit for anonymous (unauthenticated) submissions: IP → last submission timestamp.
+const guestRateLimit = new Map<string, number>();
+const GUEST_RATE_LIMIT_MS = 60000; // 1 minute
+
+/** Remove stale guest rate limit entries to prevent unbounded memory growth. */
+function pruneGuestRateLimit(): void {
+  const cutoff = Date.now() - GUEST_RATE_LIMIT_MS;
+  for (const [ip, ts] of guestRateLimit) {
+    if (ts < cutoff) guestRateLimit.delete(ip);
+  }
+}
 
 /** Interface for database image record */
 interface ImageRecord {
@@ -201,25 +214,35 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
-  const userId = auth.userId!;
+  const userId = auth.isAuthenticated && auth.userId ? auth.userId : `guest_${crypto.randomUUID()}`;
 
   try {
     const pool = await getPool();
 
-    // Rate limiting: max 1 ad per 60 seconds per user.
-    const recentAd = await pool
-      .request()
-      .input("UserId", sql.NVarChar, userId)
-      .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
+    if (auth.isAuthenticated && auth.userId) {
+      // Rate limiting: max 1 ad per 60 seconds per authenticated user.
+      const recentAd = await pool
+        .request()
+        .input("UserId", sql.NVarChar, auth.userId)
+        .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
 
-    if (recentAd.recordset.length > 0) {
-      const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
-      if (Date.now() - lastAdTime < 60000) {
+      if (recentAd.recordset.length > 0) {
+        const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
+        if (Date.now() - lastAdTime < 60000) {
+          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
+        }
+      }
+    } else {
+      // Rate limiting for anonymous users: based on client IP.
+      // x-forwarded-for may contain multiple comma-separated IPs; take the first (original client).
+      const rawIp = request.headers.get("x-forwarded-for") ?? request.headers.get("client-ip") ?? "";
+      const clientIp = rawIp.split(",")[0].trim() || "unknown";
+      pruneGuestRateLimit();
+      const lastSubmit = guestRateLimit.get(clientIp);
+      if (lastSubmit && Date.now() - lastSubmit < GUEST_RATE_LIMIT_MS) {
         return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
       }
+      guestRateLimit.set(clientIp, Date.now());
     }
 
     const body = (await request.json()) as AdRequestBody;
