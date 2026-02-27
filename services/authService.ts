@@ -5,6 +5,7 @@ import { safeStorage } from '../utils/safeStorage';
 
 const STORAGE_KEY_USER = 'bazar_af_user';
 const STORAGE_KEY_TOKEN = 'bazar_af_token';
+const STORAGE_KEY_REFRESH_TOKEN = 'bazar_af_refresh_token';
 const TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (matches server TOKEN_EXPIRATION_MS)
 
 // Mock Data for Offline/Demo Mode
@@ -38,8 +39,11 @@ export const authService = {
       // In production mode, mock tokens from a previous demo/mock session are invalid
       // against the real backend and would trigger an immediate 401 → logout loop.
       // Detect and clear them so the user is shown the login screen cleanly.
-      if (!USE_MOCK_DATA && (token.startsWith('mock_token_') || token.startsWith('google_mock_token'))) {
+      if (!USE_MOCK_DATA && (/^mock_token_/.test(token) || /^google_mock_token$/i.test(token))) {
+        // Track telemetry event without leaking the token value
+        console.warn('[auth] auth.mock_token_detected_in_production — clearing stale mock session');
         safeStorage.removeItem(STORAGE_KEY_TOKEN);
+        safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
         safeStorage.removeItem(STORAGE_KEY_USER);
         return null;
       }
@@ -212,6 +216,7 @@ export const authService = {
   logout: () => {
     safeStorage.removeItem(STORAGE_KEY_USER);
     safeStorage.removeItem(STORAGE_KEY_TOKEN);
+    safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
     window.dispatchEvent(new Event('auth-change'));
   }
 };

@@ -3,19 +3,44 @@ import { HttpRequest } from "@azure/functions";
 import { Buffer } from "buffer";
 import crypto from "crypto";
 
-const AUTH_SECRET = process.env.AUTH_SECRET || "CHANGE_ME_IN_AZURE";
 const TOKEN_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-/** True when AUTH_SECRET is the insecure fallback value. */
-export const isAuthSecretInsecure = AUTH_SECRET === "CHANGE_ME_IN_AZURE";
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !process.env.AzureWebJobsStorage?.includes('UseDevelopmentStorage');
 
-if (isAuthSecretInsecure) {
-    console.warn(
-        "[SECURITY] AUTH_SECRET is not configured! " +
-        "Set AUTH_SECRET as an Azure Application Setting (min 32 chars). " +
-        "All tokens signed with the insecure default will be rejected in a hardened build."
-    );
+/**
+ * Returns the AUTH_SECRET or throws if it is missing or insecure in production.
+ * Always warns if the secret is shorter than 32 characters.
+ */
+export function getAuthSecretOrThrow(): string {
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret || secret.trim() === '') {
+    if (IS_PRODUCTION) {
+      throw new Error('AUTH_SECRET is not configured (Production).');
+    }
+    console.warn('[SECURITY] AUTH_SECRET is not set. Set AUTH_SECRET in Azure Application settings (min 32 chars).');
+    return 'CHANGE_ME_IN_AZURE'; // dev-only fallback
+  }
+
+  if (secret === 'CHANGE_ME_IN_AZURE') {
+    if (IS_PRODUCTION) {
+      throw new Error('AUTH_SECRET is insecure default — set a strong random value in Azure Application settings.');
+    }
+    console.warn('[SECURITY] AUTH_SECRET uses insecure default value "CHANGE_ME_IN_AZURE".');
+  }
+
+  if (secret.length < 32) {
+    console.warn(`[SECURITY] AUTH_SECRET is only ${secret.length} chars; minimum recommended length is 32.`);
+  }
+
+  return secret;
 }
+
+/** True when AUTH_SECRET is missing or the insecure fallback value. */
+export const isAuthSecretInsecure =
+  !process.env.AUTH_SECRET ||
+  process.env.AUTH_SECRET.trim() === '' ||
+  process.env.AUTH_SECRET === 'CHANGE_ME_IN_AZURE';
 
 export interface AuthResult {
     userId: string | null;
@@ -40,26 +65,37 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     const authHeader = request.headers.get("authorization");
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return { userId: null, isAuthenticated: false, reason: "missing_bearer_token" };
+        return { userId: null, isAuthenticated: false, reason: "missing_token" };
     }
 
     const token = authHeader.split(" ")[1];
+
+    let secret: string;
+    try {
+      secret = getAuthSecretOrThrow();
+    } catch (err) {
+      const isInsecureDefault = (err as Error).message.includes('insecure default');
+      console.warn('[Auth] Token validation skipped:', (err as Error).message);
+      return {
+        userId: null,
+        isAuthenticated: false,
+        reason: isInsecureDefault ? 'insecure_default_secret' : 'missing_auth_secret',
+      };
+    }
     
     try {
         // Token format: base64url(payload).base64url(signature)
         const parts = token.split('.');
         if (parts.length !== 2) {
             console.warn("[Auth] Token validation failed: unexpected token format (parts=" + parts.length + ")");
-            return { userId: null, isAuthenticated: false, reason: "invalid_token_format" };
+            return { userId: null, isAuthenticated: false, reason: "invalid_token" };
         }
 
         const [payloadB64, sigB64] = parts;
         
         // Verify signature
-        const expectedSig = crypto.createHmac("sha256", AUTH_SECRET).update(payloadB64).digest("base64url");
+        const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
         if (sigB64 !== expectedSig) {
-            // Log this at warn level — a signature mismatch almost always means AUTH_SECRET
-            // changed between the deployment that issued the token and this one.
             console.warn("[Auth] Token validation failed: signature mismatch — likely AUTH_SECRET mismatch between deployments");
             return { userId: null, isAuthenticated: false, reason: "signature_mismatch" };
         }
@@ -69,7 +105,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         const payload = JSON.parse(payloadJson);
 
         if (!payload.uid) {
-            return { userId: null, isAuthenticated: false, reason: "missing_uid_claim" };
+            return { userId: null, isAuthenticated: false, reason: "invalid_token" };
         }
 
         // Check token age (30 days)
@@ -80,6 +116,6 @@ export const validateToken = (request: HttpRequest): AuthResult => {
 
         return { userId: payload.uid, isAuthenticated: true };
     } catch {
-        return { userId: null, isAuthenticated: false, reason: "decode_error" };
+        return { userId: null, isAuthenticated: false, reason: "invalid_token" };
     }
 };

@@ -41,6 +41,10 @@ export const apiClient = {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Track 401 failures per endpoint to implement soft-fail before logout
+const recentAuthFailures = new Map<string, number>();
+const AUTH_FAILURE_WINDOW_MS = 5000; // 5 seconds
+
 async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300): Promise<T> {
   const token = authService.getToken();
   
@@ -68,12 +72,26 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-    // 401 Unauthorized – the server has rejected the token (invalid, expired, or
-    // missing secret). Always clear the local session so the user can re-login
-    // and obtain a fresh token. Keeping a server-rejected token alive would leave
-    // the user in a stuck state where the UI shows them as logged in but every
-    // authenticated request fails.
+    // 401 Unauthorized – soft-fail: re-check token before triggering logout.
+    // A single 401 immediately after login may indicate a stale mock token that
+    // getToken() already cleaned up (returning null). In that case the caller
+    // should redirect to login rather than call logout() which dispatches auth-change.
     if (response.status === 401) {
+      const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
+      const failureKey = `${method}:${endpoint}`;
+      const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
+      const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
+      recentAuthFailures.set(failureKey, Date.now());
+
+      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${storedToken ? 'token_rejected_by_server' : 'no_token'}`);
+
+      if (!isRecentFailure) {
+        // First 401 within window: token may have just been cleaned up (mock token).
+        // Throw AuthError without calling logout so the UI can redirect to login.
+        throw new AuthError();
+      }
+
+      // Repeated 401 within window: genuine session expiry — log out the user.
       authService.logout();
       toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
       throw new AuthError();

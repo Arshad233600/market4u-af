@@ -4,7 +4,7 @@ import * as sql from "mssql";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, getAuthSecretOrThrow } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
 // Initialize App Insights (Telemetry)
@@ -12,10 +12,6 @@ if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
   appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
 }
 const telemetry = appInsights.defaultClient;
-
-// ⚠️ برای امنیت، این را در Azure به عنوان ENV اضافه کن: AUTH_SECRET
-// اگر نبود، fallback می‌گذاریم ولی حتماً در prod ست کن.
-const AUTH_SECRET = process.env.AUTH_SECRET || "CHANGE_ME_IN_AZURE";
 
 // Secure password hashing with bcrypt
 const SALT_ROUNDS = 10;
@@ -30,9 +26,10 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
 
 /** Signed token: base64(payload).base64(signature) */
 function signToken(payload: object): string {
+  const secret = getAuthSecretOrThrow();
   const payloadJson = JSON.stringify(payload);
   const payloadB64 = Buffer.from(payloadJson, "utf8").toString("base64url");
-  const sig = crypto.createHmac("sha256", AUTH_SECRET).update(payloadB64).digest("base64url");
+  const sig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
   return `${payloadB64}.${sig}`;
 }
 

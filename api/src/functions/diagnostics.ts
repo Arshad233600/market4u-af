@@ -1,22 +1,22 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
-import { isAuthSecretInsecure } from "../utils/authUtils";
+import { isAuthSecretInsecure, getAuthSecretOrThrow } from "../utils/authUtils";
 import { getBlobContainerClient } from "../blob";
+import { checkRateLimit } from "../utils/rateLimit";
+import crypto from "crypto";
 
 /**
  * Diagnostics Endpoint — Forensic Audit (Phases 1–4)
  *
  * Performs a live configuration and connectivity check:
- *  - Phase 1: Environment variable inventory (no secret values exposed)
- *  - Phase 2: AUTH_SECRET security validation
+ *  - Phase 1: Environment variable inventory (aggregate only; no secret values)
+ *  - Phase 2: AUTH_SECRET security validation + sign/verify round-trip test
  *  - Phase 3: Database handshake + schema sanity
  *  - Phase 4: Azure Blob Storage container reachability
  *
- * Returns a structured report useful for diagnosing the login→logout loop
- * and other production configuration issues.
- *
- * Route: GET /api/diagnostics?key=<DIAGNOSTICS_SECRET>
- * Auth:  Query-param secret (set DIAGNOSTICS_SECRET in Azure Application settings)
+ * Route: GET /api/diagnostics
+ * Auth:  Header: X-Diagnostics-Key = <DIAGNOSTICS_SECRET>
+ *        Do NOT use ?key= query param.
  *        Without a valid key, only aggregate health status is returned.
  */
 export async function diagnostics(
@@ -26,16 +26,38 @@ export async function diagnostics(
   const startTime = Date.now();
 
   // ── Access control ────────────────────────────────────────────────────────
-  // Require the caller to supply the DIAGNOSTICS_SECRET query param (or fall
-  // through to a redacted summary if it is not configured yet, so operators
-  // can still verify the endpoint is up during initial setup).
+  // Require X-Diagnostics-Key header (never query param) to prevent secret leakage
+  // in server logs, proxy logs, and browser history.
   const diagSecret = process.env.DIAGNOSTICS_SECRET;
-  const providedKey = request.query.get("key");
+  const providedKey = request.headers.get("x-diagnostics-key");
   const isAuthorized = diagSecret ? providedKey === diagSecret : false;
 
+  // Extract client IP for rate limiting and audit logging
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+
   if (!isAuthorized) {
+    // Rate limit failed auth attempts: max 10 per 60 seconds per IP
+    const rl = checkRateLimit({
+      identifier: `diag_auth:${clientIp}`,
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+    });
+
+    if (!rl.allowed) {
+      context.warn(`[diagnostics] diagnostics.auth_failed rate_limited ip=${clientIp} timestamp=${new Date().toISOString()}`);
+      return {
+        status: 429,
+        jsonBody: {
+          success: false,
+          error: "Too many failed authentication attempts. Try again later.",
+        },
+      };
+    }
+
+    context.warn(`[diagnostics] diagnostics.auth_failed ip=${clientIp} timestamp=${new Date().toISOString()}`);
+
     // Return only a minimal status without sensitive configuration details.
-    const issues: DiagnosticIssue[] = [];
     let overallStatus = "unknown";
     try {
       if (process.env.SqlConnectionString || process.env.AZURE_SQL_CONNECTION_STRING) {
@@ -48,16 +70,6 @@ export async function diagnostics(
     } catch {
       overallStatus = "critical";
     }
-    if (isAuthSecretInsecure) {
-      issues.push({
-        phase: "Phase 2",
-        issue: "AUTH_SECRET uses insecure default value",
-        evidence: "AUTH_SECRET === 'CHANGE_ME_IN_AZURE'",
-        rootCause: "AUTH_SECRET not set in Azure Application settings",
-        severity: "Critical",
-        fix: "Set AUTH_SECRET in Azure → Static Web App → Configuration → Application settings",
-      });
-    }
     return {
       status: overallStatus === "critical" ? 503 : 200,
       jsonBody: {
@@ -66,8 +78,7 @@ export async function diagnostics(
           overallStatus,
           timestamp: new Date().toISOString(),
           responseTimeMs: Date.now() - startTime,
-          note: "Supply ?key=<DIAGNOSTICS_SECRET> for full diagnostic details",
-          issues,
+          note: "Supply X-Diagnostics-Key header for full diagnostic details",
         },
       },
     };
@@ -75,23 +86,35 @@ export async function diagnostics(
 
   const issues: DiagnosticIssue[] = [];
 
-  // ── Phase 1: Environment Variable Inventory ──────────────────────────────
-  const envInventory = {
-    AUTH_SECRET:                      envStatus("AUTH_SECRET"),
-    SqlConnectionString:              envStatus("SqlConnectionString"),
-    AZURE_SQL_CONNECTION_STRING:      envStatus("AZURE_SQL_CONNECTION_STRING"),
-    AZURE_STORAGE_CONNECTION_STRING:  envStatus("AZURE_STORAGE_CONNECTION_STRING"),
-    AZURE_STORAGE_CONTAINER:          envStatus("AZURE_STORAGE_CONTAINER"),
-    STORAGE_CONTAINER_NAME:           envStatus("STORAGE_CONTAINER_NAME"),
-    APPLICATIONINSIGHTS_CONNECTION_STRING: envStatus("APPLICATIONINSIGHTS_CONNECTION_STRING"),
-    GEMINI_API_KEY:                   envStatus("GEMINI_API_KEY"),
-  };
-
+  // ── Phase 1: Environment Variable Inventory (aggregate only) ──────────────
+  const requiredVarNames = [
+    "AUTH_SECRET",
+    "AZURE_SQL_CONNECTION_STRING",
+    "AZURE_STORAGE_CONNECTION_STRING",
+    "AZURE_STORAGE_CONTAINER",
+  ] as const;
+  // Also check aliased names
   const sqlConnAvailable =
     !!process.env.SqlConnectionString || !!process.env.AZURE_SQL_CONNECTION_STRING;
   const storageConnAvailable = !!process.env.AZURE_STORAGE_CONNECTION_STRING;
   const storageContainerAvailable =
     !!process.env.AZURE_STORAGE_CONTAINER || !!process.env.STORAGE_CONTAINER_NAME;
+  const authSecretAvailable = !!process.env.AUTH_SECRET && process.env.AUTH_SECRET !== 'CHANGE_ME_IN_AZURE';
+
+  const configuredRequiredCount = [
+    authSecretAvailable,
+    sqlConnAvailable,
+    storageConnAvailable,
+    storageContainerAvailable,
+  ].filter(Boolean).length;
+
+  const envInventory = {
+    requiredVarsConfigured: `${configuredRequiredCount}/${requiredVarNames.length}`,
+    optionalVarsConfigured: [
+      "APPLICATIONINSIGHTS_CONNECTION_STRING",
+      "GEMINI_API_KEY",
+    ].filter((v) => !!process.env[v]).length,
+  };
 
   if (!sqlConnAvailable) {
     issues.push({
@@ -126,8 +149,13 @@ export async function diagnostics(
     });
   }
 
-  // ── Phase 2: AUTH_SECRET Validation ──────────────────────────────────────
+  // ── Phase 2: AUTH_SECRET Validation + sign/verify round-trip ─────────────
   const authSecretStatus = isAuthSecretInsecure ? "insecure_default" : "configured";
+  let authTestResult: { status: 'ok' | 'failed'; latencyMs: number; reason?: string } = {
+    status: 'failed',
+    latencyMs: 0,
+    reason: 'not_run',
+  };
 
   if (isAuthSecretInsecure) {
     issues.push({
@@ -144,6 +172,30 @@ export async function diagnostics(
         "2. Add AUTH_SECRET=<generated_value> in Azure → Static Web App → Configuration → Application settings\n" +
         "3. Redeploy; existing sessions will need to re-login once",
     });
+    authTestResult = { status: 'failed', latencyMs: 0, reason: 'insecure_default_secret' };
+  } else {
+    // Sign and verify a short-lived test token
+    const authTestStart = Date.now();
+    try {
+      const secret = getAuthSecretOrThrow();
+      const payload = Buffer.from(JSON.stringify({ uid: '__diag_test__', iat: Date.now() })).toString('base64url');
+      const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+      const testToken = `${payload}.${sig}`;
+      // Verify
+      const [p, s] = testToken.split('.');
+      const expectedSig = crypto.createHmac('sha256', secret).update(p).digest('base64url');
+      authTestResult = {
+        status: s === expectedSig ? 'ok' : 'failed',
+        latencyMs: Date.now() - authTestStart,
+        reason: s === expectedSig ? undefined : 'signature_mismatch',
+      };
+    } catch (err) {
+      authTestResult = {
+        status: 'failed',
+        latencyMs: Date.now() - authTestStart,
+        reason: (err as Error).message,
+      };
+    }
   }
 
   // ── Phase 3: Database Handshake ───────────────────────────────────────────
@@ -155,11 +207,17 @@ export async function diagnostics(
     try {
       const pool = await getPool();
 
-      // Verify connection
+      // Verify connection (mssql does not support AbortSignal; rely on the pool's
+      // requestTimeout setting which defaults to 30s — acceptable for diagnostics)
       await pool.request().query("SELECT 1 AS ping");
       dbStatus = "connected";
 
-      // Schema sanity — check critical tables exist
+      // DB name and current user
+      const metaResult = await pool.request().query("SELECT DB_NAME() AS dbName, SYSTEM_USER AS sysUser");
+      const meta = metaResult.recordset[0] ?? {};
+
+      // Check known tables or list top 5
+      const knownTables = ['Users', 'Ads', 'AdImages', 'Favorites', 'Messages', 'WalletTransactions'];
       const schemaResult = await pool.request().query(`
         SELECT TABLE_NAME
         FROM INFORMATION_SCHEMA.TABLES
@@ -168,18 +226,14 @@ export async function diagnostics(
         ORDER BY TABLE_NAME
       `);
       const foundTables = schemaResult.recordset.map((r: { TABLE_NAME: string }) => r.TABLE_NAME);
-      const expectedTables = ["Ads", "AdImages", "Favorites", "Messages", "Users", "WalletTransactions"];
-      const missingTables = expectedTables.filter((t) => !foundTables.includes(t));
+      const missingTables = knownTables.filter((t) => !foundTables.includes(t));
 
-      // Row count sanity
-      const countResult = await pool.request().query(`
-        SELECT
-          (SELECT COUNT(*) FROM Users  WHERE IsDeleted = 0) AS activeUsers,
-          (SELECT COUNT(*) FROM Ads    WHERE IsDeleted = 0) AS activeAds
-      `);
-      const counts = countResult.recordset[0] ?? {};
-
-      dbDetails = { foundTables, missingTables, counts };
+      dbDetails = {
+        dbName: meta.dbName,
+        sysUser: meta.sysUser,
+        foundTables,
+        missingTables,
+      };
 
       if (missingTables.length > 0) {
         issues.push({
@@ -214,6 +268,7 @@ export async function diagnostics(
   // ── Phase 4: Storage Validation ───────────────────────────────────────────
   let storageStatus: "ok" | "error" | "skipped" = "skipped";
   let storageError: string | null = null;
+  let storageSampleBlob: string | null = null;
 
   if (storageConnAvailable && storageContainerAvailable) {
     try {
@@ -225,13 +280,22 @@ export async function diagnostics(
         issues.push({
           phase: "Phase 4",
           issue: "Storage container does not exist",
-          evidence: `Container '${container.containerName}' was not found in the storage account`,
+          evidence: "Container was not found in the storage account",
           rootCause: "Container was not created, or AZURE_STORAGE_CONTAINER points to wrong name",
           severity: "High",
           fix:
             "Create the container in Azure Portal → Storage Account → Containers, " +
             "or run: az storage container create --name product-images",
         });
+      } else {
+        // List at most 1 blob to confirm read access (do not dump names)
+        let blobCount = 0;
+        for await (const _blob of container.listBlobsFlat()) {
+          blobCount++;
+          storageSampleBlob = "found"; // signal: at least one blob exists; no name exposed
+          break;
+        }
+        if (blobCount === 0) storageSampleBlob = "empty";
       }
     } catch (err: unknown) {
       storageStatus = "error";
@@ -270,11 +334,12 @@ export async function diagnostics(
         },
         phases: {
           phase1_environment: {
-            status: Object.values(envInventory).every((v) => v !== "missing") ? "ok" : "issues_found",
+            status: configuredRequiredCount === requiredVarNames.length ? "ok" : "issues_found",
             inventory: envInventory,
           },
           phase2_auth: {
             status: authSecretStatus,
+            authTest: authTestResult,
             recommendation:
               authSecretStatus === "insecure_default"
                 ? "Set AUTH_SECRET in Azure Application settings (openssl rand -hex 32)"
@@ -282,11 +347,12 @@ export async function diagnostics(
           },
           phase3_database: {
             status: dbStatus,
-            ...(dbDetails && Object.keys(dbDetails).length > 0 && { details: dbDetails }),
+            ...(Object.keys(dbDetails).length > 0 && { details: dbDetails }),
             ...(dbError && { error: dbError }),
           },
           phase4_storage: {
             status: storageStatus,
+            ...(storageSampleBlob && { sampleBlob: storageSampleBlob }),
             ...(storageError && { error: storageError }),
           },
         },
@@ -305,11 +371,6 @@ interface DiagnosticIssue {
   rootCause: string;
   severity: "Critical" | "High" | "Medium" | "Low";
   fix: string;
-}
-
-/** Returns "set" or "missing" for a given env var name. Never returns the value itself. */
-function envStatus(name: string): "set" | "missing" {
-  return process.env[name] ? "set" : "missing";
 }
 
 app.http("diagnostics", {
