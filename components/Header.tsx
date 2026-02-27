@@ -301,6 +301,14 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                   <span>مدیریت</span>
                 </button>
               )}
+              <button
+                onClick={() => onNavigate(Page.DASHBOARD)}
+                className="hidden md:flex items-center gap-2 bg-ui-surface2 hover:bg-ui-surface3 border border-ui-border px-3 py-1.5 rounded-xl text-xs font-bold text-ui-text transition-colors"
+                title="پروفایل من"
+              >
+                <Icon name="User" size={15} strokeWidth={2} className="text-brand-400" />
+                <span className="max-w-[80px] truncate">{user.name || 'پروفایل'}</span>
+              </button>
             </div>
           ) : (
             <button
