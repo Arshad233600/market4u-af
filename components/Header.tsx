@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Icon from '../src/components/ui/Icon';
-import { Page, User, Notification } from '../types';
+import { Page, User, UserSuggestion, Notification } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { azureService } from '../services/azureService';
 
@@ -17,6 +17,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   const { t, toggleLanguage } = useLanguage();
   const [searchValue, setSearchValue] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -49,11 +50,16 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (searchValue.length > 1) {
-        const results = await azureService.getSearchSuggestions(searchValue);
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
+        const [adResults, userResults] = await Promise.all([
+          azureService.getSearchSuggestions(searchValue),
+          azureService.searchUsers(searchValue),
+        ]);
+        setSuggestions(adResults);
+        setUserSuggestions(userResults);
+        setShowSuggestions(adResults.length > 0 || userResults.length > 0);
       } else {
         setSuggestions([]);
+        setUserSuggestions([]);
         setShowSuggestions(false);
       }
     };
@@ -78,6 +84,13 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   const handleSelectSuggestion = (suggestion: string) => {
     setSearchValue(suggestion);
     onSearch(suggestion);
+    setShowSuggestions(false);
+    setSearchFocused(false);
+  };
+
+  const handleSelectUser = (u: UserSuggestion) => {
+    setSearchValue(u.name);
+    onSearch(u.name);
     setShowSuggestions(false);
     setSearchFocused(false);
   };
@@ -117,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
               placeholder={t('search_placeholder')}
               className="w-full h-[42px] pr-11 pl-10 bg-ui-surface2 rounded-2xl border border-ui-border focus:border-brand-700/50 text-ui-text placeholder:text-ui-subtle text-sm transition-all outline-none"
               onChange={handleSearchInput}
-              onFocus={() => { setSearchFocused(true); if (suggestions.length > 0) setShowSuggestions(true); }}
+              onFocus={() => { setSearchFocused(true); if (suggestions.length > 0 || userSuggestions.length > 0) setShowSuggestions(true); }}
             />
             <Icon name="Search" size={18} strokeWidth={2} className="absolute right-3.5 top-3 text-ui-muted pointer-events-none" />
             {searchValue && (
@@ -134,9 +147,27 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
           {showSuggestions && (
             <div className="absolute top-full left-0 right-0 mt-2 glass rounded-2xl shadow-float border border-ui-border overflow-hidden z-50 animate-fadeUp">
               <ul>
+                {userSuggestions.map((u) => (
+                  <li
+                    key={`user-${u.id}`}
+                    onClick={() => handleSelectUser(u)}
+                    className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-3 border-b border-ui-border last:border-none transition-colors"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-brand-950/60 flex items-center justify-center shrink-0">
+                      <Icon name="User" size={14} strokeWidth={2} className="text-brand-400" />
+                    </div>
+                    <span className="flex-1">{u.name}</span>
+                    {u.province && (
+                      <span className="flex items-center gap-1 text-xs text-ui-muted shrink-0">
+                        <Icon name="MapPin" size={12} strokeWidth={2} />
+                        {u.province}
+                      </span>
+                    )}
+                  </li>
+                ))}
                 {suggestions.map((s, i) => (
                   <li
-                    key={i}
+                    key={`ad-${i}`}
                     onClick={() => handleSelectSuggestion(s)}
                     className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-3 border-b border-ui-border last:border-none transition-colors"
                   >
@@ -308,9 +339,25 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
         {showSuggestions && (
           <div className="absolute left-4 right-4 mt-2 glass rounded-2xl shadow-float border border-ui-border overflow-hidden z-50 animate-fadeUp">
             <ul>
+              {userSuggestions.map((u) => (
+                <li
+                  key={`user-${u.id}`}
+                  onClick={() => handleSelectUser(u)}
+                  className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-3 border-b border-ui-border last:border-none"
+                >
+                  <Icon name="User" size={14} strokeWidth={2} className="text-brand-400 shrink-0" />
+                  <span className="flex-1">{u.name}</span>
+                  {u.province && (
+                    <span className="flex items-center gap-1 text-xs text-ui-muted shrink-0">
+                      <Icon name="MapPin" size={12} strokeWidth={2} />
+                      {u.province}
+                    </span>
+                  )}
+                </li>
+              ))}
               {suggestions.map((s, i) => (
                 <li
-                  key={i}
+                  key={`ad-${i}`}
                   onClick={() => handleSelectSuggestion(s)}
                   className="px-4 py-3 hover:bg-ui-surface2 cursor-pointer text-sm text-ui-text flex items-center gap-3 border-b border-ui-border last:border-none"
                 >

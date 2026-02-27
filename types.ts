@@ -22,9 +22,16 @@ export interface User {
   joinDate: string;
   role: 'USER' | 'ADMIN';
   status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED'; // Added for User Account Status
+  province?: string; // ولایت - province of the user
   rating?: number; 
   reviewCount?: number;
   responseTime?: string; // e.g., "پاسخ‌دهی در کمتر از ۱ ساعت"
+}
+
+export interface UserSuggestion {
+  id: string;
+  name: string;
+  province: string;
 }
 
 export interface Review {
