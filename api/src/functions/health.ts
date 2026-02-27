@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
-import { isAuthSecretInsecure } from "../utils/authUtils";
+
+const processStartTime = Date.now();
 
 /**
  * Health Check Endpoint
@@ -10,26 +11,36 @@ import { isAuthSecretInsecure } from "../utils/authUtils";
 export async function healthCheck(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
 
-  // Auth configuration check (no secrets exposed)
-  const authStatus = isAuthSecretInsecure
-    ? "misconfigured_insecure_default"
-    : "ok";
+  // Auth secret aggregate status (no secret values exposed)
+  const authSecretValue = process.env.AUTH_SECRET;
+  let authSecret: 'ok' | 'missing' | 'insecure_default' | 'weak';
+  if (!authSecretValue || authSecretValue.trim() === '') {
+    authSecret = 'missing';
+  } else if (authSecretValue === 'CHANGE_ME_IN_AZURE') {
+    authSecret = 'insecure_default';
+  } else if (authSecretValue.length < 32) {
+    authSecret = 'weak';
+  } else {
+    authSecret = 'ok';
+  }
 
-  // Count missing critical env vars without exposing their names
-  const criticalVarsMissing = [
+  // Count configured critical env vars without exposing their names
+  const requiredVars = [
     process.env.AUTH_SECRET,
     process.env.SqlConnectionString || process.env.AZURE_SQL_CONNECTION_STRING,
     process.env.AZURE_STORAGE_CONNECTION_STRING,
     process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME,
-  ].filter((v) => !v).length;
+  ];
+  const configuredCount = requiredVars.filter(Boolean).length;
+  const configuredVars = `${configuredCount}/4`;
 
   try {
     // Test database connection
     const pool = await getPool();
     await pool.request().query("SELECT 1");
     
-    const responseTime = Date.now() - startTime;
-    const isHealthy = criticalVarsMissing === 0 && authStatus === "ok";
+    const latencyMs = Date.now() - startTime;
+    const isHealthy = configuredCount === 4 && authSecret === 'ok';
 
     return {
       status: isHealthy ? 200 : 503,
@@ -37,18 +48,18 @@ export async function healthCheck(request: HttpRequest, context: InvocationConte
         success: isHealthy,
         data: {
           status: isHealthy ? "healthy" : "degraded",
-          timestamp: new Date().toISOString(),
-          responseTime: `${responseTime}ms`,
+          nowUtc: new Date().toISOString(),
+          uptimeMs: Date.now() - processStartTime,
+          latencyMs,
           database: "connected",
-          auth: authStatus,
-          configuredVars: 4 - criticalVarsMissing,
-          requiredVars: 4,
+          authSecret,
+          configuredVars,
           version: "1.0.0"
         }
       }
     };
   } catch (error: unknown) {
-    const responseTime = Date.now() - startTime;
+    const latencyMs = Date.now() - startTime;
     context.error("Health check failed", error);
     
     return {
@@ -58,12 +69,12 @@ export async function healthCheck(request: HttpRequest, context: InvocationConte
         error: "Service unavailable",
         data: {
           status: "unhealthy",
-          timestamp: new Date().toISOString(),
-          responseTime: `${responseTime}ms`,
+          nowUtc: new Date().toISOString(),
+          uptimeMs: Date.now() - processStartTime,
+          latencyMs,
           database: "disconnected",
-          auth: authStatus,
-          configuredVars: 4 - criticalVarsMissing,
-          requiredVars: 4,
+          authSecret,
+          configuredVars,
         }
       }
     };

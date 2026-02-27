@@ -14,6 +14,17 @@ try {
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     const isProduction = mode === 'production';
+
+    // Safety gate: never ship a production build with mock data enabled.
+    // VITE_USE_MOCK_DATA=true in production would expose demo data to real users
+    // and cause a 401 → logout loop when mock tokens hit the real backend.
+    if (isProduction && (env.VITE_USE_MOCK_DATA === 'true' || env.REACT_APP_USE_MOCK_DATA === 'true')) {
+      throw new Error(
+        '[BUILD ERROR] VITE_USE_MOCK_DATA is set to "true" in a production build.\n' +
+        'Remove VITE_USE_MOCK_DATA or set it to "false" before building for production.'
+      );
+    }
+
     return {
       server: {
         port: 3000,
