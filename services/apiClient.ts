@@ -44,9 +44,21 @@ export const apiClient = {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Track 401 failures per endpoint to implement soft-fail before logout
+// Track 401 failures per endpoint as a fallback for older endpoints that don't
+// return a structured reason. Uses a generous 60-second window to avoid false
+// logouts caused by quick back-and-forth navigation between dashboard pages.
 const recentAuthFailures = new Map<string, number>();
-const AUTH_FAILURE_WINDOW_MS = 5000; // 5 seconds
+const AUTH_FAILURE_WINDOW_MS = 60_000; // 60 seconds
+
+// Reasons returned by the backend that confirm the token is genuinely invalid.
+// Server configuration issues (missing_auth_secret, insecure_default_secret)
+// are intentionally excluded — logging out won't help if the server is mis-configured.
+const CONFIRMED_INVALID_SESSION_REASONS = new Set([
+  'token_expired',
+  'invalid_token',
+  'signature_mismatch',
+  'missing_token',
+]);
 
 async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300): Promise<T> {
   const token = authService.getToken();
@@ -75,16 +87,10 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-    // 401 Unauthorized – soft-fail: require two consecutive 401s from the same
-    // endpoint within a short window before triggering logout. A single 401
-    // (e.g. from a server restart, AUTH_SECRET rotation, or transient config
-    // issue) must not immediately log the user out and force a re-login.
     if (response.status === 401) {
       const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
 
       // Parse structured reason from backend response (may be absent for older responses).
-      // response.json() is consumed only once here; all paths in the 401 block throw, so
-      // the body stream is never read a second time further down.
       let reason: string | undefined;
       try {
         const errBody = await response.json().catch(() => ({})) as { reason?: string; error?: string };
@@ -94,24 +100,35 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason}`);
 
-      // Soft-fail: require two 401s from the same endpoint within the window before
-      // logging out. This prevents a single transient 401 (e.g. due to a brief server
-      // misconfiguration or deployment restart) from immediately logging the user out.
       const failureKey = `${method}:${endpoint}`;
+
+      // If the backend explicitly confirms the session is invalid, log out immediately.
+      if (reason && CONFIRMED_INVALID_SESSION_REASONS.has(reason)) {
+        recentAuthFailures.delete(failureKey);
+        authService.logout();
+        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+        throw new AuthError(reason);
+      }
+
+      // For unknown/server-config reasons: use a conservative soft-fail with a 60-second
+      // window. Two unconfirmed 401s within the window are treated as genuine expiry.
       const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
       const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
       recentAuthFailures.set(failureKey, Date.now());
 
-      if (!isRecentFailure) {
-        // First 401 within window: throw AuthError without calling logout.
-        throw new AuthError(reason ?? logReason);
+      if (isRecentFailure) {
+        // Second unconfirmed 401 within window: treat as genuine expiry.
+        recentAuthFailures.delete(failureKey);
+        authService.logout();
+        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
       }
-
-      // Repeated 401 within window: genuine session expiry — log out the user.
-      authService.logout();
-      toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+      // First unconfirmed 401: throw without logout (transient server issue).
       throw new AuthError(reason ?? logReason);
     }
+
+    // Clear any soft-fail record on success so a previous transient 401 doesn't
+    // count toward the next failure window for this endpoint.
+    recentAuthFailures.delete(`${method}:${endpoint}`);
 
     // 5xx Server Errors - Retryable
     if (response.status >= 500 && retries > 0) {
