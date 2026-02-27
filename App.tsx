@@ -115,8 +115,7 @@ const AppContent: React.FC = () => {
 
   const navigateTo = (page: Page | 'ADMIN_PANEL') => {
     if (
-      (page === Page.POST_AD ||
-        page === Page.EDIT_AD ||
+      (page === Page.EDIT_AD ||
         (typeof page === 'string' && page.startsWith('dashboard')) ||
         page === Page.PROFILE ||
         page === Page.FAVORITES) &&
@@ -248,7 +247,7 @@ const AppContent: React.FC = () => {
           <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />
         );
       case Page.POST_AD:
-        return user ? <PostAd onNavigate={navigateTo} /> : <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
+        return <PostAd onNavigate={navigateTo} />;
       case Page.EDIT_AD:
         return user && productToEdit ? (
           <PostAd onNavigate={navigateTo} existingAd={productToEdit} />
@@ -258,7 +257,7 @@ const AppContent: React.FC = () => {
       case Page.PROFILE:
         return user ? (
           <DashboardLayout activePage={Page.DASHBOARD} onNavigate={navigateTo} onLogout={handleLogout} user={user}>
-            <Profile user={user} onNavigate={navigateTo} onLogout={handleLogout} />
+            <Profile user={user} onNavigate={navigateTo} />
           </DashboardLayout>
         ) : (
           <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />
