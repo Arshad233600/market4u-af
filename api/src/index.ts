@@ -1,4 +1,5 @@
 import "./functions/ads";
+import "./functions/admin";
 import "./functions/auth";
 import "./functions/dashboard";
 import "./functions/favorites";
