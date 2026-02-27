@@ -196,7 +196,7 @@ app.http("register", {
 export async function getMe(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return unauthorized();
+    return unauthorized("Unauthorized", auth.reason);
   }
 
   try {

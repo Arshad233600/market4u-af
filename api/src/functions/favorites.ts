@@ -10,7 +10,7 @@ function errMessage(err: unknown): string {
 export async function getFavorites(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   try {
@@ -40,7 +40,7 @@ export async function getFavorites(request: HttpRequest, context: InvocationCont
 export async function addFavorite(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   const adId = request.params?.adId;
@@ -91,7 +91,7 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
 export async function removeFavorite(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   const adId = request.params?.adId;

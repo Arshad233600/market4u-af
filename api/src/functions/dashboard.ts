@@ -6,7 +6,7 @@ import { unauthorized, serverError } from "../utils/responses";
 
 export async function getDashboardStats(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return unauthorized();
+  if (!auth.isAuthenticated) return unauthorized("Unauthorized", auth.reason);
 
   try {
     const pool = await getPool();

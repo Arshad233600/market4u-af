@@ -79,11 +79,20 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
         const s = await azureService.getDashboardStats();
         if (!cancelled) setStats(s);
       } catch (err) {
-        // Auth errors (401): apiClient has already triggered logout + auth-change redirect.
-        // We just flag this so we don't keep showing the spinner with stale messaging.
+        // Auth errors (401): only treat as confirmed session expiry when the backend
+        // explicitly returns a known invalid-session reason. Transient 401s (server
+        // config issues, cold starts) must not trigger a logout.
         if (!cancelled) {
           if (err instanceof AuthError) {
-            setIsAuthError(true);
+            const confirmedExpiry =
+              err.reason === 'token_expired' ||
+              err.reason === 'invalid_token' ||
+              err.reason === 'signature_mismatch' ||
+              err.reason === 'missing_token';
+            if (confirmedExpiry) {
+              setIsAuthError(true);
+            }
+            // For other auth errors apiClient has already handled the logout if needed.
           }
           // For other errors (network outage etc.) stats remains null → spinner
         }
@@ -101,16 +110,16 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
 
   useEffect(() => {
     if (isAuthError) {
-      // Brief pause so the user can read the "session expired" message before being
-      // redirected. Call authService.logout() so storage is cleared and the auth-change
-      // mechanism shows the Login form automatically (rather than just navigating to
-      // Page.LOGIN while leaving a stale session in storage).
+      // apiClient has already called authService.logout() for confirmed session expiry,
+      // triggering the auth-change event that will redirect to Login. We just give a
+      // brief moment for the user to read the message before the redirect happens.
+      // Call onLogout() as a safety net in case the redirect hasn't fired yet.
       const timer = setTimeout(() => {
-        authService.logout();
+        onLogout();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isAuthError]);
+  }, [isAuthError, onLogout]);
 
   const getGreeting = () => {
       const hour = new Date().getHours();

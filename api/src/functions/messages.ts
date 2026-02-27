@@ -10,7 +10,7 @@ function errMessage(err: unknown): string {
 export async function getInbox(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   try {
@@ -63,7 +63,7 @@ export async function getInbox(request: HttpRequest, context: InvocationContext)
 export async function getThread(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   const otherUserId = request.params?.userId;
@@ -120,7 +120,7 @@ export async function getThread(request: HttpRequest, context: InvocationContext
 export async function sendMessage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   try {
@@ -194,7 +194,7 @@ app.http("sendMessage", {
 export async function deleteMessage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized" } };
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
   }
 
   const messageId = request.params?.messageId;
