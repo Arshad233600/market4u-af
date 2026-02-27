@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   CheckCircle, Clock, XCircle, Filter, TrendingUp, Rocket,
-  MoreVertical, Eye, MousePointerClick, AlertCircle, Edit,
+  Eye, MousePointerClick, AlertCircle, Edit,
   Loader2, Trash2, X
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
@@ -172,9 +172,6 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
                         <div>
                             <div className="flex justify-between items-start">
                                 <h4 className="font-bold text-ui-text text-lg line-clamp-1 hover:text-brand-600 cursor-pointer">{ad.title}</h4>
-                                <div className="relative">
-                                    <button className="text-ui-muted hover:text-ui-muted p-1"><MoreVertical className="w-5 h-5"/></button>
-                                </div>
                             </div>
                             <p className="text-brand-600 text-lg font-bold mt-1">{ad.price.toLocaleString()} {APP_STRINGS.currency}</p>
                             

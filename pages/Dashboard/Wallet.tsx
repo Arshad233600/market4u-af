@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   CreditCard, Wallet, Plus, Download, ArrowDownLeft, ArrowUpRight,
   History, Lock
@@ -15,6 +15,7 @@ const WalletPage: React.FC = () => {
   const [pendingBalance] = useState(450); // Mock blocked/escrow funds
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [activeTab, setActiveTab] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAWAL'>('ALL');
+  const transactionsRef = useRef<HTMLDivElement>(null);
   
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -148,7 +149,10 @@ const WalletPage: React.FC = () => {
                  </p>
               </div>
               <div className="mt-4 pt-4 border-t border-ui-border">
-                  <button className="text-brand-600 text-sm font-bold flex items-center gap-1 hover:underline">
+                  <button
+                    onClick={() => transactionsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                    className="text-brand-600 text-sm font-bold flex items-center gap-1 hover:underline"
+                  >
                       مشاهده جزئیات معاملات امن <ArrowDownLeft className="w-4 h-4 rotate-180" />
                   </button>
               </div>
@@ -156,7 +160,7 @@ const WalletPage: React.FC = () => {
       </div>
 
       {/* Transactions List */}
-      <div className="bg-ui-surface rounded-2xl shadow-sm border border-ui-border overflow-hidden">
+      <div ref={transactionsRef} className="bg-ui-surface rounded-2xl shadow-sm border border-ui-border overflow-hidden">
         <div className="p-4 border-b border-ui-border flex items-center justify-between">
            <h3 className="font-bold text-ui-text flex items-center gap-2">
                <History className="w-5 h-5 text-ui-muted" />
@@ -208,7 +212,12 @@ const WalletPage: React.FC = () => {
            )}
         </div>
         <div className="p-3 bg-ui-surface2 text-center">
-            <button className="text-xs text-ui-muted font-bold hover:text-brand-600 transition-colors">مشاهده همه تراکنش‌ها</button>
+            <button
+              onClick={() => setActiveTab('ALL')}
+              className="text-xs text-ui-muted font-bold hover:text-brand-600 transition-colors"
+            >
+              مشاهده همه تراکنش‌ها
+            </button>
         </div>
       </div>
     </div>
