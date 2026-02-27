@@ -66,6 +66,26 @@ const AppContent: React.FC = () => {
   const currentPageRef = useRef<Page | 'ADMIN_PANEL'>(currentPage);
   useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
 
+  // Navigation history stack for back-button support across all pages.
+  const pageHistoryRef = useRef<(Page | 'ADMIN_PANEL')[]>([]);
+
+  const pushHistory = () => {
+    pageHistoryRef.current = [...pageHistoryRef.current, currentPageRef.current];
+  };
+
+  const goBack = () => {
+    const history = pageHistoryRef.current;
+    if (history.length > 0) {
+      const prevPage = history[history.length - 1];
+      pageHistoryRef.current = history.slice(0, -1);
+      setCurrentPage(prevPage);
+      window.scrollTo(0, 0);
+    } else {
+      setCurrentPage(Page.HOME);
+      window.scrollTo(0, 0);
+    }
+  };
+
   // Initialize error logger on app start
   useEffect(() => {
     console.log('[App] Error logger initialized, version:', errorLogger.getVersion());
@@ -137,11 +157,15 @@ const AppContent: React.FC = () => {
     if (page === Page.POST_AD) setProductToEdit(null);
     if (page !== Page.EDIT_AD && currentPage === Page.EDIT_AD) setProductToEdit(null);
 
+    // Push current page to history before navigating forward.
+    pushHistory();
+
     setCurrentPage(page);
     window.scrollTo(0, 0);
   };
 
   const handleEditAd = (product: Product) => {
+    pushHistory();
     setProductToEdit(product);
     setCurrentPage(Page.EDIT_AD);
     window.scrollTo(0, 0);
@@ -158,12 +182,15 @@ const AppContent: React.FC = () => {
   };
 
   const handleLogout = () => {
+    pageHistoryRef.current = [];
     authService.logout();
     setUser(null);
-    navigateTo(Page.HOME);
+    setCurrentPage(Page.HOME);
+    window.scrollTo(0, 0);
   };
 
   const handleProductClick = (product: Product) => {
+    pushHistory();
     setSelectedProduct(product);
     setCurrentPage(Page.DETAIL);
     window.scrollTo(0, 0);
@@ -171,10 +198,11 @@ const AppContent: React.FC = () => {
 
   const handleBackFromDetail = () => {
     setSelectedProduct(null);
-    setCurrentPage(Page.HOME);
+    goBack();
   };
 
   const handleSellerClick = (sellerId: string, sellerName: string) => {
+    pushHistory();
     setCurrentSeller({ id: sellerId, name: sellerName });
     setCurrentPage(Page.SELLER_PROFILE);
     window.scrollTo(0, 0);
@@ -216,8 +244,8 @@ const AppContent: React.FC = () => {
           break;
         case Page.DASHBOARD_FAVORITES:
           return (
-            <DashboardLayout activePage={currentPage as Page} onNavigate={navigateTo} onLogout={handleLogout} user={user}>
-              <Favorites onProductClick={handleProductClick} onBack={() => navigateTo(Page.DASHBOARD)} />
+            <DashboardLayout activePage={currentPage as Page} onNavigate={navigateTo} onBack={goBack} onLogout={handleLogout} user={user}>
+              <Favorites onProductClick={handleProductClick} onBack={goBack} />
             </DashboardLayout>
           );
         default:
@@ -225,7 +253,7 @@ const AppContent: React.FC = () => {
       }
 
       return (
-        <DashboardLayout activePage={currentPage as Page} onNavigate={navigateTo} onLogout={handleLogout} user={user}>
+        <DashboardLayout activePage={currentPage as Page} onNavigate={navigateTo} onBack={goBack} onLogout={handleLogout} user={user}>
           {DashboardContent}
         </DashboardLayout>
       );
@@ -256,20 +284,20 @@ const AppContent: React.FC = () => {
         );
       case Page.PROFILE:
         return user ? (
-          <DashboardLayout activePage={Page.DASHBOARD} onNavigate={navigateTo} onLogout={handleLogout} user={user}>
+          <DashboardLayout activePage={Page.DASHBOARD} onNavigate={navigateTo} onBack={goBack} onLogout={handleLogout} user={user}>
             <Profile user={user} onNavigate={navigateTo} />
           </DashboardLayout>
         ) : (
           <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />
         );
       case Page.FAVORITES:
-        return <Favorites onProductClick={handleProductClick} onBack={() => navigateTo(Page.PROFILE)} />;
+        return <Favorites onProductClick={handleProductClick} onBack={goBack} />;
       case Page.SELLER_PROFILE:
         return currentSeller ? (
           <SellerProfile
             sellerId={currentSeller.id}
             sellerName={currentSeller.name}
-            onBack={() => navigateTo(Page.HOME)}
+            onBack={goBack}
             onNavigate={navigateTo}
             onProductClick={handleProductClick}
           />
