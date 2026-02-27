@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 import { checkAdsSchema } from "../utils/schemaCheck";
 
@@ -201,7 +201,8 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
 
 export async function getMyAds(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const pool = await getPool();
@@ -251,8 +252,9 @@ function classifyPostAdError(err: unknown): { status: number; category: string }
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated || !auth.userId) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason ?? "missing_token" } };
+  const authErr = authResponse(auth);
+  if (authErr || !auth.userId) {
+    return authErr ?? { status: 401, jsonBody: { error: "Unauthorized", reason: "missing_token" } };
   }
   const userId = auth.userId;
 
@@ -405,7 +407,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
 export async function updateAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const id = request.params?.id;
   if (!id) return { status: 400, jsonBody: { error: "ID required" } };
@@ -497,7 +500,8 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
 
 export async function deleteAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const id = request.params?.id;
   if (!id) return { status: 400, jsonBody: { error: "ID required" } };
@@ -533,7 +537,8 @@ app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/
 
 export async function updateAdStatus(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const id = request.params?.id;
   if (!id) return { status: 400, jsonBody: { error: "ID required" } };
@@ -574,7 +579,8 @@ const PROMO_COSTS: Record<string, number> = { URGENT: 200, LADDER: 50 };
 
 export async function promoteAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const id = request.params?.id;
   if (!id) return { status: 400, jsonBody: { error: "ID required" } };

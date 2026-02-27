@@ -69,6 +69,21 @@ export function serverError(err: unknown, message = "Internal server error"): Ht
 }
 
 /**
+ * Service unavailable response (503)
+ * Used when a required server configuration is missing or invalid.
+ */
+export function serviceUnavailable(reason: string): HttpResponseInit {
+  return {
+    status: 503,
+    jsonBody: {
+      success: false,
+      error: 'misconfigured_auth',
+      reason,
+    } as ApiResponse
+  };
+}
+
+/**
  * Bad request response
  */
 export function badRequest(message: string): HttpResponseInit {

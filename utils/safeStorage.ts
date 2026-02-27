@@ -4,6 +4,12 @@
  * can throw SecurityError / NotAllowedError when accessing localStorage.
  *
  * Fallback chain: localStorage → sessionStorage → in-memory store
+ *
+ * Dual-write strategy (iOS Safari resilience):
+ *  - setItem writes to BOTH localStorage AND sessionStorage when available.
+ *  - getItem reads from localStorage first, falls back to sessionStorage,
+ *    then in-memory. This ensures tokens survive both tab switches (which
+ *    may clear sessionStorage) and Tracking Prevention blocking localStorage.
  */
 
 type StorageBackend = 'localStorage' | 'sessionStorage' | 'memory';
@@ -43,47 +49,45 @@ class SafeStorage {
   }
 
   getItem(key: string): string | null {
+    // Try localStorage first (survives tab close), then sessionStorage (survives
+    // Tracking Prevention that blocks localStorage), then in-memory.
     try {
-      if (this.storage) return this.storage.getItem(key);
-      return this.memoryStore.get(key) ?? null;
-    } catch {
-      return this.memoryStore.get(key) ?? null;
-    }
+      const lsValue = localStorage.getItem(key);
+      if (lsValue !== null) return lsValue;
+    } catch { /* blocked */ }
+    try {
+      const ssValue = sessionStorage.getItem(key);
+      if (ssValue !== null) return ssValue;
+    } catch { /* blocked */ }
+    return this.memoryStore.get(key) ?? null;
   }
 
   setItem(key: string, value: string): void {
-    if (this.storage) {
-      try {
-        this.storage.setItem(key, value);
-        return;
-      } catch {
-        // Storage write failed (e.g. quota exceeded) – fall back to memory
-      }
+    // Dual-write: persist to both localStorage AND sessionStorage so the token
+    // survives regardless of which storage the browser allows at read time.
+    let persisted = false;
+    try {
+      localStorage.setItem(key, value);
+      persisted = true;
+    } catch { /* localStorage blocked */ }
+    try {
+      sessionStorage.setItem(key, value);
+      persisted = true;
+    } catch { /* sessionStorage blocked */ }
+    if (!persisted) {
+      this.memoryStore.set(key, value);
     }
-    this.memoryStore.set(key, value);
   }
 
   removeItem(key: string): void {
-    if (this.storage) {
-      try {
-        this.storage.removeItem(key);
-        return;
-      } catch {
-        // ignore
-      }
-    }
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(key); } catch { /* ignore */ }
     this.memoryStore.delete(key);
   }
 
   clear(): void {
-    if (this.storage) {
-      try {
-        this.storage.clear();
-        return;
-      } catch {
-        // ignore
-      }
-    }
+    try { localStorage.clear(); } catch { /* ignore */ }
+    try { sessionStorage.clear(); } catch { /* ignore */ }
     this.memoryStore.clear();
   }
 

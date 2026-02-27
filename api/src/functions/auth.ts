@@ -4,7 +4,7 @@ import * as sql from "mssql";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS } from "../utils/authUtils";
+import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
 // Initialize App Insights (Telemetry)
@@ -195,9 +195,8 @@ app.http("register", {
 
 export async function getMe(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return unauthorized("Unauthorized", auth.reason);
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const pool = await getPool();

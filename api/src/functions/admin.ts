@@ -2,7 +2,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -11,8 +11,9 @@ function errMessage(err: unknown): string {
 /** Verify that the caller is authenticated and has the ADMIN role. */
 async function requireAdmin(request: HttpRequest): Promise<{ userId: string } | HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated || !auth.userId) {
-    return { status: 401, jsonBody: { error: "لطفا وارد حساب کاربری شوید." } };
+  const authErr = authResponse(auth);
+  if (authErr || !auth.userId) {
+    return authErr ?? { status: 401, jsonBody: { error: "لطفا وارد حساب کاربری شوید." } };
   }
 
   const pool = await getPool();

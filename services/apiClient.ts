@@ -136,22 +136,38 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     logApiResponse(method, endpoint, response.status, correlationId);
 
     if (response.status === 401) {
-      // Parse structured reason from backend response (may be absent for older responses).
+      // Parse structured reason + requestId from backend response.
       let reason: string | undefined;
+      let responseRequestId: string | undefined;
       try {
-        const errBody = await response.json().catch(() => ({})) as { reason?: string; error?: string };
+        const errBody = await response.json().catch(() => ({})) as { reason?: string; error?: string; requestId?: string };
         reason = errBody.reason;
+        responseRequestId = errBody.requestId;
       } catch { /* ignore parse failures */ }
 
       const storedToken = authService.getToken();
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
-      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
+      console.warn(
+        `[apiClient] 401 on ${method} ${endpoint}`,
+        `reason: ${logReason}`,
+        `requestId: ${responseRequestId ?? correlationId}`,
+        `hasToken: ${Boolean(storedToken)}`
+      );
 
-      // Helper: only show the auth-error toast when the user was authenticated AND
-      // the call is not a silent background call.
+      // Helper: only show the auth-error toast when the caller is not silent.
       // Unauthenticated users browsing public pages must never see an auth error toast.
+      // Uses a 60-second cooldown to prevent iOS Safari polling spam.
       const warnIfAuthenticated = () => {
-        if (!silent && storedToken) toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+        if (silent) return;
+        if (!storedToken) {
+          // Token was never stored — likely iOS Safari Tracking Prevention blocked storage.
+          toastService.authWarning(
+            'توکن ذخیره نشده. Safari مانع ذخیره‌سازی شد. لطفاً از Chrome یا حالت عادی Safari استفاده کنید.'
+          );
+        } else {
+          // Token present but rejected — session expired or signature mismatch.
+          toastService.authWarning('نشست شما منقضی شده. دوباره وارد شوید.');
+        }
       };
 
       // If the token is expired, attempt a silent refresh before giving up.

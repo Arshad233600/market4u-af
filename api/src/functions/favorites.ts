@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -9,9 +9,8 @@ function errMessage(err: unknown): string {
 
 export async function getFavorites(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const pool = await getPool();
@@ -39,9 +38,8 @@ export async function getFavorites(request: HttpRequest, context: InvocationCont
 
 export async function addFavorite(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const adId = request.params?.adId;
   if (!adId) {
@@ -90,9 +88,8 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
 
 export async function removeFavorite(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const adId = request.params?.adId;
   if (!adId) {
