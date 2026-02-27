@@ -1,5 +1,5 @@
 
-import { Product, User, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification } from '../types';
+import { Product, User, UserSuggestion, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification } from '../types';
 import { MOCK_PRODUCTS } from '../constants';
 import { apiClient, AuthError } from './apiClient';
 import { USE_MOCK_DATA } from '../config';
@@ -83,6 +83,10 @@ function mapAdsToProducts(rows: AdRow[]): Product[] {
     return rows.map(mapAdToProduct);
 }
 
+function extractProvinceFromLocation(location: string): string {
+    return location.split(' - ')[0].trim();
+}
+
 // Type definitions for API data
 interface CreateAdData {
   title: string;
@@ -136,8 +140,8 @@ const db = {
         }
         if (!safeStorage.getItem(DB_PREFIX + 'users')) {
             const seedUsers: User[] = [
-                { id: 'user_v1', name: 'کریم خان', phone: '0771112222', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'دیروز', role: 'USER', status: 'ACTIVE' },
-                { id: 'user_v2', name: 'گل‌ناز', phone: '0799888777', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'امروز', role: 'USER', status: 'ACTIVE' }
+                { id: 'user_v1', name: 'کریم خان', phone: '0771112222', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'دیروز', role: 'USER', status: 'ACTIVE', province: 'کابل' },
+                { id: 'user_v2', name: 'گل‌ناز', phone: '0799888777', avatarUrl: '', isVerified: false, verificationStatus: 'PENDING', joinDate: 'امروز', role: 'USER', status: 'ACTIVE', province: 'هرات' }
             ];
             safeStorage.setItem(DB_PREFIX + 'users', JSON.stringify(seedUsers));
         }
@@ -581,6 +585,49 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>(`/ads?q=${encodeURIComponent(q)}`);
           return mapAdsToProducts(data).map(p => p.title).slice(0, 5);
+      } catch { return []; }
+  },
+
+  searchUsers: async (q: string): Promise<UserSuggestion[]> => {
+      if (!q || q.length < 2) return [];
+      if (USE_MOCK_DATA) {
+          const users = db.get<User[]>('users', []);
+          const products = db.get<Product[]>('products', []);
+
+          // Build a Map of userId → province from products for O(1) lookup
+          const userProvinceMap = new Map<string, string>();
+          for (const p of products) {
+              if (!userProvinceMap.has(p.userId)) {
+                  userProvinceMap.set(p.userId, extractProvinceFromLocation(p.location));
+              }
+          }
+
+          // Match registered users
+          const userResults: UserSuggestion[] = users
+              .filter(u => u.name.includes(q) && u.status !== 'DELETED')
+              .map(u => ({
+                  id: u.id,
+                  name: u.name,
+                  province: u.province || userProvinceMap.get(u.id) || '',
+              }));
+
+          // Also match unique sellers from products (by sellerName)
+          const seenNames = new Set(userResults.map(u => u.name));
+          const sellerResults: UserSuggestion[] = [];
+          for (const p of products) {
+              if (p.sellerName.includes(q) && !seenNames.has(p.sellerName)) {
+                  seenNames.add(p.sellerName);
+                  sellerResults.push({ id: p.userId, name: p.sellerName, province: extractProvinceFromLocation(p.location) });
+              }
+          }
+
+          return [...userResults, ...sellerResults].slice(0, 5);
+      }
+      try {
+          interface UserSearchRow { Id: string; Name: string; Province?: string; }
+          const data = await apiClient.get<UserSearchRow[]>(`/users/search?q=${encodeURIComponent(q)}`);
+          if (!Array.isArray(data)) return [];
+          return data.map(u => ({ id: u.Id, name: u.Name, province: u.Province || '' })).slice(0, 5);
       } catch { return []; }
   },
   
