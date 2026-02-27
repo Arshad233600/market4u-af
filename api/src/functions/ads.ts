@@ -221,11 +221,19 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   const GUEST_USER_ID = 'guest_user_0';
   const userId = auth.isAuthenticated && auth.userId ? auth.userId : GUEST_USER_ID;
 
+  // Track the client IP for anonymous rate-limiting so it can be recorded only
+  // after a successful commit (prevents false throttling on failed attempts).
+  let guestClientIp: string | null = null;
+
   try {
     const pool = await getPool();
 
+    // Short request ID for tracing in logs and error responses.
+    const requestId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
     if (auth.isAuthenticated && auth.userId) {
-      // Rate limiting: max 1 ad per 60 seconds per authenticated user.
+      // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
+      // so only previously committed ads count — failed attempts never trigger it).
       const recentAd = await pool
         .request()
         .input("UserId", sql.NVarChar, auth.userId)
@@ -233,8 +241,11 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
       if (recentAd.recordset.length > 0) {
         const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
-        if (Date.now() - lastAdTime < 60000) {
-          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
+        const elapsed = Date.now() - lastAdTime;
+        if (elapsed < 60000) {
+          const retryAfterMs = 60000 - elapsed;
+          context.warn(`[postAd] rate_limited userId=${auth.userId} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
+          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", requestId, retryAfterMs } };
         }
       }
     } else {
@@ -242,12 +253,16 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       // x-forwarded-for may contain multiple comma-separated IPs; take the first (original client).
       const rawIp = request.headers.get("x-forwarded-for") ?? request.headers.get("client-ip") ?? "";
       const clientIp = rawIp.split(",")[0].trim() || "unknown";
+      guestClientIp = clientIp;
       pruneGuestRateLimit();
       const lastSubmit = guestRateLimit.get(clientIp);
       if (lastSubmit && Date.now() - lastSubmit < GUEST_RATE_LIMIT_MS) {
-        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
+        const retryAfterMs = GUEST_RATE_LIMIT_MS - (Date.now() - lastSubmit);
+        context.warn(`[postAd] rate_limited ip=${clientIp} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
+        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", requestId, retryAfterMs } };
       }
-      guestRateLimit.set(clientIp, Date.now());
+      // NOTE: guestRateLimit is recorded only after a successful commit (see below)
+      // so that transient server/DB errors do not block the next legitimate attempt.
     }
 
     const body = (await request.json()) as AdRequestBody;
@@ -316,6 +331,12 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       }
 
       await transaction.commit();
+      // Record the anonymous IP in the rate-limit store only after a successful
+      // commit so that failed attempts (DB errors, validation, etc.) never consume
+      // the user's quota and block the next legitimate submission.
+      if (guestClientIp) {
+        guestRateLimit.set(guestClientIp, Date.now());
+      }
       return { status: 201, jsonBody: { success: true, id } };
     } catch (err: unknown) {
       await transaction.rollback();
