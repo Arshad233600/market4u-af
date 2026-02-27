@@ -251,13 +251,10 @@ function classifyPostAdError(err: unknown): { status: number; category: string }
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  // Reuse the shared guest account so the FK constraint on Ads.UserId is satisfied.
-  const GUEST_USER_ID = 'guest_user_0';
-  const userId = auth.isAuthenticated && auth.userId ? auth.userId : GUEST_USER_ID;
-
-  // Track the client IP for anonymous rate-limiting so it can be recorded only
-  // after a successful commit (prevents false throttling on failed attempts).
-  let guestClientIp: string | null = null;
+  if (!auth.isAuthenticated || !auth.userId) {
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason ?? "missing_token" } };
+  }
+  const userId = auth.userId;
 
   // Prefer the client-supplied correlation ID (validated as UUID v4) so both sides share the same
   // tracing token. Rejects arbitrary strings to guard logging/monitoring pipelines.
@@ -287,38 +284,21 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       };
     }
 
-    if (auth.isAuthenticated && auth.userId) {
-      // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
-      // so only previously committed ads count — failed attempts never trigger it).
-      const recentAd = await pool
-        .request()
-        .input("UserId", sql.NVarChar, auth.userId)
-        .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
+    // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
+    // so only previously committed ads count — failed attempts never trigger it).
+    const recentAd = await pool
+      .request()
+      .input("UserId", sql.NVarChar, userId)
+      .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
 
-      if (recentAd.recordset.length > 0) {
-        const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
-        const elapsed = Date.now() - lastAdTime;
-        if (elapsed < 60000) {
-          const retryAfterMs = 60000 - elapsed;
-          context.warn(`[postAd] rate_limited userId=${auth.userId} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
-          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", category: "RATE_LIMIT", requestId, retryAfterMs } };
-        }
-      }
-    } else {
-      // Rate limiting for anonymous users: based on client IP.
-      // x-forwarded-for may contain multiple comma-separated IPs; take the first (original client).
-      const rawIp = request.headers.get("x-forwarded-for") ?? request.headers.get("client-ip") ?? "";
-      const clientIp = rawIp.split(",")[0].trim() || "unknown";
-      guestClientIp = clientIp;
-      pruneGuestRateLimit();
-      const lastSubmit = guestRateLimit.get(clientIp);
-      if (lastSubmit && Date.now() - lastSubmit < GUEST_RATE_LIMIT_MS) {
-        const retryAfterMs = GUEST_RATE_LIMIT_MS - (Date.now() - lastSubmit);
-        context.warn(`[postAd] rate_limited ip=${clientIp} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
+    if (recentAd.recordset.length > 0) {
+      const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
+      const elapsed = Date.now() - lastAdTime;
+      if (elapsed < 60000) {
+        const retryAfterMs = 60000 - elapsed;
+        context.warn(`[postAd] rate_limited userId=${userId} retryAfterMs=${retryAfterMs} requestId=${requestId}`);
         return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید.", category: "RATE_LIMIT", requestId, retryAfterMs } };
       }
-      // NOTE: guestRateLimit is recorded only after a successful commit (see below)
-      // so that transient server/DB errors do not block the next legitimate attempt.
     }
 
     // Parse the request body separately so that a malformed / missing JSON body
@@ -346,23 +326,6 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     context.log(`[postAd] auth_ok requestId=${requestId} authenticated=${auth.isAuthenticated}`);
     lastStep = "validate_ok";
     context.log(`[postAd] validate_ok requestId=${requestId} title="${title}" price=${price}`);
-
-    // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
-    // This is idempotent — no-op when guest_user_0 is already present (normal case).
-    if (!auth.isAuthenticated || !auth.userId) {
-      // Use MERGE WITH (HOLDLOCK) so the check-and-insert is fully atomic, preventing
-      // a race condition where two concurrent anonymous requests both see the row absent
-      // and both attempt INSERT → PK violation → HTTP 500.
-      await pool.request()
-        .input("GuestId", sql.NVarChar, GUEST_USER_ID)
-        .query(`
-          MERGE Users WITH (HOLDLOCK) AS target
-          USING (SELECT @GuestId AS Id) AS source ON target.Id = source.Id
-          WHEN NOT MATCHED THEN
-            INSERT (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
-            VALUES (@GuestId, N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE());
-        `);
-    }
 
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
@@ -420,12 +383,6 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       await transaction.commit();
       lastStep = "commit_ok";
       context.log(`[postAd] commit_ok requestId=${requestId}`);
-      // Record the anonymous IP in the rate-limit store only after a successful
-      // commit so that failed attempts (DB errors, validation, etc.) never consume
-      // the user's quota and block the next legitimate submission.
-      if (guestClientIp) {
-        guestRateLimit.set(guestClientIp, Date.now());
-      }
       context.log(`[postAd] ads.create.success requestId=${requestId} adId=${id}`);
       return { status: 201, jsonBody: { success: true, id, requestId } };
     } catch (err: unknown) {
@@ -567,9 +524,9 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
 }
 
 app.http("getAds", { methods: ["GET"], authLevel: "anonymous", route: "ads", handler: getAds });
-app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id}", handler: getAdDetail });
 app.http("getMyAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/my-ads", handler: getMyAds });
 app.http("getSellerAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/user/{userId}", handler: getSellerAds });
+app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id}", handler: getAdDetail });
 app.http("postAd", { methods: ["POST"], authLevel: "anonymous", route: "ads", handler: postAd });
 app.http("updateAd", { methods: ["PUT"], authLevel: "anonymous", route: "ads/{id}", handler: updateAd });
 app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/{id}", handler: deleteAd });

@@ -1,7 +1,7 @@
 
 import { Product, User, UserSuggestion, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification } from '../types';
 import { MOCK_PRODUCTS } from '../constants';
-import { apiClient, AuthError } from './apiClient';
+import { apiClient, AuthError, ApiError } from './apiClient';
 import { USE_MOCK_DATA } from '../config';
 import { authService } from './authService';
 import { cacheService } from './cacheService';
@@ -494,7 +494,20 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>('/ads/my-ads');
           return mapAdsToProducts(data);
-      } catch { return []; }
+      } catch (err: unknown) {
+          if (err instanceof AuthError) {
+              console.warn('[azureService.getMyAds] 401 Unauthorized – token missing or expired', err.reason);
+              toastService.error('لطفاً دوباره وارد شوید');
+              throw err;
+          }
+          if (err instanceof ApiError) {
+              console.error(`[azureService.getMyAds] API error status=${err.status} requestId=${err.requestId ?? ''} category=${err.category ?? ''}`);
+              if (err.status === 404) {
+                  toastService.error('مسیر my-ads در سرور موجود نیست');
+              }
+          }
+          return [];
+      }
   },
   
   getSellerAds: async (id: string) => {
