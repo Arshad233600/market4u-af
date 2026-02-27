@@ -1,0 +1,50 @@
+name: Smoke Test & Conflict Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+jobs:
+  conflict-check:
+    runs-on: ubuntu-latest
+    name: Check for merge conflict markers
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail if merge conflict markers exist
+        run: |
+          if grep -rn --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" \
+              --include="*.jsx" --include="*.json" --include="*.css" --include="*.html" \
+              -E "^<<<<<<< |^>>>>>>> |^=======$" .; then
+            echo "::error::Merge conflict markers found in the repository. Resolve all conflicts before merging."
+            exit 1
+          fi
+          echo "No merge conflict markers found."
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    name: E2E Smoke Test
+    needs: conflict-check
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run smoke test
+        run: node scripts/smoke-test.mjs
+        env:
+          SMOKE_TEST_BASE_URL: ${{ secrets.SMOKE_TEST_BASE_URL }}
+          SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
