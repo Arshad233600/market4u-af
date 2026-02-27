@@ -30,6 +30,10 @@ export const apiClient = {
     return request<T>(endpoint, 'PUT', body);
   },
 
+  patch: async <T>(endpoint: string, body?: unknown): Promise<T> => {
+    return request<T>(endpoint, 'PATCH', body);
+  },
+
   delete: async <T>(endpoint: string): Promise<T> => {
     return request<T>(endpoint, 'DELETE');
   },

@@ -161,6 +161,24 @@ BEGIN
 END
 GO
 
+-- Notifications Table
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Notifications')
+BEGIN
+    CREATE TABLE Notifications (
+        Id NVARCHAR(100) PRIMARY KEY,
+        UserId NVARCHAR(100) NOT NULL,
+        Title NVARCHAR(255) NOT NULL,
+        Message NVARCHAR(1000) NOT NULL,
+        Type NVARCHAR(50) DEFAULT 'info',
+        IsRead BIT DEFAULT 0,
+        CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+        FOREIGN KEY (UserId) REFERENCES Users(Id)
+    );
+    CREATE INDEX IX_Notifications_UserId ON Notifications(UserId);
+    CREATE INDEX IX_Notifications_CreatedAt ON Notifications(CreatedAt DESC);
+END
+GO
+
 -- Add sample admin user (password: admin123)
 -- PasswordHash is bcrypt hash of 'admin123' with 10 rounds
 IF NOT EXISTS (SELECT * FROM Users WHERE Email = 'admin@market4u.com')

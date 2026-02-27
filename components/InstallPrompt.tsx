@@ -24,18 +24,18 @@ function isInStandaloneMode(): boolean {
 
 const InstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isIOSPrompt, setIsIOSPrompt] = useState(false);
+  const [isIOSPrompt] = useState<boolean>(() => {
+    if (safeStorage.getItem('install_dismissed')) return false;
+    return isIOS() && !isInStandaloneMode();
+  });
+  const [isVisible, setIsVisible] = useState<boolean>(() => {
+    if (safeStorage.getItem('install_dismissed')) return false;
+    return isIOS() && !isInStandaloneMode();
+  });
 
   useEffect(() => {
     if (safeStorage.getItem('install_dismissed')) return;
-
-    // iOS/Safari: show manual "Add to Home Screen" instructions
-    if (isIOS() && !isInStandaloneMode()) {
-      setIsIOSPrompt(true);
-      setIsVisible(true);
-      return;
-    }
+    if (isIOSPrompt) return; // already handled by lazy initializer
 
     // Android/Chrome: listen for the native install prompt
     const handler = (e: BeforeInstallPromptEvent) => {
@@ -46,7 +46,7 @@ const InstallPrompt: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+  }, [isIOSPrompt]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;

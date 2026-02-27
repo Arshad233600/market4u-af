@@ -101,6 +101,7 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, on
           handleSmartLocation();
           safeStorage.setItem('location_checked', 'true');
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSmartLocation = () => {
