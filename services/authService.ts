@@ -240,4 +240,30 @@ export const authService = {
     safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
     window.dispatchEvent(new CustomEvent('auth-change', { detail: { reason } }));
   },
+
+  /**
+   * Silently exchange the current (possibly expired) token for a fresh one.
+   * Returns the new token string on success, or null if the server rejects it
+   * (e.g. token_too_old, signature_mismatch, server mis-configuration).
+   * Does NOT clear the session — callers decide what to do on failure.
+   */
+  refreshToken: async (): Promise<string | null> => {
+    const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
+    if (!token) return null;
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) return null;
+      const body = await response.json().catch(() => null);
+      const data = body?.data ?? body;
+      const newToken: string | undefined = data?.token;
+      if (!newToken) return null;
+      safeStorage.setItem(STORAGE_KEY_TOKEN, newToken);
+      return newToken;
+    } catch {
+      return null;
+    }
+  },
 };

@@ -3,7 +3,7 @@ import { HttpRequest } from "@azure/functions";
 import { Buffer } from "buffer";
 import crypto from "crypto";
 
-const TOKEN_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const TOKEN_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !process.env.AzureWebJobsStorage?.includes('UseDevelopmentStorage');
 

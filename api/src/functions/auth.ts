@@ -4,7 +4,7 @@ import * as sql from "mssql";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow } from "../utils/authUtils";
+import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
 // Initialize App Insights (Telemetry)
@@ -235,4 +235,73 @@ app.http("getMe", {
   authLevel: "anonymous",
   route: "auth/me",
   handler: getMe
+});
+
+/** How long after expiry a token can still be refreshed (7-day grace window). */
+const TOKEN_REFRESH_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * POST /api/auth/refresh
+ * Accepts a Bearer token that is valid or recently expired (within the 7-day grace
+ * window) and issues a fresh token for the same user.  Tokens older than
+ * TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS are rejected with reason "token_too_old".
+ */
+export async function refreshTokenHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  let secret: string;
+  try {
+    secret = getAuthSecretOrThrow();
+  } catch (err) {
+    context.error("RefreshToken Config Error", err);
+    return serverError(err, "خطای پیکربندی سرور");
+  }
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 2) {
+      return unauthorized("توکن نامعتبر است.", "invalid_token");
+    }
+
+    const [payloadB64, sigB64] = parts;
+
+    // Verify HMAC signature — reject tokens signed with a different secret
+    const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
+    if (sigB64 !== expectedSig) {
+      return unauthorized("توکن نامعتبر است.", "signature_mismatch");
+    }
+
+    const payloadJson = Buffer.from(payloadB64, "base64url").toString("utf-8");
+    const payload = JSON.parse(payloadJson);
+
+    if (!payload.uid) {
+      return unauthorized("توکن نامعتبر است.", "invalid_token");
+    }
+
+    const tokenAge = Date.now() - (payload.iat || 0);
+    if (tokenAge > TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS) {
+      // Token is too old even for the grace window — full re-login required
+      return unauthorized("نشست شما به طور کامل منقضی شده است. لطفاً دوباره وارد شوید.", "token_too_old");
+    }
+
+    const newToken = signToken({ uid: payload.uid, iat: Date.now() });
+    telemetry?.trackEvent({ name: "TokenRefreshed", properties: { userId: payload.uid } });
+    return success({ token: newToken });
+  } catch (err: unknown) {
+    telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
+    context.error("RefreshToken Error", err);
+    return unauthorized("توکن نامعتبر است.", "invalid_token");
+  }
+}
+
+app.http("refreshToken", {
+  methods: ["POST"],
+  authLevel: "anonymous",
+  route: "auth/refresh",
+  handler: refreshTokenHandler
 });

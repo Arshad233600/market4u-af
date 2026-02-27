@@ -61,6 +61,19 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Deduplicate concurrent token refresh calls: at most one refresh request is
+// in-flight at any time. Subsequent callers await the same promise.
+let pendingRefreshPromise: Promise<string | null> | null = null;
+
+function tryRefreshToken(): Promise<string | null> {
+  if (!pendingRefreshPromise) {
+    pendingRefreshPromise = authService.refreshToken().finally(() => {
+      pendingRefreshPromise = null;
+    });
+  }
+  return pendingRefreshPromise;
+}
+
 // Reasons returned by the backend that confirm the token is genuinely invalid.
 // Server configuration issues (missing_auth_secret, insecure_default_secret)
 // are intentionally excluded — logging out won't help if the server is mis-configured.
@@ -69,6 +82,7 @@ const CONFIRMED_INVALID_SESSION_REASONS = new Set([
   'invalid_token',
   'signature_mismatch',
   'missing_token',
+  'token_too_old',
 ]);
 
 /** Generate a short random correlation ID for request tracing. */
@@ -80,7 +94,7 @@ function generateCorrelationId(): string {
   );
 }
 
-async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300): Promise<T> {
+async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300, refreshAttempted = false): Promise<T> {
   const token = authService.getToken();
   const correlationId = generateCorrelationId();
   const authAttached = Boolean(token);
@@ -133,6 +147,17 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
 
       const failureKey = `${method}:${endpoint}`;
+
+      // If the token is expired, attempt a silent refresh before giving up.
+      // Skip if we already tried once for this request (prevents infinite loops).
+      if (reason === 'token_expired' && !refreshAttempted) {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          // Refresh succeeded — retry the original request with the new token.
+          return request<T>(endpoint, method, body, retries, backoff, true);
+        }
+        // Refresh failed — fall through to session invalidation below.
+      }
 
       // If the backend explicitly confirms the session is invalid, invalidate immediately.
       if (reason && CONFIRMED_INVALID_SESSION_REASONS.has(reason)) {
