@@ -85,6 +85,14 @@ const CONFIRMED_INVALID_SESSION_REASONS = new Set([
   'token_too_old',
 ]);
 
+// Reasons that indicate a server-side configuration problem rather than an
+// invalid user session. These must NEVER trigger a logout — the problem cannot
+// be resolved by the user re-authenticating.
+const SERVER_CONFIG_ERROR_REASONS = new Set([
+  'missing_auth_secret',
+  'insecure_default_secret',
+]);
+
 /** Generate a short random correlation ID for request tracing. */
 function generateCorrelationId(): string {
   return (
@@ -169,17 +177,21 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
       // For unknown/server-config reasons: use a conservative soft-fail with a 60-second
       // window. Two unconfirmed 401s within the window are treated as genuine expiry.
-      const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
-      const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
-      recentAuthFailures.set(failureKey, Date.now());
+      // Exception: server configuration errors (AUTH_SECRET missing/insecure) must never
+      // trigger a logout — the user cannot fix a server misconfiguration by re-logging in.
+      if (!reason || !SERVER_CONFIG_ERROR_REASONS.has(reason)) {
+        const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
+        const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
+        recentAuthFailures.set(failureKey, Date.now());
 
-      if (isRecentFailure) {
-        // Second unconfirmed 401 within window: treat as genuine expiry.
-        recentAuthFailures.delete(failureKey);
-        authService.onAuthInvalid(logReason);
-        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+        if (isRecentFailure) {
+          // Second unconfirmed 401 within window: treat as genuine expiry.
+          recentAuthFailures.delete(failureKey);
+          authService.onAuthInvalid(logReason);
+          toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+        }
       }
-      // First unconfirmed 401: throw without invalidating (transient server issue).
+      // First unconfirmed 401 (or any server-config error): throw without invalidating.
       throw new AuthError(reason ?? logReason);
     }
 

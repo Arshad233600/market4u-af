@@ -74,11 +74,28 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
         setStats(null);
         setLoadError(null);
       }
-      // Client-side expiry check: if the token is already known to be invalid,
-      // trigger session invalidation immediately instead of making a doomed request.
-      if (!authService.getToken() || authService.isTokenExpired()) {
-        authService.onAuthInvalid('token_expired');
+      // Client-side pre-flight check:
+      // 1. No token at all → invalidate immediately (nothing to refresh).
+      // 2. Token is client-side expired → attempt a silent refresh first.
+      //    The server accepts tokens up to 7 days past the 30-day window, so
+      //    we should not invalidate without giving the refresh endpoint a chance.
+      //    Only invalidate if the refresh also fails.
+      if (!authService.getToken()) {
+        authService.onAuthInvalid('missing_token');
         return;
+      }
+      if (authService.isTokenExpired()) {
+        let newToken: string | null = null;
+        try {
+          newToken = await authService.refreshToken();
+        } catch {
+          // Refresh request failed (e.g. network error); treat as expired.
+        }
+        if (!newToken) {
+          authService.onAuthInvalid('token_expired');
+          return;
+        }
+        // Refresh succeeded – proceed with API calls below.
       }
       try {
         const s = await azureService.getDashboardStats();
