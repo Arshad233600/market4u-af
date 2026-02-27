@@ -1,5 +1,4 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import * as crypto from "crypto";
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken } from "../utils/authUtils";
@@ -256,6 +255,18 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
     if (!title || price === undefined || price === null) {
       return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"] } };
+    }
+
+    // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
+    // This is idempotent — no-op when guest_user_0 is already present (normal case).
+    if (!auth.isAuthenticated || !auth.userId) {
+      await pool.request()
+        .input("GuestId", sql.NVarChar, GUEST_USER_ID)
+        .query(`
+          IF NOT EXISTS (SELECT 1 FROM Users WHERE Id = @GuestId)
+            INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+            VALUES (@GuestId, N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE())
+        `);
     }
 
     const transaction = new sql.Transaction(pool);

@@ -164,7 +164,12 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string };
-      throw new Error(errorData.message || errorData.error || `API Error: ${response.status}`);
+      // For 5xx server errors prefer the high-level "error" label so raw SQL/internal details
+      // are not surfaced to the browser; for 4xx use the more-specific "message" first.
+      const msg = response.status >= 500
+        ? errorData.error || errorData.message
+        : errorData.message || errorData.error;
+      throw new Error(msg || `API Error: ${response.status}`);
     }
 
     return await response.json().catch(() => {
