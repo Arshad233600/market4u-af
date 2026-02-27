@@ -7,13 +7,15 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface DashboardLayoutProps {
   activePage: Page;
   onNavigate: (page: Page) => void;
+  onBack?: () => void;
   onLogout: () => void;
   user: User | null;
   children: React.ReactNode;
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigate, onLogout, user, children }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigate, onBack, onLogout, user, children }) => {
   const { t } = useLanguage();
+  const handleBack = onBack ?? (() => onNavigate(Page.HOME));
 
   const menuItems = [
     { id: Page.DASHBOARD, label: t('dash_overview'), icon: 'LayoutDashboard' },
@@ -103,9 +105,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
          {/* Mobile Header for Dashboard */}
          <div className="md:hidden bg-ui-surface px-4 py-3 flex items-center justify-between sticky top-0 z-20 border-b border-ui-border">
              <div className="flex items-center gap-3">
-               <div className="w-8 h-8 bg-brand-900/40 rounded-full flex items-center justify-center text-brand-300 font-bold border border-brand-700/40">
-                 {user?.name?.charAt(0)}
-               </div>
+               <button
+                 onClick={handleBack}
+                 className="p-2 text-ui-muted hover:bg-ui-surface2 rounded-full transition-colors"
+                 aria-label="بازگشت"
+               >
+                 <Icon name="ArrowRight" size={20} strokeWidth={1.8} />
+               </button>
                <h2 className="font-bold text-ui-text text-sm">
                  {menuItems.find(i => i.id === activePage)?.label || t('dash_overview')}
                </h2>
