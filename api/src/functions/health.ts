@@ -1,29 +1,48 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
+import { isAuthSecretInsecure } from "../utils/authUtils";
 
 /**
  * Health Check Endpoint
- * Returns API and Database connection status
+ * Returns API, Database, and Auth configuration status.
+ * Exposes only aggregate status — no env var names or values.
  */
 export async function healthCheck(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
-  
+
+  // Auth configuration check (no secrets exposed)
+  const authStatus = isAuthSecretInsecure
+    ? "misconfigured_insecure_default"
+    : "ok";
+
+  // Count missing critical env vars without exposing their names
+  const criticalVarsMissing = [
+    process.env.AUTH_SECRET,
+    process.env.SqlConnectionString || process.env.AZURE_SQL_CONNECTION_STRING,
+    process.env.AZURE_STORAGE_CONNECTION_STRING,
+    process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME,
+  ].filter((v) => !v).length;
+
   try {
     // Test database connection
     const pool = await getPool();
     await pool.request().query("SELECT 1");
     
     const responseTime = Date.now() - startTime;
-    
+    const isHealthy = criticalVarsMissing === 0 && authStatus === "ok";
+
     return {
-      status: 200,
+      status: isHealthy ? 200 : 503,
       jsonBody: {
-        success: true,
+        success: isHealthy,
         data: {
-          status: "healthy",
+          status: isHealthy ? "healthy" : "degraded",
           timestamp: new Date().toISOString(),
           responseTime: `${responseTime}ms`,
           database: "connected",
+          auth: authStatus,
+          configuredVars: 4 - criticalVarsMissing,
+          requiredVars: 4,
           version: "1.0.0"
         }
       }
@@ -41,7 +60,10 @@ export async function healthCheck(request: HttpRequest, context: InvocationConte
           status: "unhealthy",
           timestamp: new Date().toISOString(),
           responseTime: `${responseTime}ms`,
-          database: "disconnected"
+          database: "disconnected",
+          auth: authStatus,
+          configuredVars: 4 - criticalVarsMissing,
+          requiredVars: 4,
         }
       }
     };
