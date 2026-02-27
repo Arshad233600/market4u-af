@@ -261,6 +261,11 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   // Prefer the client-supplied correlation ID (validated as UUID v4) so both sides share the same
   // tracing token. Rejects arbitrary strings to guard logging/monitoring pipelines.
   const requestId = resolveRequestId(request.headers.get("x-client-request-id"));
+
+  // lastStep tracks the most-recently completed breadcrumb; logged in catch so
+  // on-call engineers can identify exactly which layer failed without grepping logs.
+  let lastStep = "begin";
+
   context.log(`[postAd] ads.create.begin requestId=${requestId} userId=${userId}`);
 
   try {
@@ -307,21 +312,24 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     try {
       const raw = await request.json();
       if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-        return { status: 400, jsonBody: { error: "Request body must be a JSON object", category: "VALIDATION", requestId } };
+        return { status: 400, jsonBody: { error: "Request body must be a JSON object", category: "VALIDATION", reason: "body_not_json_object", requestId } };
       }
       body = raw as AdRequestBody;
-      context.log(`[postAd] ads.body.parsed requestId=${requestId}`);
+      lastStep = "parse_body_ok";
+      context.log(`[postAd] parse_body_ok requestId=${requestId}`);
     } catch {
-      return { status: 400, jsonBody: { error: "Invalid or missing request body", category: "VALIDATION", requestId } };
+      return { status: 400, jsonBody: { error: "Invalid or missing request body", category: "VALIDATION", reason: "malformed_or_missing_json", requestId } };
     }
 
     const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     if (!title || price === undefined || price === null) {
-      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], category: "VALIDATION", requestId } };
+      return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], category: "VALIDATION", reason: "missing_title_or_price", requestId } };
     }
-    context.log(`[postAd] ads.auth.checked requestId=${requestId} authenticated=${auth.isAuthenticated}`);
-    context.log(`[postAd] ads.validate.ok requestId=${requestId} title="${title}" price=${price}`);
+    lastStep = "auth_ok";
+    context.log(`[postAd] auth_ok requestId=${requestId} authenticated=${auth.isAuthenticated}`);
+    lastStep = "validate_ok";
+    context.log(`[postAd] validate_ok requestId=${requestId} title="${title}" price=${price}`);
 
     // Ensure the guest user row exists so the FK constraint on Ads.UserId is always satisfied.
     // This is idempotent — no-op when guest_user_0 is already present (normal case).
@@ -342,7 +350,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
-    context.log(`[postAd] ads.db.tx.begin requestId=${requestId}`);
+    lastStep = "tx_begin";
+    context.log(`[postAd] tx_begin requestId=${requestId}`);
 
     try {
       // Use UUID to avoid primary-key collisions on concurrent submissions.
@@ -372,7 +381,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
           INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Condition, IsNegotiable, DeliveryAvailable, DynamicFields, Status, CreatedAt)
           VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Condition, @IsNegotiable, @DeliveryAvailable, @DynamicFields, @Status, @CreatedAt)
         `);
-      context.log(`[postAd] ads.db.insert.ads.ok requestId=${requestId} adId=${id}`);
+      lastStep = "insert_ad_ok";
+      context.log(`[postAd] insert_ad_ok requestId=${requestId} adId=${id}`);
 
       if (Array.isArray(imageUrls) && imageUrls.length > 0) {
         for (let i = 0; i < imageUrls.length; i++) {
@@ -387,11 +397,13 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
               VALUES (@Id, @AdId, @Url, @SortOrder)
             `);
         }
-        context.log(`[postAd] ads.db.insert.images.ok requestId=${requestId} count=${imageUrls.length}`);
+        lastStep = "insert_images_ok";
+        context.log(`[postAd] insert_images_ok requestId=${requestId} count=${imageUrls.length}`);
       }
 
       await transaction.commit();
-      context.log(`[postAd] ads.db.commit.ok requestId=${requestId}`);
+      lastStep = "commit_ok";
+      context.log(`[postAd] commit_ok requestId=${requestId}`);
       // Record the anonymous IP in the rate-limit store only after a successful
       // commit so that failed attempts (DB errors, validation, etc.) never consume
       // the user's quota and block the next legitimate submission.
@@ -407,13 +419,14 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       throw err;
     }
   } catch (err: unknown) {
-    context.error(`[postAd] ads.create.error requestId=${requestId}`, err);
     const { status, category: errCategory } = classifyPostAdError(err);
+    const errName = err instanceof Error ? err.constructor.name : "UnknownError";
+    context.error(`[postAd] ads.create.error requestId=${requestId} lastStep=${lastStep} category=${errCategory} errorType=${errName}`, err);
     if (status === 503) {
-      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, requestId } };
+      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, reason: "db_unavailable", requestId } };
     }
     // 500: do not expose internal error details (use requestId to trace in logs)
-    return { status: 500, jsonBody: { error: "Database error", category: errCategory, requestId } };
+    return { status: 500, jsonBody: { error: "Database error", category: errCategory, reason: "unexpected_server_error", requestId } };
   }
 }
 
