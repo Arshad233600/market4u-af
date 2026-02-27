@@ -221,7 +221,7 @@ const AppContent: React.FC = () => {
             </DashboardLayout>
           );
         default:
-          DashboardContent = <Overview onNavigate={navigateTo} />;
+          DashboardContent = <Overview onNavigate={navigateTo} onLogout={handleLogout} />;
       }
 
       return (

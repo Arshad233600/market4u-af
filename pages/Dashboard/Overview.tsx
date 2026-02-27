@@ -64,6 +64,7 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
   const [isAuthError, setIsAuthError] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<'7' | '30'>('7');
   const user = authService.getCurrentUser();
 
   useEffect(() => {
@@ -133,17 +134,18 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
   );
 
 
-
   // Dynamic Chart Data based on views
   const baseViews = stats.totalViews || 100;
+  // Scale bars proportionally: 30-day period shows ~4x more cumulative views than 7-day
+  const periodMultiplier = chartPeriod === '30' ? 4 : 1;
   const chartData = [
-      { d: 'شنبه', h: Math.min(100, (baseViews * 0.1 / 5) * 100) }, 
-      { d: 'یکشنبه', h: Math.min(100, (baseViews * 0.15 / 5) * 100) },
-      { d: 'دوشنبه', h: Math.min(100, (baseViews * 0.12 / 5) * 100) },
-      { d: 'سه‌شنبه', h: Math.min(100, (baseViews * 0.2 / 5) * 100) },
-      { d: 'چهارشنبه', h: Math.min(100, (baseViews * 0.18 / 5) * 100) },
-      { d: 'پنجشنبه', h: Math.min(100, (baseViews * 0.25 / 5) * 100) }, // Weekend peak
-      { d: 'جمعه', h: Math.min(100, (baseViews * 0.3 / 5) * 100) }     // Friday peak
+      { d: 'شنبه', h: Math.min(100, (baseViews * 0.1 / 5) * 100 * periodMultiplier) }, 
+      { d: 'یکشنبه', h: Math.min(100, (baseViews * 0.15 / 5) * 100 * periodMultiplier) },
+      { d: 'دوشنبه', h: Math.min(100, (baseViews * 0.12 / 5) * 100 * periodMultiplier) },
+      { d: 'سه‌شنبه', h: Math.min(100, (baseViews * 0.2 / 5) * 100 * periodMultiplier) },
+      { d: 'چهارشنبه', h: Math.min(100, (baseViews * 0.18 / 5) * 100 * periodMultiplier) },
+      { d: 'پنجشنبه', h: Math.min(100, (baseViews * 0.25 / 5) * 100 * periodMultiplier) },
+      { d: 'جمعه', h: Math.min(100, (baseViews * 0.3 / 5) * 100 * periodMultiplier) }
   ];
 
   return (
@@ -243,11 +245,15 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
            <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-ui-text flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-brand-600" />
-                عملکرد بازدید هفته اخیر
+                عملکرد بازدید {chartPeriod === '7' ? 'هفته' : 'ماه'} اخیر
               </h3>
-              <select className="text-xs bg-ui-surface2 border border-ui-border rounded-lg px-2 py-1 outline-none text-ui-muted">
-                  <option>۷ روز گذشته</option>
-                  <option>۳۰ روز گذشته</option>
+              <select
+                value={chartPeriod}
+                onChange={(e) => setChartPeriod(e.target.value as '7' | '30')}
+                className="text-xs bg-ui-surface2 border border-ui-border rounded-lg px-2 py-1 outline-none text-ui-muted"
+              >
+                  <option value="7">۷ روز گذشته</option>
+                  <option value="30">۳۰ روز گذشته</option>
               </select>
            </div>
            

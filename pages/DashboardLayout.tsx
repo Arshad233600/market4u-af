@@ -42,9 +42,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
            <div className="flex-1 min-w-0">
              <h3 className="font-bold text-ui-text text-sm truncate">{user?.name || 'کاربر بازار'}</h3>
              <p className="text-xs text-ui-muted font-medium mt-0.5 dir-ltr text-right">{user?.phone || ''}</p>
-             <div className="flex items-center gap-1 mt-1.5">
-               <span className="text-xs bg-brand-900/40 text-brand-300 px-2 py-0.5 rounded-full font-bold border border-brand-700/30">فروشنده تایید شده</span>
-             </div>
+             {user?.isVerified && (
+               <div className="flex items-center gap-1 mt-1.5">
+                 <span className="text-xs bg-brand-900/40 text-brand-300 px-2 py-0.5 rounded-full font-bold border border-brand-700/30">فروشنده تایید شده</span>
+               </div>
+             )}
            </div>
         </div>
         
@@ -70,8 +72,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
                    <span className="bg-ui-danger text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] h-[18px] flex items-center justify-center">
                      {item.badge}
                    </span>
+                ) : isActive ? (
+                  <Icon name="ChevronRight" size={18} strokeWidth={1.8} className="rotate-180 text-brand-500" />
                 ) : null}
-                {isActive && <Icon name="ChevronRight" size={18} strokeWidth={1.8} className="rotate-180 text-brand-500" />}
               </button>
             );
           })}
