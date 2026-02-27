@@ -21,9 +21,20 @@ interface RequestOptions extends RequestInit {
   backoff?: number;
 }
 
+/** Options shared by all apiClient methods. */
+export interface ApiCallOptions {
+  /**
+   * When true, suppresses the auth-error warning toast on 401 responses.
+   * Use this for background / polling calls (e.g. notification polling) where
+   * the caller handles the error silently so the user is not repeatedly shown
+   * the same toast.
+   */
+  silent?: boolean;
+}
+
 export const apiClient = {
-  get: async <T>(endpoint: string): Promise<T> => {
-    return request<T>(endpoint, 'GET');
+  get: async <T>(endpoint: string, options?: ApiCallOptions): Promise<T> => {
+    return request<T>(endpoint, 'GET', undefined, 2, 300, false, options?.silent ?? false);
   },
 
   post: async <T>(endpoint: string, body?: unknown): Promise<T> => {
@@ -67,7 +78,7 @@ function generateCorrelationId(): string {
   );
 }
 
-async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300, refreshAttempted = false): Promise<T> {
+async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300, refreshAttempted = false, silent = false): Promise<T> {
   const token = authService.getToken();
   const correlationId = generateCorrelationId();
   const authAttached = Boolean(token);
@@ -118,10 +129,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
       console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
 
-      // Helper: only show the auth-error toast when the user was authenticated.
+      // Helper: only show the auth-error toast when the user was authenticated AND
+      // the call is not a silent background call.
       // Unauthenticated users browsing public pages must never see an auth error toast.
       const warnIfAuthenticated = () => {
-        if (storedToken) toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
+        if (!silent && storedToken) toastService.warning('خطای احراز هویت. لطفاً دوباره تلاش کنید.');
       };
 
       // If the token is expired, attempt a silent refresh before giving up.
@@ -130,7 +142,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         const newToken = await tryRefreshToken();
         if (newToken) {
           // Refresh succeeded — retry the original request with the new token.
-          return request<T>(endpoint, method, body, retries, backoff, true);
+          return request<T>(endpoint, method, body, retries, backoff, true, silent);
         }
         // Refresh failed — throw without invalidating the session.
         // The user must log out explicitly; we never auto-logout.
@@ -147,7 +159,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // 5xx Server Errors - Retryable
     if (response.status >= 500 && retries > 0) {
         await wait(backoff);
-        return request<T>(endpoint, method, body, retries - 1, backoff * 2);
+        return request<T>(endpoint, method, body, retries - 1, backoff * 2, refreshAttempted, silent);
     }
 
     if (!response.ok) {
@@ -162,7 +174,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // Network Errors (Offline) - Retryable
     if (retries > 0 && (error instanceof TypeError || (error as Error).message.includes('Failed to fetch'))) {
         await wait(backoff);
-        return request<T>(endpoint, method, body, retries - 1, backoff * 2);
+        return request<T>(endpoint, method, body, retries - 1, backoff * 2, refreshAttempted, silent);
     }
 
     // Auth errors are already handled (invalidation + toast) above; skip duplicate logging

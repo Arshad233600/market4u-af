@@ -136,6 +136,7 @@ const AppContent: React.FC = () => {
   const navigateTo = (page: Page | 'ADMIN_PANEL') => {
     if (
       (page === Page.EDIT_AD ||
+        page === Page.POST_AD ||
         (typeof page === 'string' && page.startsWith('dashboard')) ||
         page === Page.PROFILE ||
         page === Page.FAVORITES) &&

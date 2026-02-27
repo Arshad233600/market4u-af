@@ -199,28 +199,26 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
   }
 }
 
-const GUEST_USER_ID = "guest_user_0";
-
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  // Allow unauthenticated (guest) posting; fall back to a shared guest user.
-  const userId = auth.isAuthenticated ? auth.userId! : GUEST_USER_ID;
+  if (!auth.isAuthenticated) {
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
+  }
+  const userId = auth.userId!;
 
   try {
     const pool = await getPool();
 
-    // Rate limiting (max 1 ad per 60 sec) — only apply to authenticated users.
-    if (auth.isAuthenticated) {
-      const recentAd = await pool
-        .request()
-        .input("UserId", sql.NVarChar, userId)
-        .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
+    // Rate limiting: max 1 ad per 60 seconds per user.
+    const recentAd = await pool
+      .request()
+      .input("UserId", sql.NVarChar, userId)
+      .query("SELECT TOP 1 CreatedAt FROM Ads WHERE UserId = @UserId ORDER BY CreatedAt DESC");
 
-      if (recentAd.recordset.length > 0) {
-        const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
-        if (Date.now() - lastAdTime < 60000) {
-          return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
-        }
+    if (recentAd.recordset.length > 0) {
+      const lastAdTime = new Date(recentAd.recordset[0].CreatedAt).getTime();
+      if (Date.now() - lastAdTime < 60000) {
+        return { status: 429, jsonBody: { error: "لطفاً کمی صبر کنید. شما به تازگی یک آگهی ثبت کرده‌اید." } };
       }
     }
 
