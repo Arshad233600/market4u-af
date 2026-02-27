@@ -77,13 +77,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
           })}
         </nav>
 
-        <div className="p-4 border-t border-ui-border">
+        <div className="p-4 border-t border-ui-border space-y-1">
+          <button
+             onClick={() => onNavigate(Page.HOME)}
+             className="w-full flex items-center gap-3 text-ui-muted px-4 py-3 hover:bg-ui-surface2 hover:text-ui-text rounded-xl text-sm font-medium transition-colors group"
+          >
+            <Icon name="Home" size={20} strokeWidth={1.8} className="group-hover:scale-110 transition-transform" />
+            <span>{t('return_to_home')}</span>
+          </button>
           <button 
              onClick={onLogout}
-             className="w-full flex items-center gap-3 text-ui-danger px-4 py-3 hover:bg-ui-danger/10 rounded-xl text-sm font-bold transition-colors group"
+             className="w-full flex items-center gap-3 text-ui-danger px-4 py-3 hover:bg-ui-danger/10 rounded-xl text-sm font-bold transition-colors group border border-transparent hover:border-ui-danger/20"
           >
             <Icon name="LogOut" size={20} strokeWidth={1.8} className="group-hover:scale-110 transition-transform" />
-            {t('dash_logout')}
+            <span>{t('dash_logout')}</span>
           </button>
         </div>
       </aside>
@@ -101,12 +108,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
                </h2>
              </div>
              <div className="flex items-center gap-2">
-                 <button onClick={() => onNavigate(Page.DASHBOARD_CHAT)} className="p-2 text-ui-muted hover:bg-ui-surface2 rounded-full relative">
+                 <button onClick={() => onNavigate(Page.DASHBOARD_CHAT)} className="p-2 text-ui-muted hover:bg-ui-surface2 rounded-full relative" title={t('dash_messages')}>
                     <Icon name="BellRing" size={20} strokeWidth={1.8} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-ui-danger rounded-full"></span>
+                    {(user?.reviewCount || 0) > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-ui-danger rounded-full"></span>}
                  </button>
-                 <button onClick={() => onNavigate(Page.HOME)} className="px-3 py-1.5 text-xs bg-ui-surface2 text-ui-muted rounded-lg font-bold border border-ui-border">
-                   خروج از پنل
+                 <button onClick={() => onNavigate(Page.HOME)} className="p-2 text-ui-muted hover:bg-ui-surface2 rounded-full transition-colors" title={t('return_to_home')}>
+                    <Icon name="Home" size={20} strokeWidth={1.8} />
+                 </button>
+                 <button onClick={onLogout} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-ui-danger/10 text-ui-danger rounded-lg font-bold border border-ui-danger/20 hover:bg-ui-danger/20 transition-colors">
+                   <Icon name="LogOut" size={14} strokeWidth={2} />
+                   {t('dash_logout')}
                  </button>
              </div>
          </div>
