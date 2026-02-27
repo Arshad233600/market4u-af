@@ -22,6 +22,7 @@ export const TRANSLATIONS = {
     nav_profile: 'پروفایل',
     nav_messages: 'پیام‌ها',
     login_btn: 'ورود / ثبت‌نام',
+    return_to_home: 'بازگشت به خانه',
     
     // Home & Filters
     hero_title: 'آگهی‌های تازه',
@@ -151,6 +152,7 @@ export const TRANSLATIONS = {
     nav_profile: 'پروفایل',
     nav_messages: 'پیغامونه',
     login_btn: 'ننوتل / ثبت نام',
+    return_to_home: 'کور ته ستنیدل',
     
     // Home & Filters
     hero_title: 'تازه اعلانونه',
