@@ -118,6 +118,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ activePage, onNavigat
                  <button onClick={() => onNavigate(Page.HOME)} className="p-2 text-ui-muted hover:bg-ui-surface2 rounded-full transition-colors" title={t('return_to_home')}>
                     <Icon name="Home" size={20} strokeWidth={1.8} />
                  </button>
+                 <button onClick={onLogout} className="p-2 text-ui-danger hover:bg-ui-danger/10 rounded-full transition-colors" title={t('dash_logout')}>
+                    <Icon name="LogOut" size={20} strokeWidth={1.8} />
+                 </button>
              </div>
          </div>
 
