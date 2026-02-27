@@ -220,6 +220,24 @@ export const authService = {
     safeStorage.removeItem(STORAGE_KEY_USER);
     safeStorage.removeItem(STORAGE_KEY_TOKEN);
     safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
-    window.dispatchEvent(new Event('auth-change'));
-  }
+    window.dispatchEvent(new CustomEvent('auth-change', { detail: { reason: 'user_logout' } }));
+  },
+
+  /**
+   * PHASE 1 — Single centralized handler for an invalid/expired session.
+   *
+   * ALL code paths that detect an invalid token (401 responses, client-side
+   * expiry checks, etc.) MUST call this method instead of calling logout()
+   * directly. This ensures:
+   *   1. Auth state is cleared in exactly one place.
+   *   2. Every invalidation is logged with a reason for diagnostics.
+   *   3. The auth-change event fires exactly once per invalidation event.
+   */
+  onAuthInvalid: (reason: string) => {
+    console.warn(`[auth] session_invalidated reason=${reason}`);
+    safeStorage.removeItem(STORAGE_KEY_USER);
+    safeStorage.removeItem(STORAGE_KEY_TOKEN);
+    safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
+    window.dispatchEvent(new CustomEvent('auth-change', { detail: { reason } }));
+  },
 };

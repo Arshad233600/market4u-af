@@ -36,6 +36,10 @@ export const API_BASE_URL = apiUrl || '/api';
 // The && ensures that setting EITHER variable to 'false' switches to live mode.
 export const USE_MOCK_DATA = getEnv('VITE_USE_MOCK_DATA') !== 'false' && getEnv('REACT_APP_USE_MOCK_DATA') !== 'false';
 
+// Set VITE_DEBUG_AUTH=true to enable auth diagnostics logging.
+// NEVER logs token values — only boolean presence flags and counts.
+export const DEBUG_AUTH = getEnv('VITE_DEBUG_AUTH') === 'true';
+
 export const AZURE_AD_CONFIG = {
   clientId: getEnv('REACT_APP_AZURE_CLIENT_ID') || 'your-client-id',
   authority: getEnv('REACT_APP_AZURE_AUTHORITY') || 'https://your-tenant.b2clogin.com/your-tenant.onmicrosoft.com/B2C_1_signin_signup',

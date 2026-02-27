@@ -2,6 +2,7 @@
 import { API_BASE_URL } from '../config';
 import { authService } from './authService';
 import { toastService } from './toastService';
+import { logApiCall, logApiResponse, logAuthSnapshot } from '../utils/debugAuth';
 
 /** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
 export class AuthError extends Error {
@@ -60,11 +61,26 @@ const CONFIRMED_INVALID_SESSION_REASONS = new Set([
   'missing_token',
 ]);
 
+/** Generate a short random correlation ID for request tracing. */
+function generateCorrelationId(): string {
+  return (
+    Date.now().toString(36) +
+    '-' +
+    Math.random().toString(36).slice(2, 8)
+  );
+}
+
 async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300): Promise<T> {
   const token = authService.getToken();
+  const correlationId = generateCorrelationId();
+  const authAttached = Boolean(token);
+
+  // PHASE 0: log snapshot before every request when debug mode is active
+  logAuthSnapshot(`[debugAuth] pre-request ${method} ${endpoint}`);
   
   const headers: Record<string, string> = {
     'Accept': 'application/json',
+    'x-client-request-id': correlationId,
   };
 
   if (body && !(body instanceof FormData)) {
@@ -74,6 +90,9 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // PHASE 0: log outgoing request details (no token value)
+  logApiCall(method, endpoint, authAttached, correlationId);
 
   const config: RequestOptions = {
     method,
@@ -87,6 +106,9 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
+    // PHASE 0: log response status
+    logApiResponse(method, endpoint, response.status, correlationId);
+
     if (response.status === 401) {
       const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
 
@@ -98,14 +120,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       } catch { /* ignore parse failures */ }
 
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
-      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason}`);
+      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason} correlationId: ${correlationId}`);
 
       const failureKey = `${method}:${endpoint}`;
 
-      // If the backend explicitly confirms the session is invalid, log out immediately.
+      // If the backend explicitly confirms the session is invalid, invalidate immediately.
       if (reason && CONFIRMED_INVALID_SESSION_REASONS.has(reason)) {
         recentAuthFailures.delete(failureKey);
-        authService.logout();
+        authService.onAuthInvalid(reason);
         toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
         throw new AuthError(reason);
       }
@@ -119,10 +141,10 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       if (isRecentFailure) {
         // Second unconfirmed 401 within window: treat as genuine expiry.
         recentAuthFailures.delete(failureKey);
-        authService.logout();
+        authService.onAuthInvalid(logReason);
         toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
       }
-      // First unconfirmed 401: throw without logout (transient server issue).
+      // First unconfirmed 401: throw without invalidating (transient server issue).
       throw new AuthError(reason ?? logReason);
     }
 
@@ -151,10 +173,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         return request<T>(endpoint, method, body, retries - 1, backoff * 2);
     }
 
-    // Auth errors are already handled (logout + toast) above; skip duplicate logging
+    // Auth errors are already handled (invalidation + toast) above; skip duplicate logging
     if (!(error instanceof AuthError)) {
-      console.error(`API Request Failed [${method} ${endpoint}]:`, error);
+      console.error(`API Request Failed [${method} ${endpoint}] correlationId=${correlationId}:`, error);
     }
     throw error;
   }
 }
+
