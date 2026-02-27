@@ -961,7 +961,7 @@ export const azureService = {
           const data = await apiClient.get<Array<{
               Id: string; UserId: string; Title: string; Message: string;
               Type: string; IsRead: boolean; CreatedAt: string;
-          }>>('/notifications');
+          }>>('/notifications', { silent: true });
           if (!Array.isArray(data)) return [];
           return data.map(n => ({
               id: n.Id,

@@ -274,17 +274,9 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               toastService.error('خطا در ثبت اطلاعات.');
           }
       } catch (err) {
-          // AuthError: apiClient handles logout + toast for definitive failures
-          // (repeated 401, token_expired, signature_mismatch, etc.) — do not show a
-          // duplicate toast in that case. For soft-fail (first unknown 401), the user
-          // is still authenticated; show a retry hint without implying logout.
-          if (err instanceof AuthError) {
-              if (authService.getCurrentUser()) {
-                  // Soft-fail — user still logged in; suggest retry
-                  toastService.error('خطا در احراز هویت. لطفاً دوباره تلاش کنید.');
-              }
-              // else: apiClient already showed session-expired toast + triggered auth-change
-          } else {
+          // AuthError: apiClient already showed an auth warning toast via warnIfAuthenticated().
+          // For non-auth errors (network, DB, etc.) show a generic data error message.
+          if (!(err instanceof AuthError)) {
               toastService.error('خطا در ثبت اطلاعات.');
           }
       } finally {
