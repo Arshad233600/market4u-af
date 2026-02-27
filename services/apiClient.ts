@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../config';
 import { authService } from './authService';
 import { toastService } from './toastService';
 import { logApiCall, logApiResponse, logAuthSnapshot } from '../utils/debugAuth';
+import { safeStorage } from '../utils/safeStorage';
 
 /** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
 export class AuthError extends Error {
@@ -74,6 +75,14 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // in-flight at any time. Subsequent callers await the same promise.
 let pendingRefreshPromise: Promise<string | null> | null = null;
 
+/**
+ * Set to true the first time a 401 is received on a protected endpoint while
+ * storage is blocked (Safari ITP / private-browsing).  Once raised, all
+ * subsequent requests to protected endpoints are short-circuited so the user
+ * is not spammed with further errors.
+ */
+let storageBlockedAuth401 = false;
+
 function tryRefreshToken(): Promise<string | null> {
   if (!pendingRefreshPromise) {
     pendingRefreshPromise = authService.refreshToken().finally(() => {
@@ -119,9 +128,17 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
   // PHASE 3: warn when token is missing for known protected endpoints
   // (storage may be blocked by Safari ITP / PWA restrictions)
-  const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard)/;
-  if (PROTECTED_ENDPOINT_PATTERN.test(endpoint) && !headers['Authorization']) {
+  const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard|auth\/me|ads\/my-ads)/;
+  const isPostAds = method === 'POST' && /^\/ads($|\?)/.test(endpoint);
+  const isProtected = PROTECTED_ENDPOINT_PATTERN.test(endpoint) || isPostAds;
+  if (isProtected && !headers['Authorization']) {
     console.warn(`[apiClient] token missing for protected endpoint ${method} ${endpoint} — storage may be blocked`);
+  }
+
+  // Gate: if a prior 401 while storage was blocked, skip protected requests to
+  // avoid spamming the network with requests that will never succeed.
+  if (isProtected && storageBlockedAuth401) {
+    throw new AuthError('storage_blocked');
   }
 
   // PHASE 0: log outgoing request details (no token value)
@@ -160,6 +177,19 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         `requestId: ${responseRequestId ?? correlationId}`,
         `hasToken: ${Boolean(storedToken)}`
       );
+
+      // When storage is blocked (Safari ITP / private browsing), a 401 means the
+      // browser cannot persist credentials — not that the session is invalid.
+      // Do NOT logout; instead raise a one-shot event so the UI can show a
+      // persistent browser-compatibility banner, and gate all future protected
+      // requests so the user is not spammed with further 401 errors.
+      if (!safeStorage.isAvailable() && isProtected) {
+        if (!storageBlockedAuth401) {
+          storageBlockedAuth401 = true;
+          window.dispatchEvent(new CustomEvent('storage-blocked-401'));
+        }
+        throw new AuthError('storage_blocked');
+      }
 
       // Helper: only show the auth-error toast when the caller is not silent.
       // Unauthenticated users browsing public pages must never see an auth error toast.

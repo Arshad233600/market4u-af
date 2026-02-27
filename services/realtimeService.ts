@@ -2,6 +2,7 @@
 import { authService } from './authService';
 import { API_BASE_URL, USE_MOCK_DATA } from '../config';
 import { ChatMessage } from '../types';
+import { safeStorage } from '../utils/safeStorage';
 
 type MessageHandler = (message: ChatMessage) => void;
 
@@ -51,6 +52,14 @@ class RealtimeService {
 
     const token = authService.getToken();
     if (!token) return;
+
+    // Skip polling entirely when persistent storage is blocked (Safari ITP /
+    // private browsing).  Without durable storage the token cannot survive page
+    // loads, so every poll would 401 and spam the console / network.
+    if (!safeStorage.isAvailable()) {
+      console.warn('[realtimeService] storage unavailable — message polling disabled');
+      return;
+    }
 
     this.isConnected = true;
     // Initial poll to populate the snapshot without triggering notifications.

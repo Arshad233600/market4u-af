@@ -4,6 +4,7 @@ import Icon from '../src/components/ui/Icon';
 import { Page, User, UserSuggestion, Notification } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { azureService } from '../services/azureService';
+import { safeStorage } from '../utils/safeStorage';
 
 interface HeaderProps {
   onSearch: (query: string) => void;
@@ -36,6 +37,9 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchNotifications();
+    // Skip background polling when persistent storage is blocked (Safari ITP /
+    // private browsing) — the token cannot be read reliably so polls would 401.
+    if (!safeStorage.isAvailable()) return;
     const interval = setInterval(fetchNotifications, 10000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
