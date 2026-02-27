@@ -40,6 +40,10 @@ interface AdRequestBody {
   imageUrls?: string[];
   latitude?: number;
   longitude?: number;
+  condition?: string;
+  isNegotiable?: boolean;
+  deliveryAvailable?: boolean;
+  dynamicFields?: Record<string, unknown>;
 }
 
 /** Safely read query params in both possible shapes (URLSearchParams or plain object). */
@@ -214,7 +218,9 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  const userId = auth.isAuthenticated && auth.userId ? auth.userId : `guest_${crypto.randomUUID()}`;
+  // Reuse the shared guest account so the FK constraint on Ads.UserId is satisfied.
+  const GUEST_USER_ID = 'guest_user_0';
+  const userId = auth.isAuthenticated && auth.userId ? auth.userId : GUEST_USER_ID;
 
   try {
     const pool = await getPool();
@@ -246,7 +252,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     }
 
     const body = (await request.json()) as AdRequestBody;
-    const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude } = body;
+    const { title, price, location, category, subCategory, description, imageUrls, latitude, longitude, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     if (!title || price === undefined || price === null) {
       return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"] } };
@@ -272,11 +278,15 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         .input("MainImageUrl", sql.NVarChar, mainImageUrl)
         .input("Latitude", sql.Float, latitude ?? null)
         .input("Longitude", sql.Float, longitude ?? null)
+        .input("Condition", sql.NVarChar, condition ?? "used")
+        .input("IsNegotiable", sql.Bit, isNegotiable ? 1 : 0)
+        .input("DeliveryAvailable", sql.Bit, deliveryAvailable ? 1 : 0)
+        .input("DynamicFields", sql.NVarChar, dynamicFields ? JSON.stringify(dynamicFields) : null)
         .input("Status", sql.NVarChar, "ACTIVE")
         .input("CreatedAt", sql.DateTime, new Date())
         .query(`
-          INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Status, CreatedAt)
-          VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Status, @CreatedAt)
+          INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Condition, IsNegotiable, DeliveryAvailable, DynamicFields, Status, CreatedAt)
+          VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Condition, @IsNegotiable, @DeliveryAvailable, @DynamicFields, @Status, @CreatedAt)
         `);
 
       if (Array.isArray(imageUrls) && imageUrls.length > 0) {
@@ -315,7 +325,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
 
   try {
     const body = (await request.json()) as AdRequestBody;
-    const { title, price, location, category, subCategory, description, imageUrls } = body;
+    const { title, price, location, category, subCategory, description, imageUrls, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     const pool = await getPool();
     const transaction = new sql.Transaction(pool);
@@ -343,6 +353,10 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
         .input("SubCategory", sql.NVarChar, subCategory ?? "")
         .input("Description", sql.NVarChar, description ?? "")
         .input("MainImageUrl", sql.NVarChar, imageUrls?.[0] ?? null)
+        .input("Condition", sql.NVarChar, condition ?? "used")
+        .input("IsNegotiable", sql.Bit, isNegotiable ? 1 : 0)
+        .input("DeliveryAvailable", sql.Bit, deliveryAvailable ? 1 : 0)
+        .input("DynamicFields", sql.NVarChar, dynamicFields ? JSON.stringify(dynamicFields) : null)
         .input("UpdatedAt", sql.DateTime, new Date())
         .query(`
           UPDATE Ads
@@ -353,6 +367,10 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
               SubCategory = @SubCategory,
               Description = @Description,
               MainImageUrl = @MainImageUrl,
+              Condition = @Condition,
+              IsNegotiable = @IsNegotiable,
+              DeliveryAvailable = @DeliveryAvailable,
+              DynamicFields = @DynamicFields,
               UpdatedAt = @UpdatedAt,
               Status = 'ACTIVE'
           WHERE Id = @Id AND UserId = @UserId AND IsDeleted = 0

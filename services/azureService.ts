@@ -55,6 +55,16 @@ interface TxRow {
 }
 
 function mapAdToProduct(row: AdRow): Product {
+    const dynamicFieldsRaw = row.DynamicFields ?? row.dynamicFields;
+    let dynamicFields: Record<string, string | number> | undefined;
+    if (typeof dynamicFieldsRaw === 'string' && dynamicFieldsRaw) {
+        try { dynamicFields = JSON.parse(dynamicFieldsRaw); } catch (e) {
+            console.warn('Failed to parse DynamicFields JSON:', e);
+        }
+    } else if (dynamicFieldsRaw && typeof dynamicFieldsRaw === 'object') {
+        dynamicFields = dynamicFieldsRaw as Record<string, string | number>;
+    }
+
     return {
         id: String(row.Id || row.id || ''),
         userId: String(row.UserId || row.userId || ''),
@@ -75,6 +85,10 @@ function mapAdToProduct(row: AdRow): Product {
         views: Number(row.Views ?? row.views ?? 0),
         isPromoted: Boolean(row.IsPromoted ?? row.isPromoted ?? false),
         isFavorite: Boolean(row.isFavorite ?? false),
+        condition: (row.Condition ?? row.condition ?? 'used') as import('../types').ProductCondition,
+        isNegotiable: Boolean(row.IsNegotiable ?? row.isNegotiable ?? false),
+        deliveryAvailable: Boolean(row.DeliveryAvailable ?? row.deliveryAvailable ?? false),
+        dynamicFields,
     };
 }
 
@@ -99,6 +113,9 @@ interface CreateAdData {
   description: string;
   imageUrls?: string[];
   dynamicFields?: Record<string, string | number>;
+  condition?: string;
+  isNegotiable?: boolean;
+  deliveryAvailable?: boolean;
 }
 
 interface UpdateAdData extends CreateAdData {
