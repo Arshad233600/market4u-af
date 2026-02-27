@@ -102,13 +102,15 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       if (!isRecentFailure) {
         // First 401 within window: token may have just been cleaned up (mock token).
         // Throw AuthError without calling logout so the UI can show a soft warning.
-        throw new AuthError(reason ?? logReason);
+        // Pass only the backend-provided reason (may be undefined); do NOT pass logReason
+        // (an internal label) so callers can distinguish backend reasons from internal ones.
+        throw new AuthError(reason);
       }
 
       // Repeated 401 within window: genuine session expiry — log out the user.
       authService.logout();
       toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-      throw new AuthError(reason ?? logReason);
+      throw new AuthError(reason);
     }
 
     // 5xx Server Errors - Retryable

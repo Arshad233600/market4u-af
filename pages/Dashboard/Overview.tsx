@@ -99,8 +99,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (isAuthError) {
-      // Clear the session and fire auth-change so App.tsx redirects to login
-      authService.logout();
+      // Only call logout when the session is definitively gone (apiClient already ran its
+      // definitive logout clearing storage and getCurrentUser returns null), or when the
+      // token is client-side expired. On a soft-fail first 401 the user is still in storage,
+      // so we must not logout here — that would bypass the 5-second soft-fail window.
+      if (!authService.getCurrentUser() || authService.isTokenExpired()) {
+        authService.logout();
+      }
     }
   }, [isAuthError]);
 

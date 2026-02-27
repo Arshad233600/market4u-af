@@ -81,6 +81,7 @@ export const TRANSLATIONS = {
     dash_wallet: 'کیف پول',
     dash_settings: 'تنظیمات',
     dash_logout: 'خروج از حساب',
+    dash_back_to_home: 'بازگشت به خانه',
 
     // Post Ad
     post_title: 'ثبت آگهی جدید',
@@ -210,6 +211,7 @@ export const TRANSLATIONS = {
     dash_wallet: 'بټوه (کیف پول)',
     dash_settings: 'تنظیمات',
     dash_logout: 'وتل',
+    dash_back_to_home: 'کور ته ستنیدل',
 
     // Post Ad
     post_title: 'نوی اعلان',
