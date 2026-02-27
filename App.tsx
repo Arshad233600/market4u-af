@@ -136,6 +136,7 @@ const AppContent: React.FC = () => {
   const navigateTo = (page: Page | 'ADMIN_PANEL') => {
     if (
       (page === Page.EDIT_AD ||
+        page === Page.POST_AD ||
         (typeof page === 'string' && page.startsWith('dashboard')) ||
         page === Page.PROFILE ||
         page === Page.FAVORITES) &&
@@ -275,7 +276,11 @@ const AppContent: React.FC = () => {
           <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />
         );
       case Page.POST_AD:
-        return <PostAd onNavigate={navigateTo} />;
+        return user ? (
+          <PostAd onNavigate={navigateTo} />
+        ) : (
+          <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />
+        );
       case Page.EDIT_AD:
         return user && productToEdit ? (
           <PostAd onNavigate={navigateTo} existingAd={productToEdit} />
