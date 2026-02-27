@@ -13,6 +13,7 @@ BEGIN
         AvatarUrl NVARCHAR(1000),
         Role NVARCHAR(50) DEFAULT 'USER',
         IsVerified BIT DEFAULT 0,
+        VerificationStatus NVARCHAR(50) DEFAULT 'NONE',
         IsDeleted BIT DEFAULT 0,
         DeletedAt DATETIME2 NULL,
         CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
@@ -35,6 +36,11 @@ BEGIN
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'PasswordHash')
     BEGIN
         ALTER TABLE Users ADD PasswordHash NVARCHAR(500) NOT NULL DEFAULT '';
+    END
+    -- Add VerificationStatus column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'VerificationStatus')
+    BEGIN
+        ALTER TABLE Users ADD VerificationStatus NVARCHAR(50) NOT NULL DEFAULT 'NONE';
     END
     -- Add UNIQUE constraint on Email if it doesn't exist (prevents duplicate profiles)
     IF NOT EXISTS (
