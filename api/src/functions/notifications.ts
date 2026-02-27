@@ -6,7 +6,7 @@ import { unauthorized, serverError } from "../utils/responses";
 
 export async function getNotifications(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return unauthorized();
+  if (!auth.isAuthenticated) return unauthorized("Unauthorized", auth.reason);
 
   try {
     const pool = await getPool();
@@ -29,7 +29,7 @@ export async function getNotifications(request: HttpRequest, context: Invocation
 
 export async function markNotificationsRead(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return unauthorized();
+  if (!auth.isAuthenticated) return unauthorized("Unauthorized", auth.reason);
 
   try {
     const body = (await request.json().catch(() => ({}))) as { id?: string };

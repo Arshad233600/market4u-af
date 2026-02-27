@@ -42,8 +42,15 @@ export function error(message: string, status = 400, details?: Record<string, un
 /**
  * Unauthorized response
  */
-export function unauthorized(message = "Unauthorized"): HttpResponseInit {
-  return error(message, 401);
+export function unauthorized(message = "Unauthorized", reason?: string): HttpResponseInit {
+  return {
+    status: 401,
+    jsonBody: {
+      success: false,
+      error: message,
+      ...(reason && { reason }),
+    } as ApiResponse,
+  };
 }
 
 /**

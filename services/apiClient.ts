@@ -5,11 +5,27 @@ import { toastService } from './toastService';
 
 /** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
 export class AuthError extends Error {
-  constructor() {
+  /** Structured reason returned by the backend, e.g. "token_expired". */
+  readonly reason?: string;
+  constructor(reason?: string) {
     super('نشست شما منقضی شده است.');
     this.name = 'AuthError';
+    this.reason = reason;
   }
 }
+
+/**
+ * Reasons that indicate a definitive, unrecoverable auth failure.
+ * On these reasons the client should log out immediately rather than
+ * attempting a soft-fail / retry.
+ */
+const DEFINITIVE_AUTH_REASONS = new Set([
+  'signature_mismatch',
+  'token_expired',
+  'missing_auth_secret',
+  'insecure_default_secret',
+  'invalid_token',
+]);
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -78,23 +94,41 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // should redirect to login rather than call logout() which dispatches auth-change.
     if (response.status === 401) {
       const storedToken = authService.getToken(); // re-check after possible mock-token cleanup
+
+      // Parse structured reason from backend response (may be absent for older responses).
+      // response.json() is consumed only once here; all paths in the 401 block throw, so
+      // the body stream is never read a second time further down.
+      let reason: string | undefined;
+      try {
+        const errBody = await response.json().catch(() => ({})) as { reason?: string; error?: string };
+        reason = errBody.reason;
+      } catch { /* ignore parse failures */ }
+
+      const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
+      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${logReason}`);
+
+      // Definitive reasons: logout immediately (no retry window needed)
+      if (reason && DEFINITIVE_AUTH_REASONS.has(reason)) {
+        authService.logout();
+        toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+        throw new AuthError(reason);
+      }
+
       const failureKey = `${method}:${endpoint}`;
       const lastFailure = recentAuthFailures.get(failureKey) ?? 0;
       const isRecentFailure = Date.now() - lastFailure < AUTH_FAILURE_WINDOW_MS;
       recentAuthFailures.set(failureKey, Date.now());
 
-      console.warn(`[apiClient] 401 on ${method} ${endpoint} — reason: ${storedToken ? 'token_rejected_by_server' : 'no_token'}`);
-
       if (!isRecentFailure) {
         // First 401 within window: token may have just been cleaned up (mock token).
-        // Throw AuthError without calling logout so the UI can redirect to login.
-        throw new AuthError();
+        // Throw AuthError without calling logout so the UI can show a soft warning.
+        throw new AuthError(reason ?? logReason);
       }
 
       // Repeated 401 within window: genuine session expiry — log out the user.
       authService.logout();
       toastService.warning('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-      throw new AuthError();
+      throw new AuthError(reason ?? logReason);
     }
 
     // 5xx Server Errors - Retryable
