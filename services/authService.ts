@@ -33,7 +33,17 @@ export const authService = {
   // Get JWT Token for API Calls
   getToken: (): string | null => {
     try {
-      return safeStorage.getItem(STORAGE_KEY_TOKEN);
+      const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
+      if (!token) return null;
+      // In production mode, mock tokens from a previous demo/mock session are invalid
+      // against the real backend and would trigger an immediate 401 → logout loop.
+      // Detect and clear them so the user is shown the login screen cleanly.
+      if (!USE_MOCK_DATA && (token.startsWith('mock_token_') || token.startsWith('google_mock_token'))) {
+        safeStorage.removeItem(STORAGE_KEY_TOKEN);
+        safeStorage.removeItem(STORAGE_KEY_USER);
+        return null;
+      }
+      return token;
     } catch {
       return null;
     }
