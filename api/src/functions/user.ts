@@ -1,14 +1,13 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 import * as sql from "mssql";
 
 export async function getUserProfile(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const auth = validateToken(request);
-    if (!auth.isAuthenticated) {
-        return { status: 401, body: JSON.stringify({ message: "لطفا وارد حساب کاربری شوید." }) };
-    }
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
 
     try {
         const pool = await getPool();
@@ -32,9 +31,8 @@ export async function getUserProfile(request: HttpRequest, context: InvocationCo
 
 export async function updateUserProfile(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const auth = validateToken(request);
-    if (!auth.isAuthenticated) {
-        return { status: 401, body: "Unauthorized" };
-    }
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
 
     try {
         const body = await request.json() as any;
@@ -80,9 +78,8 @@ app.http('updateUserProfile', {
 
 export async function deleteAccount(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const auth = validateToken(request);
-    if (!auth.isAuthenticated) {
-        return { status: 401, body: JSON.stringify({ message: "لطفا وارد حساب کاربری شوید." }) };
-    }
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
 
     try {
         const pool = await getPool();

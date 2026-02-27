@@ -1,12 +1,13 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
-import { unauthorized, serverError } from "../utils/responses";
+import { validateToken, authResponse } from "../utils/authUtils";
+import { serverError } from "../utils/responses";
 
 export async function getWalletTransactions(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return unauthorized("Unauthorized", auth.reason);
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const pool = await getPool();
@@ -36,7 +37,8 @@ app.http("getWalletTransactions", {
 
 export async function topUpWallet(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) return unauthorized("Unauthorized", auth.reason);
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const body = (await request.json()) as { amount?: number; description?: string; referenceId?: string };

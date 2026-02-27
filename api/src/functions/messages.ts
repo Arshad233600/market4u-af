@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -9,9 +9,8 @@ function errMessage(err: unknown): string {
 
 export async function getInbox(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const pool = await getPool();
@@ -62,9 +61,8 @@ export async function getInbox(request: HttpRequest, context: InvocationContext)
 
 export async function getThread(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const otherUserId = request.params?.userId;
   if (!otherUserId) {
@@ -119,9 +117,8 @@ export async function getThread(request: HttpRequest, context: InvocationContext
 
 export async function sendMessage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   try {
     const body = (await request.json()) as any;
@@ -193,9 +190,8 @@ app.http("sendMessage", {
 
 export async function deleteMessage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason } };
-  }
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
 
   const messageId = request.params?.messageId;
   if (!messageId) {

@@ -1,7 +1,8 @@
 
-import { HttpRequest } from "@azure/functions";
+import { HttpRequest, HttpResponseInit } from "@azure/functions";
 import { Buffer } from "buffer";
 import crypto from "crypto";
+import { unauthorized, serviceUnavailable } from "./responses";
 
 export const TOKEN_EXPIRATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
@@ -125,3 +126,25 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         return { userId: null, isAuthenticated: false, reason: "invalid_token" };
     }
 };
+
+/** Auth reasons that indicate server misconfiguration rather than a bad client token. */
+const MISCONFIGURED_REASONS = new Set(['missing_auth_secret', 'insecure_default_secret']);
+
+/**
+ * Returns the appropriate HTTP error response for a failed AuthResult.
+ * - Returns null when authentication succeeded (no error to return).
+ * - Returns 503 when AUTH_SECRET is missing or insecure (server misconfiguration).
+ * - Returns 401 for all other auth failures (bad/expired/missing token).
+ *
+ * Usage in handlers:
+ *   const auth = validateToken(request);
+ *   const authErr = authResponse(auth);
+ *   if (authErr) return authErr;
+ */
+export function authResponse(auth: AuthResult): HttpResponseInit | null {
+  if (auth.isAuthenticated) return null;
+  if (auth.reason && MISCONFIGURED_REASONS.has(auth.reason)) {
+    return serviceUnavailable(auth.reason);
+  }
+  return unauthorized('Unauthorized', auth.reason);
+}
