@@ -270,13 +270,6 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
                   <span>مدیریت</span>
                 </button>
               )}
-              <button
-                onClick={() => onNavigate(Page.DASHBOARD)}
-                className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center text-white shadow-glow hover:shadow-glow-lg transition-all press"
-                aria-label="پروفایل کاربری"
-              >
-                <Icon name="User" size={17} strokeWidth={2} className="text-white" />
-              </button>
             </div>
           ) : (
             <button

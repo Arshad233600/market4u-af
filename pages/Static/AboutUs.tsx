@@ -11,8 +11,18 @@ interface StaticPageProps {
 const AboutUs: React.FC<StaticPageProps> = ({ onNavigate }) => {
   return (
     <div className="bg-ui-surface min-h-screen pb-12">
+      {/* Back Button */}
+      <div className="max-w-5xl mx-auto px-4 pt-4">
+        <button
+          onClick={() => onNavigate(Page.HOME)}
+          className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors"
+          aria-label="بازگشت"
+        >
+          <Icon name="ArrowRight" size={20} strokeWidth={2} />
+        </button>
+      </div>
       {/* Hero Section */}
-      <div className="bg-brand-900 text-white py-16 px-4 text-center relative overflow-hidden">
+      <div className="bg-brand-900 text-white py-16 px-4 text-center relative overflow-hidden mt-4">
          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
          <h1 className="text-3xl md:text-5xl font-bold mb-6 relative z-10">درباره ما – Market4U</h1>
          <p className="text-brand-100 max-w-3xl mx-auto text-lg leading-relaxed relative z-10">

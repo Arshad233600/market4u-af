@@ -2,11 +2,23 @@
 import React from 'react';
 import { UserX } from 'lucide-react';
 import Icon from '../../src/components/ui/Icon';
+import { Page } from '../../types';
 
-const PrivacyPolicy: React.FC = () => {
+interface StaticPageProps {
+  onNavigate: (page: Page) => void;
+}
+
+const PrivacyPolicy: React.FC<StaticPageProps> = ({ onNavigate }) => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 pb-20 bg-ui-surface">
       <div className="flex items-center gap-3 mb-8 pb-4 border-b">
+         <button
+           onClick={() => onNavigate(Page.HOME)}
+           className="p-2 rounded-xl bg-ui-surface2 text-ui-muted hover:text-ui-text hover:bg-ui-surface3 border border-ui-border transition-colors shrink-0"
+           aria-label="بازگشت"
+         >
+           <Icon name="ArrowRight" size={20} strokeWidth={2} />
+         </button>
          <div className="bg-brand-50 p-3 rounded-2xl">
             <Icon name="Lock" size={24} strokeWidth={1.8} className="text-brand-600" />
          </div>

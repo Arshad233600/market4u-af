@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   TrendingUp, Wallet, Plus, AlertTriangle, Eye, MousePointerClick,
-  MessageSquare, Zap, Activity, Clock
+  MessageSquare, Zap, Activity, Clock, LogOut
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
 import { AuthError } from '../../services/apiClient';
@@ -11,6 +11,7 @@ import { authService } from '../../services/authService';
 
 interface OverviewProps {
   onNavigate: (page: Page) => void;
+  onLogout: () => void;
 }
 
 interface StatCardProps {
@@ -59,7 +60,7 @@ const StatCard = ({ title, value, icon: IconComponent, color, trend, onClick }: 
     );
 };
 
-const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
+const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
   const [isAuthError, setIsAuthError] = useState(false);
@@ -166,6 +167,13 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate }) => {
            >
              <Plus className="w-4 h-4 text-white" />
              ثبت آگهی جدید
+           </button>
+           <button
+             onClick={onLogout}
+             className="flex items-center gap-2 px-4 py-2 bg-ui-danger/10 text-ui-danger rounded-xl text-sm font-bold border border-ui-danger/20 hover:bg-ui-danger/20 transition-colors"
+           >
+             <LogOut className="w-4 h-4" />
+             <span className="hidden sm:inline">خروج</span>
            </button>
         </div>
       </div>
