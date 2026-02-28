@@ -4,6 +4,7 @@ import { Page } from '../../types';
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
 import { safeStorage } from '../../utils/safeStorage';
+import { apiClient, AuthError } from '../../services/apiClient';
 
 const STORAGE_BLOCKED_MSG = 'مرورگر اجازه ذخیره‌سازی را نمیدهد. لطفاً از حالت عادی Safari یا Chrome استفاده کنید.';
 
@@ -24,6 +25,7 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
     setIsLoading(true);
     try {
       await authService.login(email, password);
+      await verifySessionAfterLogin();
       onLoginSuccess();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'ورود ناموفق بود. لطفاً اطلاعات خود را بررسی کنید.';
@@ -37,11 +39,32 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
     setIsGoogleLoading(true);
     try {
       await authService.loginWithGoogle();
+      await verifySessionAfterLogin();
       onLoginSuccess();
     } catch {
       toastService.error('خطا در اتصال به گوگل. لطفاً دوباره امتحان کنید.');
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  /**
+   * Calls /api/auth/me immediately after a successful login to verify the token
+   * is readable by the server. If this returns 401, it is a strong signal that
+   * either storage is blocked (token was not persisted) or AUTH_SECRET mismatch.
+   */
+  const verifySessionAfterLogin = async () => {
+    try {
+      await apiClient.get('/auth/me', { silent: true });
+    } catch (err) {
+      if (err instanceof AuthError) {
+        console.warn('[Login] login_ok_but_me_401', {
+          storageMode: safeStorage.getMode(),
+          storageAvailable: safeStorage.isAvailable(),
+          storageTest: safeStorage.selfTest(),
+          reason: err.reason,
+        });
+      }
     }
   };
 

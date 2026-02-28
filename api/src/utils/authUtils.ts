@@ -47,10 +47,19 @@ export interface AuthResult {
     userId: string | null;
     isAuthenticated: boolean;
     reason?: string;
+    requestId?: string;
 }
+
+/** Stores the most recent auth failure sample for the diagnostics/auth endpoint. */
+export let lastAuthFailureSample: { requestId: string; reason: string; timestamp: string } | null = null;
 
 export const validateToken = (request: HttpRequest): AuthResult => {
     const correlationId = request.headers.get('x-client-request-id') ?? 'no-correlation-id';
+    const hasAuthHeader = Boolean(request.headers.get('authorization'));
+    const method = request.method;
+    // Extract path from URL (strip query string) for safe logging
+    let endpoint = 'unknown';
+    try { endpoint = new URL(request.url).pathname; } catch { /* ignore */ }
 
     // 1. Check for Azure Static Web Apps Built-in Auth Header
     const swaHeader = request.headers.get("x-ms-client-principal");
@@ -58,7 +67,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         try {
             const decoded = JSON.parse(Buffer.from(swaHeader, 'base64').toString('utf-8'));
             if (decoded && decoded.userId) {
-                return { userId: decoded.userId, isAuthenticated: true };
+                return { userId: decoded.userId, isAuthenticated: true, requestId: correlationId };
             }
         } catch (e) {
             console.error("SWA Auth Decode Error", e);
@@ -68,8 +77,10 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     const authHeader = request.headers.get("authorization");
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        console.warn(`[auth] missing_token correlationId=${correlationId}`);
-        return { userId: null, isAuthenticated: false, reason: "missing_token" };
+        const reason = "missing_token";
+        lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+        console.warn(`[auth] auth_failed reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+        return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 
     const token = authHeader.split(" ")[1];
@@ -79,11 +90,14 @@ export const validateToken = (request: HttpRequest): AuthResult => {
       secret = getAuthSecretOrThrow();
     } catch (err) {
       const isInsecureDefault = (err as Error).message.includes('insecure default');
-      console.warn('[Auth] Token validation skipped:', (err as Error).message, `correlationId=${correlationId}`);
+      const reason = isInsecureDefault ? 'insecure_default_secret' : 'missing_auth_secret';
+      lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+      console.warn('[Auth] Token validation skipped:', (err as Error).message, `reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
       return {
         userId: null,
         isAuthenticated: false,
-        reason: isInsecureDefault ? 'insecure_default_secret' : 'missing_auth_secret',
+        reason,
+        requestId: correlationId,
       };
     }
     
@@ -91,8 +105,10 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         // Token format: base64url(payload).base64url(signature)
         const parts = token.split('.');
         if (parts.length !== 2) {
-            console.warn("[Auth] Token validation failed: unexpected token format (parts=" + parts.length + ") correlationId=" + correlationId);
-            return { userId: null, isAuthenticated: false, reason: "invalid_token" };
+            const reason = "invalid_token";
+            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+            console.warn(`[Auth] auth_failed reason=${reason} cause=unexpected_format parts=${parts.length} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
         }
 
         const [payloadB64, sigB64] = parts;
@@ -100,8 +116,10 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         // Verify signature
         const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
         if (sigB64 !== expectedSig) {
-            console.warn("[Auth] Token validation failed: signature mismatch — likely AUTH_SECRET mismatch between deployments correlationId=" + correlationId);
-            return { userId: null, isAuthenticated: false, reason: "signature_mismatch" };
+            const reason = "signature_mismatch";
+            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+            console.warn(`[Auth] auth_failed reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
         }
 
         // Decode payload
@@ -109,21 +127,27 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         const payload = JSON.parse(payloadJson);
 
         if (!payload.uid) {
-            console.warn("[Auth] Token validation failed: missing uid claim correlationId=" + correlationId);
-            return { userId: null, isAuthenticated: false, reason: "invalid_token" };
+            const reason = "invalid_token";
+            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+            console.warn(`[Auth] auth_failed reason=${reason} cause=missing_uid requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
         }
 
-        // Check token age (30 days)
+        // Check token age (1 year)
         const tokenAge = Date.now() - (payload.iat || 0);
         if (tokenAge > TOKEN_EXPIRATION_MS) {
-            console.warn(`[Auth] Token expired: age=${tokenAge}ms correlationId=${correlationId}`);
-            return { userId: null, isAuthenticated: false, reason: "token_expired" };
+            const reason = "token_expired";
+            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+            console.warn(`[Auth] auth_failed reason=${reason} ageMs=${tokenAge} userId=${payload.uid} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
         }
 
-        return { userId: payload.uid, isAuthenticated: true };
+        return { userId: payload.uid, isAuthenticated: true, requestId: correlationId };
     } catch {
-        console.warn(`[Auth] Token decode error correlationId=${correlationId}`);
-        return { userId: null, isAuthenticated: false, reason: "invalid_token" };
+        const reason = "invalid_token";
+        lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+        console.warn(`[Auth] auth_failed reason=${reason} cause=decode_error requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+        return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 };
 
@@ -146,5 +170,5 @@ export function authResponse(auth: AuthResult): HttpResponseInit | null {
   if (auth.reason && MISCONFIGURED_REASONS.has(auth.reason)) {
     return serviceUnavailable(auth.reason);
   }
-  return unauthorized('Unauthorized', auth.reason);
+  return unauthorized('Unauthorized', auth.reason, auth.requestId);
 }
