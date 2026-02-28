@@ -71,6 +71,11 @@ export const apiClient = {
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Rate-limit 401 diagnostic logging to at most once per 60 seconds to prevent spam
+// (especially on iOS Safari where polling endpoints may trigger many 401s).
+let last401LogTime = 0;
+const LOG_401_COOLDOWN_MS = 60_000;
+
 // Deduplicate concurrent token refresh calls: at most one refresh request is
 // in-flight at any time. Subsequent callers await the same promise.
 let pendingRefreshPromise: Promise<string | null> | null = null;
@@ -171,12 +176,21 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
       const storedToken = authService.getToken();
       const logReason = reason ?? (storedToken ? 'token_rejected_by_server' : 'no_token');
-      console.warn(
-        `[apiClient] 401 on ${method} ${endpoint}`,
-        `reason: ${logReason}`,
-        `requestId: ${responseRequestId ?? correlationId}`,
-        `hasToken: ${Boolean(storedToken)}`
-      );
+
+      // Diagnostic log with cooldown (max once per 60s) to prevent iOS Safari polling spam
+      const now = Date.now();
+      if (now - last401LogTime >= LOG_401_COOLDOWN_MS) {
+        last401LogTime = now;
+        console.warn(
+          `[apiClient] 401 on ${method} ${endpoint}`,
+          `reason: ${logReason}`,
+          `requestId: ${responseRequestId ?? correlationId}`,
+          `hasToken: ${Boolean(storedToken)}`,
+          `storageMode: ${safeStorage.getMode()}`,
+          `storageAvailable: ${safeStorage.isAvailable()}`,
+          `responseBody: ${JSON.stringify({ reason, requestId: responseRequestId })}`,
+        );
+      }
 
       // When storage is blocked (Safari ITP / private browsing), a 401 means the
       // browser cannot persist credentials — not that the session is invalid.

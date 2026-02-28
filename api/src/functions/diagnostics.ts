@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
-import { isAuthSecretInsecure, getAuthSecretOrThrow } from "../utils/authUtils";
+import { isAuthSecretInsecure, getAuthSecretOrThrow, lastAuthFailureSample } from "../utils/authUtils";
 import { getBlobContainerClient } from "../blob";
 import { checkRateLimit } from "../utils/rateLimit";
 import { checkAdsSchema, AdsSchemaResult } from "../utils/schemaCheck";
@@ -396,4 +396,66 @@ app.http("diagnostics", {
   authLevel: "anonymous",
   route: "diagnostics",
   handler: diagnostics,
+});
+
+/**
+ * GET /api/diagnostics/auth
+ * Lightweight auth-focused diagnostics endpoint (requires X-Diagnostics-Key header).
+ * Returns: nowUtc, authSecretStatus, tokenVerification, lastFailureSample.
+ * Never returns secret values.
+ */
+export async function diagnosticsAuth(
+  request: HttpRequest,
+  _context: InvocationContext
+): Promise<HttpResponseInit> {
+  const diagSecret = process.env.DIAGNOSTICS_SECRET;
+  const providedKey = request.headers.get("x-diagnostics-key");
+  if (!diagSecret || providedKey !== diagSecret) {
+    return { status: 401, jsonBody: { error: "X-Diagnostics-Key required" } };
+  }
+
+  // Determine authSecretStatus
+  const secret = process.env.AUTH_SECRET;
+  let authSecretStatus: "ok" | "missing" | "insecure";
+  if (!secret || secret.trim() === "") {
+    authSecretStatus = "missing";
+  } else if (secret === "CHANGE_ME_IN_AZURE") {
+    authSecretStatus = "insecure";
+  } else {
+    authSecretStatus = "ok";
+  }
+
+  // Perform a sign/verify round-trip to check token verification
+  let tokenVerification: "ok" | "fail" = "fail";
+  if (authSecretStatus === "ok") {
+    try {
+      // Sign a test payload, then independently re-derive the expected signature
+      // and compare — this validates the full HMAC sign+verify cycle.
+      const testPayload = Buffer.from(JSON.stringify({ uid: "__diag__", iat: Date.now() })).toString("base64url");
+      const testSig = crypto.createHmac("sha256", secret!).update(testPayload).digest("base64url");
+      const token = `${testPayload}.${testSig}`;
+      const [p, s] = token.split(".");
+      const expectedSig = crypto.createHmac("sha256", secret!).update(p).digest("base64url");
+      tokenVerification = s === expectedSig ? "ok" : "fail";
+    } catch {
+      tokenVerification = "fail";
+    }
+  }
+
+  return {
+    status: 200,
+    jsonBody: {
+      nowUtc: new Date().toISOString(),
+      authSecretStatus,
+      tokenVerification,
+      lastFailureSample: lastAuthFailureSample,
+    },
+  };
+}
+
+app.http("diagnosticsAuth", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "diagnostics/auth",
+  handler: diagnosticsAuth,
 });

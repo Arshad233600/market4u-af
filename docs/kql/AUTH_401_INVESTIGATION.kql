@@ -1,0 +1,77 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH 401 INVESTIGATION — Application Insights KQL Bundle
+// Repo: market4u-af
+// Purpose: Correlate 401 failures across client and server using requestId
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Query 1: All 401s grouped by reason in last 24h ──────────────────────────
+requests
+| where timestamp > ago(24h)
+| where resultCode == "401"
+| summarize count() by name, tostring(customDimensions.reason)
+| order by count_ desc
+
+// ── Query 2: Filter all telemetry by a specific requestId ────────────────────
+// Replace <REQUEST_ID> with the value from client or server logs.
+let rid = "<REQUEST_ID>";
+union requests, traces, exceptions, dependencies
+| where timestamp > ago(7d)
+| where tostring(customDimensions.requestId) == rid
+    or tostring(customDimensions["x-client-request-id"]) == rid
+    or operation_Id == rid
+| project timestamp, itemType, name, message, resultCode, customDimensions
+| order by timestamp asc
+
+// ── Query 3: Endpoints producing the most 401s in last 24h ───────────────────
+requests
+| where timestamp > ago(24h)
+| where resultCode == "401"
+| summarize count() by name
+| order by count_ desc
+| take 10
+
+// ── Query 4: Correlate traces + exceptions + requests + deps by requestId ────
+// Full correlation bundle for a specific correlation ID across all telemetry.
+let rid = "<REQUEST_ID>";
+let t = traces
+    | where timestamp > ago(7d)
+    | where message has "auth_failed" or message has "[apiClient]" or message has "[Auth]"
+    | where tostring(customDimensions.requestId) == rid
+        or message has rid
+    | project timestamp, itemType="trace", name=message, details=tostring(customDimensions);
+let r = requests
+    | where timestamp > ago(7d)
+    | where tostring(customDimensions["x-client-request-id"]) == rid
+    | project timestamp, itemType="request", name, details=strcat("status=", resultCode);
+let e = exceptions
+    | where timestamp > ago(7d)
+    | where tostring(customDimensions.requestId) == rid or outerMessage has rid
+    | project timestamp, itemType="exception", name=type, details=outerMessage;
+let d = dependencies
+    | where timestamp > ago(7d)
+    | where tostring(customDimensions["x-client-request-id"]) == rid
+    | project timestamp, itemType="dependency", name, details=strcat("success=", tostring(success));
+union t, r, e, d
+| order by timestamp asc
+
+// ── Query 5: Reason breakdown for all auth failures in last 7d ───────────────
+traces
+| where timestamp > ago(7d)
+| where message has "auth_failed"
+| extend reason = extract(@"reason=(\S+)", 1, message)
+| summarize count() by reason
+| order by count_ desc
+
+// ── Query 6: Clients with storage mode "memory" (storage blocked) ────────────
+traces
+| where timestamp > ago(24h)
+| where message has "storageMode: memory"
+| project timestamp, message, customDimensions
+| order by timestamp desc
+
+// ── Query 7: login_ok_but_me_401 events (token not readable after login) ─────
+traces
+| where timestamp > ago(24h)
+| where message has "login_ok_but_me_401"
+| project timestamp, message, customDimensions
+| order by timestamp desc

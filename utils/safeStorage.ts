@@ -95,6 +95,34 @@ class SafeStorage {
   isAvailable(): boolean {
     return this.backend !== 'memory';
   }
+
+  /** Returns the active storage backend ("local", "session", or "memory"). */
+  getMode(): 'local' | 'session' | 'memory' {
+    if (this.backend === 'localStorage') return 'local';
+    if (this.backend === 'sessionStorage') return 'session';
+    return 'memory';
+  }
+
+  /**
+   * Performs a live read/write self-test on both storage backends.
+   * Returns { localOk, sessionOk } without throwing.
+   */
+  selfTest(): { localOk: boolean; sessionOk: boolean } {
+    const testKey = '__storage_selftest__';
+    let localOk = false;
+    let sessionOk = false;
+    try {
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+      localOk = true;
+    } catch { /* blocked */ }
+    try {
+      sessionStorage.setItem(testKey, '1');
+      sessionStorage.removeItem(testKey);
+      sessionOk = true;
+    } catch { /* blocked */ }
+    return { localOk, sessionOk };
+  }
 }
 
 export const safeStorage = new SafeStorage();
