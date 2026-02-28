@@ -154,7 +154,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       `[apiClient] ${method} ${endpoint} hasAuth=${hasAuth} tokenLength=${tokenLength}${hasAuth && tokenPrefix ? ` tokenPrefix=${tokenPrefix}` : ''} storage=${storageMode} caller=${callerStack}`
     );
     if (!hasAuth) {
-      console.warn(`[apiClient] missing auth header for ${method} ${endpoint} — storage may be blocked caller=${callerStack}`);
+      console.warn(`[apiClient] token missing for protected endpoint ${method} ${endpoint} caller=${callerStack}`);
     }
   }
 

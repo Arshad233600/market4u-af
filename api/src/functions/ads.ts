@@ -201,8 +201,9 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
 
 export async function getMyAds(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  const authErr = authResponse(auth);
-  if (authErr) return authErr;
+  if (!auth.isAuthenticated) {
+    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason, category: "AUTH_REQUIRED" } };
+  }
 
   try {
     const pool = await getPool();
