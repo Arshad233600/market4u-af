@@ -2,7 +2,7 @@
 /**
  * End-to-end smoke test
  *
- * Flow: Login → POST /api/ads → GET /api/ads/my-ads → verify created adId exists
+ * Flow: GET /api/ads (public) → Login → POST /api/ads → GET /api/ads/my-ads → verify created adId exists
  *
  * Required environment variables:
  *   SMOKE_TEST_BASE_URL  – base URL of the deployed API, e.g. https://my-app.azurestaticapps.net
@@ -32,6 +32,19 @@ let failures = 0;
 function pass(msg) { console.log(`  PASS  ${msg}`); }
 function fail(msg) { console.error(`  FAIL  ${msg}`); failures++; }
 function assert(condition, msg) { condition ? pass(msg) : fail(msg); }
+
+// ---------------------------------------------------------------------------
+// Step 0: GET /api/ads (public – no authentication required)
+// ---------------------------------------------------------------------------
+console.log('\n[0/3] GET /api/ads (public endpoint – no auth)');
+
+const publicAdsRes = await fetch(`${BASE_URL}/api/ads`);
+
+assert(
+  publicAdsRes.status !== 401,
+  `GET /api/ads is accessible without authentication (got ${publicAdsRes.status}, expected non-401)`
+);
+assert(publicAdsRes.ok, `GET /api/ads responds 2xx (got ${publicAdsRes.status})`);
 
 // ---------------------------------------------------------------------------
 // Step 1: Login

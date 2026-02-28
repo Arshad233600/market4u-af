@@ -594,8 +594,16 @@ export const azureService = {
     if (filters.maxPrice) params.append('maxPrice', String(filters.maxPrice));
     if (filters.sort) params.append('sort', filters.sort);
     const qs = params.toString();
-    const data = await apiClient.get<AdRow[]>(`/ads${qs ? '?' + qs : ''}`);
-    return mapAdsToProducts(data);
+    try {
+      const data = await apiClient.get<AdRow[]>(`/ads${qs ? '?' + qs : ''}`);
+      return mapAdsToProducts(data);
+    } catch (err: unknown) {
+      if (err instanceof AuthError) {
+        console.error('[azureService.searchAds] Unexpected 401 on public /ads endpoint – possible configuration issue. Returning empty list as fallback.');
+        return [];
+      }
+      throw err;
+    }
   },
 
   getSearchSuggestions: async (q: string): Promise<string[]> => {
