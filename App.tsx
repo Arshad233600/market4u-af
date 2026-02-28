@@ -276,7 +276,11 @@ const AppContent: React.FC = () => {
           <Home onProductClick={handleProductClick} searchQuery={searchQuery} onNavigate={navigateTo as any} onLocationChange={setCurrentLocationName} />
         );
       case Page.POST_AD:
-        return <PostAd onNavigate={navigateTo} />;
+        return user ? (
+          <PostAd onNavigate={navigateTo} />
+        ) : (
+          <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />
+        );
       case Page.EDIT_AD:
         return user && productToEdit ? (
           <PostAd onNavigate={navigateTo} existingAd={productToEdit} />
