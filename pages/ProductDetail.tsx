@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { authService } from '../services/authService';
 import OptimizedImage from '../components/OptimizedImage';
 import { toastService } from '../services/toastService';
+import { safeStorage } from '../utils/safeStorage';
 
 const CONDITION_LABELS: Record<ProductCondition, { label: string; color: string; icon: string }> = {
   new: { label: 'نو', color: 'bg-ui-success/20 text-ui-success border-ui-success/30', icon: 'Sparkles' },
@@ -91,16 +92,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
       setIsStartingChat(false);
       
       if (conversationId) {
-          // Store chat context so the Messages page can pre-select this conversation
-          try {
-              sessionStorage.setItem('pending_chat', JSON.stringify({
-                  id: conversationId,
-                  otherUserId: product.userId,
-                  otherUserName: product.sellerName,
-                  productId: product.id,
-                  productTitle: product.title,
-              }));
-          } catch { /* ignore storage errors */ }
+          // Store chat context so the Messages page can pre-select this conversation.
+          // safeStorage falls back: localStorage → sessionStorage → in-memory,
+          // so the context survives even when Safari blocks both web storages.
+          safeStorage.setItem('pending_chat', JSON.stringify({
+              id: conversationId,
+              otherUserId: product.userId,
+              otherUserName: product.sellerName,
+              productId: product.id,
+              productTitle: product.title,
+          }));
           onNavigate(Page.DASHBOARD_CHAT);
       }
   };

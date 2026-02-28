@@ -9,6 +9,7 @@ import { realtimeService } from '../../services/realtimeService';
 import { ChatConversation, ChatMessage } from '../../types';
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
+import { safeStorage } from '../../utils/safeStorage';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -85,11 +86,12 @@ const Messages: React.FC = () => {
       try {
           const data = await azureService.getConversations();
 
-          // Check for a pending chat context stored by ProductDetail navigation
-          const pendingChatStr = sessionStorage.getItem('pending_chat');
+          // Check for a pending chat context stored by ProductDetail navigation.
+          // safeStorage falls back: localStorage → sessionStorage → in-memory.
+          const pendingChatStr = safeStorage.getItem('pending_chat');
           if (pendingChatStr) {
               try {
-                  sessionStorage.removeItem('pending_chat');
+                  safeStorage.removeItem('pending_chat');
                   const pendingChat = JSON.parse(pendingChatStr) as {
                       id: string;
                       otherUserId: string;
