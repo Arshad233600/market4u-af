@@ -301,6 +301,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       // Upfront token check: block submission if no token or token is expired.
       if (!authService.getToken() || authService.isTokenExpired()) {
           toastService.error('لطفاً ابتدا وارد شوید تا بتوانید آگهی ثبت کنید.');
+          onNavigate(Page.LOGIN);
           return;
       }
       
@@ -334,9 +335,11 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           }
       } catch (err) {
           // AuthError: the server rejected the token (missing, expired, or invalid).
-          // Show a user-friendly message so the user knows they need to log in again.
+          // Invalidate the stale session and navigate to login so the user can re-authenticate.
           if (err instanceof AuthError) {
               toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+              authService.onAuthInvalid(err.reason ?? 'auth_error_post_ad');
+              onNavigate(Page.LOGIN);
           } else if (err instanceof ApiError) {
               const cat = err.category?.toUpperCase();
               const reqId = err.requestId ?? null;
