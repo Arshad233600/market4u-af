@@ -1,7 +1,16 @@
+import * as appInsights from "applicationinsights";
+
+// Initialize Application Insights once at startup so all function modules
+// that reference appInsights.defaultClient get a properly configured client.
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
+}
+
 import "./functions/ads";
 import "./functions/admin";
 import "./functions/auth";
 import "./functions/dashboard";
+import "./functions/diagnostics";
 import "./functions/favorites";
 import "./functions/messages";
 import "./functions/generateDescription";
