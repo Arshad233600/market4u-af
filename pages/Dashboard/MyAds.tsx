@@ -9,6 +9,7 @@ import { azureService } from '../../services/azureService';
 import { Product, AdStatus } from '../../types';
 import { APP_STRINGS } from '../../constants';
 import { toastService } from '../../services/toastService';
+import { AuthError } from '../../services/apiClient';
 
 interface MyAdsProps {
     onEdit?: (product: Product) => void;
@@ -16,6 +17,7 @@ interface MyAdsProps {
 
 const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
   const [ads, setAds] = useState<Product[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ALL' | AdStatus>('ALL');
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
   const [promoteModalAd, setPromoteModalAd] = useState<Product | null>(null);
@@ -26,7 +28,11 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       try {
         const data = await azureService.getMyAds();
         setAds(data);
-      } catch {
+      } catch (err) {
+        const msg = err instanceof AuthError
+          ? 'خطای احراز هویت. لطفاً دوباره وارد شوید.'
+          : (err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها');
+        setLoadError(msg);
         setAds([]);
       }
     };
@@ -104,6 +110,13 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       clicks: Math.floor(views * 0.15),
       ctr: ((Math.floor(views * 0.15) / views) * 100).toFixed(1)
   });
+
+  if (loadError) return (
+    <div role="alert" className="flex flex-col items-center justify-center h-64 gap-4">
+      <AlertCircle aria-hidden="true" className="w-12 h-12 text-red-500" />
+      <p className="text-ui-muted font-medium text-center max-w-sm">{loadError}</p>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
