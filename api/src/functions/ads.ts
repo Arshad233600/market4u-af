@@ -6,18 +6,6 @@ import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 import { checkAdsSchema } from "../utils/schemaCheck";
 
-// In-memory rate limit for anonymous (unauthenticated) submissions: IP → last submission timestamp.
-const guestRateLimit = new Map<string, number>();
-const GUEST_RATE_LIMIT_MS = 60000; // 1 minute
-
-/** Remove stale guest rate limit entries to prevent unbounded memory growth. */
-function pruneGuestRateLimit(): void {
-  const cutoff = Date.now() - GUEST_RATE_LIMIT_MS;
-  for (const [ip, ts] of guestRateLimit) {
-    if (ts < cutoff) guestRateLimit.delete(ip);
-  }
-}
-
 /** Interface for database image record */
 interface ImageRecord {
   Url: string;
