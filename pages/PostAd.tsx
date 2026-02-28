@@ -298,8 +298,8 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       }
       setFieldErrors({});
 
-      // Upfront token check: block submission if no token without navigating away.
-      if (!authService.getToken()) {
+      // Upfront token check: block submission if no token or token is expired.
+      if (!authService.getToken() || authService.isTokenExpired()) {
           toastService.error('لطفاً ابتدا وارد شوید تا بتوانید آگهی ثبت کنید.');
           return;
       }
@@ -333,31 +333,31 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               toastService.error(resolveAdPostError());
           }
       } catch (err) {
-          // AuthError: apiClient already showed an auth warning toast via warnIfAuthenticated().
-          // For non-auth errors (network, DB, validation, etc.) resolve a descriptive message.
-          if (!(err instanceof AuthError)) {
-              if (err instanceof ApiError) {
-                  const cat = err.category?.toUpperCase();
-                  const reqId = err.requestId ?? null;
-                  if (!reqId) {
-                      console.warn('[PostAd] error response missing requestId — full error:', err);
-                  }
-                  if (cat === 'VALIDATION') {
-                      toastService.error(resolveAdPostError(err.message));
-                  } else if (cat === 'DB_UNAVAILABLE' || cat === 'STORAGE_ERROR') {
-                      toastService.error('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
-                  } else {
-                      // UNEXPECTED or unknown: show full requestId and instruct contact support
-                      const msg = 'خطای سرور. برای پیگیری با پشتیبانی تماس بگیرید.';
-                      if (reqId) {
-                          toastService.errorWithId(msg, reqId);
-                      } else {
-                          toastService.error(`${msg} [ID: missing]`);
-                      }
-                  }
-              } else {
-                  toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
+          // AuthError: the server rejected the token (missing, expired, or invalid).
+          // Show a user-friendly message so the user knows they need to log in again.
+          if (err instanceof AuthError) {
+              toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+          } else if (err instanceof ApiError) {
+              const cat = err.category?.toUpperCase();
+              const reqId = err.requestId ?? null;
+              if (!reqId) {
+                  console.warn('[PostAd] error response missing requestId — full error:', err);
               }
+              if (cat === 'VALIDATION') {
+                  toastService.error(resolveAdPostError(err.message));
+              } else if (cat === 'DB_UNAVAILABLE' || cat === 'STORAGE_ERROR') {
+                  toastService.error('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
+              } else {
+                  // UNEXPECTED or unknown: show full requestId and instruct contact support
+                  const msg = 'خطای سرور. برای پیگیری با پشتیبانی تماس بگیرید.';
+                  if (reqId) {
+                      toastService.errorWithId(msg, reqId);
+                  } else {
+                      toastService.error(`${msg} [ID: missing]`);
+                  }
+              }
+          } else {
+              toastService.error(resolveAdPostError(err instanceof Error ? err.message : undefined));
           }
       } finally {
           setIsSubmitting(false);
