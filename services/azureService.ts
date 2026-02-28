@@ -499,7 +499,6 @@ export const azureService = {
       } catch (err: unknown) {
           if (err instanceof AuthError) {
               console.warn('[azureService.getMyAds] 401 Unauthorized – token missing or expired', err.reason);
-              toastService.error('لطفاً دوباره وارد شوید');
               throw err;
           }
           if (err instanceof ApiError) {

@@ -1,7 +1,6 @@
 
 import { API_BASE_URL } from '../config';
 import { authService } from './authService';
-import { toastService } from './toastService';
 import { logApiCall, logApiResponse, logAuthSnapshot } from '../utils/debugAuth';
 import { safeStorage } from '../utils/safeStorage';
 
@@ -39,10 +38,8 @@ interface RequestOptions extends RequestInit {
 /** Options shared by all apiClient methods. */
 export interface ApiCallOptions {
   /**
-   * When true, suppresses the auth-error warning toast on 401 responses.
-   * Use this for background / polling calls (e.g. notification polling) where
-   * the caller handles the error silently so the user is not repeatedly shown
-   * the same toast.
+   * When true, the caller handles the error silently.
+   * Use this for background / polling calls (e.g. notification polling).
    */
   silent?: boolean;
 }
@@ -79,14 +76,6 @@ const LOG_401_COOLDOWN_MS = 60_000;
 // Deduplicate concurrent token refresh calls: at most one refresh request is
 // in-flight at any time. Subsequent callers await the same promise.
 let pendingRefreshPromise: Promise<string | null> | null = null;
-
-/**
- * Set to true the first time a 401 is received on a protected endpoint while
- * storage is blocked (Safari ITP / private-browsing).  Once raised, all
- * subsequent requests to protected endpoints are short-circuited so the user
- * is not spammed with further errors.
- */
-let storageBlockedAuth401 = false;
 
 function tryRefreshToken(): Promise<string | null> {
   if (!pendingRefreshPromise) {
@@ -158,12 +147,6 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     }
   }
 
-  // Gate: if a prior 401 while storage was blocked, skip protected requests to
-  // avoid spamming the network with requests that will never succeed.
-  if (isProtected && storageBlockedAuth401) {
-    throw new AuthError('storage_blocked');
-  }
-
   // PHASE 0: log outgoing request details (no token value)
   logApiCall(method, endpoint, authAttached, correlationId);
 
@@ -212,34 +195,10 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
       // When storage is blocked (Safari ITP / private browsing), a 401 means the
       // browser cannot persist credentials — not that the session is invalid.
-      // Do NOT logout; instead raise a one-shot event so the UI can show a
-      // persistent browser-compatibility banner, and gate all future protected
-      // requests so the user is not spammed with further 401 errors.
+      // Throw the error so the UI can show a proper message to the user.
       if (!safeStorage.isAvailable() && isProtected) {
-        if (!storageBlockedAuth401) {
-          storageBlockedAuth401 = true;
-          window.dispatchEvent(new CustomEvent('storage-blocked-401'));
-        }
         throw new AuthError('storage_blocked');
       }
-
-      // Helper: only show the auth-error toast when the caller is not silent.
-      // Unauthenticated users browsing public pages must never see an auth error toast.
-      // Uses a 60-second cooldown to prevent iOS Safari polling spam.
-      const warnIfAuthenticated = () => {
-        if (silent) return;
-        if (reason === 'missing_token' || !storedToken) {
-          // Authorization header was absent (no token stored or race condition clearing it).
-          toastService.authWarning('توکن ارسال نشد. لطفاً دوباره وارد شوید.');
-        } else if (reason === 'token_expired') {
-          toastService.authWarning('نشست شما منقضی شد. دوباره وارد شوید.');
-        } else if (reason === 'signature_mismatch') {
-          toastService.authWarning('تنظیمات سرور تغییر کرده. دوباره وارد شوید.');
-        } else {
-          // Token present but rejected — session expired or unknown server-side reason.
-          toastService.authWarning('نشست شما منقضی شده. دوباره وارد شوید.');
-        }
-      };
 
       // If the token is expired, attempt a silent refresh before giving up.
       // Skip if we already tried once for this request (prevents infinite loops).
@@ -251,13 +210,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         }
         // Refresh failed — throw without invalidating the session.
         // The user must log out explicitly; we never auto-logout.
-        warnIfAuthenticated();
         throw new AuthError(reason);
       }
 
       // For all other 401 reasons: throw the error without invalidating the session.
       // Automatic logout is disabled — users are never logged out without their action.
-      warnIfAuthenticated();
       throw new AuthError(reason ?? logReason);
     }
 
@@ -294,7 +251,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         return request<T>(endpoint, method, body, retries - 1, backoff * 2, refreshAttempted, silent);
     }
 
-    // Auth errors are already handled (invalidation + toast) above; skip duplicate logging
+    // Auth errors are already handled above; skip duplicate logging
     if (!(error instanceof AuthError)) {
       console.error(`API Request Failed [${method} ${endpoint}] correlationId=${correlationId}:`, error);
     }
