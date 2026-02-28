@@ -131,13 +131,31 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // PHASE 3: warn when token is missing for known protected endpoints
+  // PHASE 3: structured pre-request log for protected endpoints and POST /ads
   // (storage may be blocked by Safari ITP / PWA restrictions)
   const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard|auth\/me|ads\/my-ads)/;
   const isPostAds = method === 'POST' && /^\/ads($|\?)/.test(endpoint);
   const isProtected = PROTECTED_ENDPOINT_PATTERN.test(endpoint) || isPostAds;
-  if (isProtected && !headers['Authorization']) {
-    console.warn(`[apiClient] token missing for protected endpoint ${method} ${endpoint} — storage may be blocked`);
+  if (isProtected) {
+    const callerStack = (() => {
+      try {
+        const frames = (new Error().stack ?? '').split('\n');
+        const frame = frames.find((l) => (l.includes('.tsx') || l.includes('.ts')) && !l.includes('apiClient'));
+        const m = frame?.match(/([^/\\]+\.tsx?):(\d+)/);
+        return m ? `${m[1]}:${m[2]}` : 'unknown';
+      } catch { return 'unknown'; }
+    })();
+    const hasAuth = Boolean(headers['Authorization']);
+    const tokenLength = token ? token.length : 0;
+    // Only include token prefix in non-production builds to avoid leaking token structure in prod logs
+    const tokenPrefix = (token && import.meta.env.DEV) ? token.substring(0, 8) : '';
+    const storageMode = safeStorage.getMode();
+    console.log(
+      `[apiClient] ${method} ${endpoint} hasAuth=${hasAuth} tokenLength=${tokenLength}${hasAuth && tokenPrefix ? ` tokenPrefix=${tokenPrefix}` : ''} storage=${storageMode} caller=${callerStack}`
+    );
+    if (!hasAuth) {
+      console.warn(`[apiClient] missing auth header for ${method} ${endpoint} — storage may be blocked caller=${callerStack}`);
+    }
   }
 
   // Gate: if a prior 401 while storage was blocked, skip protected requests to
