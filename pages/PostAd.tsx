@@ -138,6 +138,19 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
   
   // Voice Input State
   const [isListening, setIsListening] = useState(false);
+
+  // Inline field validation errors
+  const [fieldErrors, setFieldErrors] = useState<{ title?: string; price?: string; province?: string }>({});
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setTitle(e.target.value);
+      if (fieldErrors.title) setFieldErrors(prev => ({ ...prev, title: undefined }));
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPrice(e.target.value);
+      if (fieldErrors.price) setFieldErrors(prev => ({ ...prev, price: undefined }));
+  };
   
   // Images
   const [images, setImages] = useState<string[]>(existingAd?.imageUrls || (existingAd?.imageUrl ? [existingAd.imageUrl] : []));
@@ -176,6 +189,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       const pName = e.target.value;
       setProvince(pName);
       setDistrict('');
+      if (fieldErrors.province) setFieldErrors(prev => ({ ...prev, province: undefined }));
       
       const pData = PROVINCES.find(p => p.name === pName);
       if (pData && pData.lat && pData.lng) {
@@ -272,13 +286,21 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!province) { alert("لطفا ولایت را انتخاب کنید"); return; }
-      if (!title || !price) { alert("لطفا عنوان و قیمت را وارد کنید"); return; }
 
-      // Upfront token check: block submission if no token and redirect to login.
+      // Inline field validation: highlight missing required fields instead of alert().
+      const errors: { title?: string; price?: string; province?: string } = {};
+      if (!province) errors.province = 'لطفاً ولایت را انتخاب کنید';
+      if (!title.trim()) errors.title = 'لطفاً عنوان آگهی را وارد کنید';
+      if (!price) errors.price = 'لطفاً قیمت را وارد کنید';
+      if (Object.keys(errors).length > 0) {
+          setFieldErrors(errors);
+          return;
+      }
+      setFieldErrors({});
+
+      // Upfront token check: block submission if no token without navigating away.
       if (!authService.getToken()) {
-          toastService.error('توکن ارسال نشد. لطفاً دوباره وارد شوید.');
-          onNavigate(Page.LOGIN);
+          toastService.error('لطفاً ابتدا وارد شوید تا بتوانید آگهی ثبت کنید.');
           return;
       }
       
@@ -426,16 +448,18 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
             {/* Title */}
             <div>
               <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('post_lbl_title')}</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none" placeholder={t('post_placeholder_title')} required />
+              <input type="text" value={title} onChange={handleTitleChange} className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none ${fieldErrors.title ? 'border-red-500 ring-1 ring-red-400' : 'border-ui-border'}`} placeholder={t('post_placeholder_title')} required />
+              {fieldErrors.title && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.title}</p>}
             </div>
 
             {/* Price */}
             <div>
                <label className="block text-xs font-bold text-ui-muted mb-1.5">{category === 'jobs' ? t('post_lbl_salary') : t('post_lbl_price')}</label>
                <div className="relative">
-                   <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className="w-full p-3 border border-ui-border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12" placeholder="0" required />
+                   <input type="number" value={price} onChange={handlePriceChange} className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-brand-500 outline-none pl-12 ${fieldErrors.price ? 'border-red-500 ring-1 ring-red-400' : 'border-ui-border'}`} placeholder="0" required />
                    <span className="absolute left-3 top-3.5 text-sm text-ui-muted font-bold">AFN</span>
                </div>
+               {fieldErrors.price && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.price}</p>}
             </div>
 
             {/* Negotiable Toggle */}
@@ -562,12 +586,13 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                 <div>
                      <label className="block text-xs font-bold text-ui-muted mb-1.5">{t('filter_province')}</label>
                      <div className="relative">
-                        <select value={province} onChange={handleProvinceChange} className="w-full p-3 border border-ui-border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500" required>
+                        <select value={province} onChange={handleProvinceChange} className={`w-full p-3 border rounded-xl bg-ui-surface outline-none appearance-none focus:ring-2 focus:ring-brand-500 ${fieldErrors.province ? 'border-red-500 ring-1 ring-red-400' : 'border-ui-border'}`} required>
                             <option value="" disabled>انتخاب کنید...</option>
                             {PROVINCES.filter(p => p.id !== 'all').map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
                         <Icon name="ChevronDown" size={18} strokeWidth={1.8} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" />
                      </div>
+                     {fieldErrors.province && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.province}</p>}
                 </div>
                 {availableDistricts.length > 0 && (
                     <div className="animate-in fade-in">
