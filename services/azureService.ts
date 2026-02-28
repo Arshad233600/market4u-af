@@ -986,8 +986,8 @@ export const azureService = {
       if (USE_MOCK_DATA) {
           return db.get<Notification[]>('notifications', []);
       }
-      // Skip the API call when not authenticated to avoid unnecessary 401 errors.
-      if (!authService.getToken()) return [];
+      // Skip the API call when not authenticated or token is expired to avoid unnecessary 401 errors.
+      if (!authService.getToken() || authService.isTokenExpired()) return [];
       try {
           const data = await apiClient.get<Array<{
               Id: string; UserId: string; Title: string; Message: string;
@@ -1016,8 +1016,8 @@ export const azureService = {
           db.save('notifications', notifs);
           return;
       }
-      // Skip the API call when not authenticated to avoid unnecessary 401 errors.
-      if (!authService.getToken()) return;
+      // Skip the API call when not authenticated or token is expired to avoid unnecessary 401 errors.
+      if (!authService.getToken() || authService.isTokenExpired()) return;
       try {
           await apiClient.patch('/notifications/read', id ? { id } : {});
       } catch { /* silent – non-critical */ }
