@@ -2,7 +2,8 @@
 /**
  * End-to-end smoke test
  *
- * Flow: GET /api/ads (public) → Login → POST /api/ads → GET /api/ads/my-ads → verify created adId exists
+ * Flow: GET /api/ads (public) → GET /api/notifications (no auth – must not 401) →
+ *       Login → POST /api/ads → GET /api/ads/my-ads → verify created adId exists
  *
  * Required environment variables:
  *   SMOKE_TEST_BASE_URL  – base URL of the deployed API, e.g. https://my-app.azurestaticapps.net
@@ -36,7 +37,7 @@ function assert(condition, msg) { condition ? pass(msg) : fail(msg); }
 // ---------------------------------------------------------------------------
 // Step 0: GET /api/ads (public – no authentication required)
 // ---------------------------------------------------------------------------
-console.log('\n[0/3] GET /api/ads (public endpoint – no auth)');
+console.log('\n[0/4] GET /api/ads (public endpoint – no auth)');
 
 const publicAdsRes = await fetch(`${BASE_URL}/api/ads`);
 
@@ -47,9 +48,26 @@ assert(
 assert(publicAdsRes.ok, `GET /api/ads responds 2xx (got ${publicAdsRes.status})`);
 
 // ---------------------------------------------------------------------------
+// Step 0b: GET /api/notifications without auth – must NOT return 401
+// (regression guard: unauthenticated visitors must not see a 401 console error)
+// ---------------------------------------------------------------------------
+console.log('\n[0b/4] GET /api/notifications (no auth – must return 200, not 401)');
+
+const unauthNotifRes = await fetch(`${BASE_URL}/api/notifications`);
+
+assert(
+  unauthNotifRes.status !== 401,
+  `GET /api/notifications does not return 401 for unauthenticated requests (got ${unauthNotifRes.status})`
+);
+assert(unauthNotifRes.ok, `GET /api/notifications responds 2xx without auth (got ${unauthNotifRes.status})`);
+
+const unauthNotifBody = await unauthNotifRes.json().catch(() => null);
+assert(Array.isArray(unauthNotifBody), 'GET /api/notifications returns an array when unauthenticated');
+
+// ---------------------------------------------------------------------------
 // Step 1: Login
 // ---------------------------------------------------------------------------
-console.log('\n[1/3] POST /api/auth/login');
+console.log('\n[1/4] POST /api/auth/login');
 
 const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
   method: 'POST',
@@ -71,7 +89,7 @@ if (!token) {
 // ---------------------------------------------------------------------------
 // Step 2: POST /api/ads
 // ---------------------------------------------------------------------------
-console.log('\n[2/3] POST /api/ads');
+console.log('\n[2/4] POST /api/ads');
 
 const adPayload = {
   title: `Smoke Test Ad ${Date.now()}`,
@@ -111,7 +129,7 @@ if (!createdAdId) {
 // ---------------------------------------------------------------------------
 // Step 3: GET /api/ads/my-ads
 // ---------------------------------------------------------------------------
-console.log('\n[3/3] GET /api/ads/my-ads');
+console.log('\n[3/4] GET /api/ads/my-ads');
 
 const authorizationHeader = `Bearer ${token}`;
 const myAdsRequestHeaders = { Authorization: authorizationHeader };
