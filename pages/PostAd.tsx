@@ -298,10 +298,18 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       }
       setFieldErrors({});
 
-      // Upfront token check: block submission if no token or token is expired.
-      if (!authService.getToken() || authService.isTokenExpired()) {
+      // Upfront token check: block submission if no token is available.
+      if (!authService.getToken()) {
           toastService.error('لطفاً ابتدا وارد شوید تا بتوانید آگهی ثبت کنید.');
-          onNavigate(Page.LOGIN);
+          authService.onAuthInvalid('no_token_pre_submit');
+          onNavigate(Page.POST_AD);
+          return;
+      }
+      // Block submission when token has expired client-side.
+      if (authService.isTokenExpired()) {
+          toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+          authService.onAuthInvalid('token_expired_pre_submit');
+          onNavigate(Page.POST_AD);
           return;
       }
       
@@ -339,7 +347,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           if (err instanceof AuthError) {
               toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
               authService.onAuthInvalid(err.reason ?? 'auth_error_post_ad');
-              onNavigate(Page.LOGIN);
+              onNavigate(Page.POST_AD);
           } else if (err instanceof ApiError) {
               const cat = err.category?.toUpperCase();
               const reqId = err.requestId ?? null;
