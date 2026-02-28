@@ -628,7 +628,7 @@ export async function promoteAd(request: HttpRequest, context: InvocationContext
     const walletResult = await pool
       .request()
       .input("UserId", sql.NVarChar, auth.userId)
-      .query("SELECT ISNULL(SUM(Amount), 0) AS balance FROM WalletTransactions WHERE UserId = @UserId AND Status != 'FAILED'");
+      .query("SELECT ISNULL(SUM(Amount), 0) AS balance FROM WalletTransactions WHERE UserId = @UserId AND Status <> 'FAILED'");
 
     const balance: number = walletResult.recordset[0]?.balance ?? 0;
     if (balance < cost) {
