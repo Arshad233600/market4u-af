@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import ToastContainer from './components/ToastContainer';
 import OfflineBanner from './components/OfflineBanner';
+import StorageBlockedBanner from './components/StorageBlockedBanner';
 import { Page, Product, User } from './types';
 import { authService } from './services/authService';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -320,6 +321,7 @@ const AppContent: React.FC = () => {
       {/* Overlays / Global */}
       <ToastContainer />
       <OfflineBanner />
+      <StorageBlockedBanner />
       <CookieBanner />
       <InstallPrompt />
 
