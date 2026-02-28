@@ -1002,7 +1002,11 @@ export const azureService = {
               isRead: n.IsRead,
               type: n.Type as Notification['type']
           }));
-      } catch { return []; }
+      } catch (err) {
+          // Re-throw auth errors so callers can detect and stop polling on 401.
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
 
   markNotificationRead: async (id?: string) => {
