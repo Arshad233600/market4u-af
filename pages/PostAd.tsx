@@ -291,7 +291,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       const errors: { title?: string; price?: string; province?: string } = {};
       if (!province) errors.province = 'لطفاً ولایت را انتخاب کنید';
       if (!title.trim()) errors.title = 'لطفاً عنوان آگهی را وارد کنید';
-      if (!price) errors.price = 'لطفاً قیمت را وارد کنید';
+      if (!price || isNaN(Number(price)) || Number(price) <= 0) errors.price = 'لطفاً یک قیمت معتبر (عدد مثبت) وارد کنید';
       if (Object.keys(errors).length > 0) {
           setFieldErrors(errors);
           return;
