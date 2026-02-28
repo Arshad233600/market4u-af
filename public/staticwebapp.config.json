@@ -29,6 +29,30 @@
   },
   "routes": [
     {
+      "route": "/api/ads",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/ads/*",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/auth/login",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/auth/register",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/auth/refresh",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/api/health",
+      "allowedRoles": ["anonymous"]
+    },
+    {
       "route": "/api/*",
       "allowedRoles": ["anonymous"]
     }
