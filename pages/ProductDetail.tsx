@@ -91,6 +91,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, onBack, onNaviga
       setIsStartingChat(false);
       
       if (conversationId) {
+          // Store chat context so the Messages page can pre-select this conversation
+          try {
+              sessionStorage.setItem('pending_chat', JSON.stringify({
+                  id: conversationId,
+                  otherUserId: product.userId,
+                  otherUserName: product.sellerName,
+                  productId: product.id,
+                  productTitle: product.title,
+              }));
+          } catch { /* ignore storage errors */ }
           onNavigate(Page.DASHBOARD_CHAT);
       }
   };

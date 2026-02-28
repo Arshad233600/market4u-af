@@ -84,6 +84,39 @@ const Messages: React.FC = () => {
   const loadConvos = async () => {
       try {
           const data = await azureService.getConversations();
+
+          // Check for a pending chat context stored by ProductDetail navigation
+          const pendingChatStr = sessionStorage.getItem('pending_chat');
+          if (pendingChatStr) {
+              try {
+                  sessionStorage.removeItem('pending_chat');
+                  const pendingChat = JSON.parse(pendingChatStr) as {
+                      id: string;
+                      otherUserId: string;
+                      otherUserName: string;
+                      productId: string;
+                      productTitle: string;
+                  };
+                  // Add a temporary conversation entry if not already present
+                  if (!data.some(c => c.id === pendingChat.id)) {
+                      data.unshift({
+                          id: pendingChat.id,
+                          otherUserId: pendingChat.otherUserId,
+                          otherUserName: pendingChat.otherUserName,
+                          otherUserAvatar: '',
+                          productId: pendingChat.productId,
+                          productTitle: pendingChat.productTitle,
+                          lastMessage: '',
+                          lastMessageTime: '',
+                          unreadCount: 0,
+                      });
+                  }
+                  setConversations(data);
+                  setActiveChatId(pendingChat.id);
+                  return;
+              } catch { /* ignore parse errors */ }
+          }
+
           setConversations(data);
       } catch {
           setConversations([]);
