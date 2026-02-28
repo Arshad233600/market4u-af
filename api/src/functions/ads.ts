@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
+import * as appInsights from "applicationinsights";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
@@ -261,7 +262,16 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   if (authErr || !auth.userId) {
     const reason = auth.reason ?? "missing_token";
     const authHeaderPresent = !!request.headers.get("authorization");
-    context.warn(`[postAd] 401 requestId=${requestId} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
+    context.warn(`[postAd] auth_failed requestId=${requestId} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
+    appInsights.defaultClient?.trackTrace({
+      message: "[postAd] auth_failed",
+      properties: {
+        requestId,
+        reason,
+        authHeaderPresent: String(authHeaderPresent),
+        category: "AUTH_REQUIRED",
+      },
+    });
     // For server misconfiguration (503) return the standard response; for all other auth
     // failures return 401 with structured category, reason and requestId for client diagnosis.
     if (authErr && authErr.status === 503) return authErr;
