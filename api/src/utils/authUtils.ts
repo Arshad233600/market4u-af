@@ -152,7 +152,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
 };
 
 /** Auth reasons that indicate server misconfiguration rather than a bad client token. */
-const MISCONFIGURED_REASONS = new Set(['missing_auth_secret', 'insecure_default_secret']);
+export const MISCONFIGURED_REASONS = new Set(['missing_auth_secret', 'insecure_default_secret']);
 
 /**
  * Returns the appropriate HTTP error response for a failed AuthResult.

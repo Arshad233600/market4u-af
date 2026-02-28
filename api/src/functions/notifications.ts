@@ -1,13 +1,22 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken, authResponse } from "../utils/authUtils";
-import { serverError } from "../utils/responses";
+import { validateToken, MISCONFIGURED_REASONS, authResponse } from "../utils/authUtils";
+import { serverError, serviceUnavailable } from "../utils/responses";
 
 export async function getNotifications(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  const authErr = authResponse(auth);
-  if (authErr) return authErr;
+  if (!auth.isAuthenticated) {
+    // Server mis-configuration (AUTH_SECRET missing or insecure) — surface as 503 so the
+    // operator knows the environment needs attention.
+    if (auth.reason && MISCONFIGURED_REASONS.has(auth.reason)) {
+      return serviceUnavailable(auth.reason);
+    }
+    // No valid session (missing token, expired token, or signature mismatch) — return an
+    // empty list instead of 401 so unauthenticated page loads don't produce a console error.
+    // Unauthenticated users have no notifications, so an empty array is semantically correct.
+    return { status: 200, jsonBody: [] };
+  }
 
   try {
     const pool = await getPool();
