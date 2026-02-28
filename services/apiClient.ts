@@ -277,6 +277,10 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       const msg = response.status >= 500
         ? errorData.error || errorData.message
         : errorData.message || errorData.error;
+      console.warn(
+        `[apiClient] ${response.status} ${method} ${endpoint} ok=false correlationId=${correlationId}`,
+        `requestId=${errorData.requestId ?? 'none'}`,
+      );
       throw new ApiError(msg || `API Error: ${response.status}`, response.status, errorData.requestId, errorData.category);
     }
 
