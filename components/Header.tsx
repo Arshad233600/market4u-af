@@ -4,6 +4,7 @@ import Icon from '../src/components/ui/Icon';
 import { Page, User, UserSuggestion, Notification } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { azureService } from '../services/azureService';
+import { AuthError } from '../services/apiClient';
 import { safeStorage } from '../utils/safeStorage';
 
 interface HeaderProps {
@@ -26,11 +27,26 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
   
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  /** Set to true when a 401 is received so we stop spamming the server. */
+  const notifAuthFailedRef = useRef(false);
+
+  // Reset the auth-failure flag whenever the logged-in user changes (login / logout).
+  useEffect(() => {
+    notifAuthFailedRef.current = false;
+  }, [user?.id]);
 
   const fetchNotifications = useCallback(async () => {
-    if (user) {
+    if (!user || notifAuthFailedRef.current) return;
+    try {
       const data = await azureService.getNotifications();
       setNotifications(data);
+    } catch (err) {
+      if (err instanceof AuthError) {
+        // Token was rejected by the server — stop all future polls to avoid
+        // spamming the console with 401 errors.
+        console.warn('[Header] notification polling disabled: auth error:', err.reason ?? err.message);
+        notifAuthFailedRef.current = true;
+      }
     }
   }, [user]);
 
@@ -218,84 +234,84 @@ const Header: React.FC<HeaderProps> = ({ onSearch, onNavigate, user, currentLoca
             </span>
           </button>
 
-          {/* Notification Bell */}
-          <div className="relative" ref={notifRef}>
-            <button
-              onClick={() => { setShowNotifications(!showNotifications); void fetchNotifications(); }}
-              className="relative w-9 h-9 flex items-center justify-center text-ui-muted hover:text-ui-text bg-ui-surface2 hover:bg-ui-surface3 rounded-xl transition-all border border-ui-border"
-            >
-              <Icon name="Bell" size={18} strokeWidth={2} />
-              {unreadCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-ui-danger rounded-full border-2 border-ui-bg animate-pulse" />
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute top-full left-0 mt-2 w-80 glass rounded-2xl shadow-float border border-ui-border overflow-hidden z-[60] animate-fadeUp">
-                <div className="p-3.5 border-b border-ui-border flex justify-between items-center bg-ui-surface2/50">
-                  <h4 className="font-bold text-ui-text text-sm flex items-center gap-2">
-                    <Icon name="Bell" size={15} strokeWidth={2} className="text-brand-400" />
-                    اعلان‌ها
-                    {unreadCount > 0 && (
-                      <span className="bg-ui-danger text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
-                    )}
-                  </h4>
-                  {unreadCount > 0 && (
-                    <button onClick={markAllRead} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors">
-                      <Icon name="CheckCircle" size={14} strokeWidth={2} />
-                      خواندن همه
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-72 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="py-10 text-center text-ui-muted">
-                      <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ui-surface2 flex items-center justify-center">
-                        <Icon name="Bell" size={22} strokeWidth={1.5} className="opacity-40" />
-                      </div>
-                      <p className="text-xs">هیچ اعلان جدیدی ندارید.</p>
-                    </div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div
-                        key={notif.id}
-                        className={`p-3.5 border-b border-ui-border last:border-none hover:bg-ui-surface2/60 transition-colors ${!notif.isRead ? 'bg-ui-info/5' : ''}`}
-                      >
-                        <div className="flex gap-3">
-                          <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
-                            notif.type === 'success' ? 'bg-ui-success/15 text-ui-success' :
-                            notif.type === 'warning' ? 'bg-ui-warning/15 text-ui-warning' :
-                            'bg-ui-info/15 text-ui-info'
-                          }`}>
-                            {notif.type === 'success' ? <Icon name="CheckCircle" size={16} strokeWidth={2} /> :
-                             notif.type === 'warning' ? <Icon name="AlertTriangle" size={16} strokeWidth={2} /> :
-                             <Icon name="Info" size={16} strokeWidth={2} />}
-                          </div>
-                          <div className="min-w-0">
-                            <h5 className={`text-sm leading-tight ${!notif.isRead ? 'font-bold text-ui-text' : 'text-ui-muted'}`}>{notif.title}</h5>
-                            <p className="text-xs text-ui-muted mt-1 leading-relaxed line-clamp-2">{notif.message}</p>
-                            <span className="text-xs text-ui-subtle mt-1.5 block">{notif.date}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="p-2.5 text-center bg-ui-surface2/30 border-t border-ui-border">
-                  <button
-                    onClick={() => { setShowNotifications(false); onNavigate(Page.DASHBOARD_SETTINGS); }}
-                    className="text-xs text-brand-400 font-bold hover:text-brand-300 transition-colors"
-                  >
-                    تنظیمات اعلان
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* User / Login */}
           {user ? (
             <div className="flex items-center gap-1.5">
+              {/* Notification Bell - only shown for authenticated users */}
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={() => { setShowNotifications(!showNotifications); void fetchNotifications(); }}
+                  className="relative w-9 h-9 flex items-center justify-center text-ui-muted hover:text-ui-text bg-ui-surface2 hover:bg-ui-surface3 rounded-xl transition-all border border-ui-border"
+                >
+                  <Icon name="Bell" size={18} strokeWidth={2} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-ui-danger rounded-full border-2 border-ui-bg animate-pulse" />
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute top-full left-0 mt-2 w-80 glass rounded-2xl shadow-float border border-ui-border overflow-hidden z-[60] animate-fadeUp">
+                    <div className="p-3.5 border-b border-ui-border flex justify-between items-center bg-ui-surface2/50">
+                      <h4 className="font-bold text-ui-text text-sm flex items-center gap-2">
+                        <Icon name="Bell" size={15} strokeWidth={2} className="text-brand-400" />
+                        اعلان‌ها
+                        {unreadCount > 0 && (
+                          <span className="bg-ui-danger text-white text-xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+                        )}
+                      </h4>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors">
+                          <Icon name="CheckCircle" size={14} strokeWidth={2} />
+                          خواندن همه
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="py-10 text-center text-ui-muted">
+                          <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-ui-surface2 flex items-center justify-center">
+                            <Icon name="Bell" size={22} strokeWidth={1.5} className="opacity-40" />
+                          </div>
+                          <p className="text-xs">هیچ اعلان جدیدی ندارید.</p>
+                        </div>
+                      ) : (
+                        notifications.map(notif => (
+                          <div
+                            key={notif.id}
+                            className={`p-3.5 border-b border-ui-border last:border-none hover:bg-ui-surface2/60 transition-colors ${!notif.isRead ? 'bg-ui-info/5' : ''}`}
+                          >
+                            <div className="flex gap-3">
+                              <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
+                                notif.type === 'success' ? 'bg-ui-success/15 text-ui-success' :
+                                notif.type === 'warning' ? 'bg-ui-warning/15 text-ui-warning' :
+                                'bg-ui-info/15 text-ui-info'
+                              }`}>
+                                {notif.type === 'success' ? <Icon name="CheckCircle" size={16} strokeWidth={2} /> :
+                                 notif.type === 'warning' ? <Icon name="AlertTriangle" size={16} strokeWidth={2} /> :
+                                 <Icon name="Info" size={16} strokeWidth={2} />}
+                              </div>
+                              <div className="min-w-0">
+                                <h5 className={`text-sm leading-tight ${!notif.isRead ? 'font-bold text-ui-text' : 'text-ui-muted'}`}>{notif.title}</h5>
+                                <p className="text-xs text-ui-muted mt-1 leading-relaxed line-clamp-2">{notif.message}</p>
+                                <span className="text-xs text-ui-subtle mt-1.5 block">{notif.date}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2.5 text-center bg-ui-surface2/30 border-t border-ui-border">
+                      <button
+                        onClick={() => { setShowNotifications(false); onNavigate(Page.DASHBOARD_SETTINGS); }}
+                        className="text-xs text-brand-400 font-bold hover:text-brand-300 transition-colors"
+                      >
+                        تنظیمات اعلان
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {user.role === 'ADMIN' && (
                 <button
                   onClick={() => onNavigate('ADMIN_PANEL')}
