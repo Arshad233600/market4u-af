@@ -196,7 +196,18 @@ app.http("register", {
 export async function getMe(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   const authErr = authResponse(auth);
-  if (authErr) return authErr;
+  if (authErr) {
+    // auth.reason is always set by validateToken for unauthenticated results;
+    // the 'unknown_reason' fallback is a safety net only.
+    const reason = auth.reason ?? "unknown_reason";
+    const authHeaderPresent = !!request.headers.get("authorization");
+    context.warn(`[getMe] auth_failed requestId=${auth.requestId ?? 'none'} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
+    telemetry?.trackTrace({
+      message: "[getMe] auth_failed",
+      properties: { requestId: auth.requestId ?? "none", reason, authHeaderPresent: String(authHeaderPresent) },
+    });
+    return authErr;
+  }
 
   try {
     const pool = await getPool();
