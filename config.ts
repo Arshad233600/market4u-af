@@ -26,7 +26,10 @@ const getEnv = (key: string): string | undefined => {
 // In production, this comes from Azure Application Settings (Environment Variables)
 // For Azure Static Web Apps, API is automatically proxied to /api
 // In development, point to local Functions runtime
-const apiUrl = getEnv('REACT_APP_API_URL') || getEnv('VITE_API_URL');
+const rawApiUrl = getEnv('REACT_APP_API_URL') || getEnv('VITE_API_URL');
+// Never use absolute URLs (e.g. azurewebsites.net) — always route through the SWA proxy.
+// Absolute URLs bypass the SWA auth middleware and cause CORS/401 issues in production.
+const apiUrl = (rawApiUrl && !rawApiUrl.startsWith('http')) ? rawApiUrl : undefined;
 export const API_BASE_URL = apiUrl || '/api';
 
 // Logic:
