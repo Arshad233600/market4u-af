@@ -144,6 +144,11 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     );
     if (!hasAuth) {
       console.warn(`[apiClient] token missing for protected endpoint ${method} ${endpoint} caller=${callerStack}`);
+      // In development, throw early (before hitting the network) so auth bugs are
+      // caught immediately at the call site instead of surfacing as a server 401.
+      if (import.meta.env.DEV) {
+        throw new ApiError('AUTH_REQUIRED', 401, correlationId, 'AUTH_REQUIRED');
+      }
     }
   }
 

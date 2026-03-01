@@ -55,7 +55,7 @@ export let lastAuthFailureSample: { requestId: string; reason: string; timestamp
 
 export const validateToken = (request: HttpRequest): AuthResult => {
     const correlationId = request.headers.get('x-client-request-id') ?? 'no-correlation-id';
-    const hasAuthHeader = Boolean(request.headers.get('authorization'));
+    const hasAuthHeader = Boolean(request.headers.get('authorization') || request.headers.get('Authorization'));
     const method = request.method;
     // Extract path from URL (strip query string) for safe logging
     let endpoint = 'unknown';
@@ -74,7 +74,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         }
     }
 
-    const authHeader = request.headers.get("authorization");
+    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization") || "";
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         const reason = "missing_token";

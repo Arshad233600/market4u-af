@@ -249,7 +249,10 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
   const authErr = authResponse(auth);
   if (authErr || !auth.userId) {
     const reason = auth.reason ?? "missing_token";
-    const authHeaderPresent = !!request.headers.get("authorization");
+    const authHeaderPresent = !!(request.headers.get("authorization") || request.headers.get("Authorization"));
+    let path = 'unknown';
+    try { path = new URL(request.url).pathname; } catch { /* ignore */ }
+    const method = request.method;
     context.warn(`[postAd] auth_failed requestId=${requestId} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
     appInsights.defaultClient?.trackTrace({
       message: "[postAd] auth_failed",
@@ -257,7 +260,14 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         requestId,
         reason,
         authHeaderPresent: String(authHeaderPresent),
+        path,
+        method,
         category: "AUTH_REQUIRED",
+        operationId: ((): string => {
+          // W3C traceparent format: "00-{traceId}-{spanId}-{flags}"
+          const parts = context.traceContext?.traceParent?.split('-');
+          return (parts && parts.length >= 4 && parts[1]) ? parts[1] : context.invocationId;
+        })(),
       },
     });
     // For server misconfiguration (503) return the standard response; for all other auth
