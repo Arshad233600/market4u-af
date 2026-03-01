@@ -1,12 +1,10 @@
-
 import { HttpRequest, HttpResponseInit } from "@azure/functions";
 import { Buffer } from "buffer";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { unauthorized, serviceUnavailable } from "./responses";
 
-export const TOKEN_EXPIRATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
-
-const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !process.env.AzureWebJobsStorage?.includes('UseDevelopmentStorage');
+export const TOKEN_EXPIRATION_SECONDS = 365 * 24 * 60 * 60; // 1 year in seconds
+export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000; // kept for backward compat
 
 /**
  * Matches values that look like environment variable names (all uppercase letters,
@@ -15,39 +13,46 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !process.env.Azur
  */
 const LOOKS_LIKE_ENV_VAR_NAME = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/;
 
+/** Typed error codes thrown by getAuthSecretOrThrow for reliable classification. */
+export type AuthSecretErrorCode = 'missing_auth_secret' | 'insecure_default_secret' | 'invalid_auth_secret';
+
+export class AuthSecretError extends Error {
+  constructor(public readonly code: AuthSecretErrorCode, message: string) {
+    super(message);
+    this.name = 'AuthSecretError';
+  }
+}
+
 /**
- * Returns the AUTH_SECRET or throws if it is missing or insecure in production.
- * Always warns if the secret is shorter than 32 characters.
+ * Returns the AUTH_SECRET or throws if it is missing or insecure.
+ * The secret is trimmed to prevent whitespace encoding mismatches.
  */
 export function getAuthSecretOrThrow(): string {
-  const secret = process.env.AUTH_SECRET;
+  const raw = process.env.AUTH_SECRET;
+  const secret = raw?.trim() ?? '';
 
-  if (!secret || secret.trim() === '') {
-    if (IS_PRODUCTION) {
-      throw new Error('AUTH_SECRET is not configured (Production).');
-    }
-    console.warn('[SECURITY] AUTH_SECRET is not set. Set AUTH_SECRET in Azure Application settings (min 32 chars).');
-    return 'CHANGE_ME_IN_AZURE'; // dev-only fallback
+  if (!secret) {
+    const missing = !raw;
+    console.error(`[AUTH] AUTH_SECRET missing=${missing} length=${raw?.length ?? 0} looks_like_env_var=false`);
+    throw new AuthSecretError('missing_auth_secret', 'AUTH_SECRET is not configured.');
   }
 
+  const looksLikeEnvVarName = LOOKS_LIKE_ENV_VAR_NAME.test(secret);
+  console.log(`[AUTH] AUTH_SECRET length=${secret.length} missing=false looks_like_env_var=${looksLikeEnvVarName}`);
+
   if (secret === 'CHANGE_ME_IN_AZURE') {
-    if (IS_PRODUCTION) {
-      throw new Error('AUTH_SECRET is insecure default — set a strong random value in Azure Application settings.');
-    }
-    console.warn('[SECURITY] AUTH_SECRET uses insecure default value "CHANGE_ME_IN_AZURE".');
+    throw new AuthSecretError('insecure_default_secret', 'AUTH_SECRET is insecure default — set a strong random value in Azure Application settings.');
   }
 
   // Detect common misconfiguration: AUTH_SECRET set to an environment variable name
-  // (e.g. "VITE_API_BASE_URL") instead of its actual value.  Real secrets must
-  // contain lowercase letters or special characters, not be all-uppercase identifiers.
-  if (LOOKS_LIKE_ENV_VAR_NAME.test(secret)) {
+  // (e.g. "VITE_API_BASE_URL") instead of its actual value.
+  if (looksLikeEnvVarName) {
     const displayValue = secret.length <= 20 ? `"${secret}"` : `"${secret.slice(0, 8)}..."`;
-    const msg = `AUTH_SECRET is set to what looks like an environment variable name (${displayValue}). ` +
-      'Set AUTH_SECRET to a strong random value (min 32 chars) in Azure Application Settings, not a variable name.';
-    if (IS_PRODUCTION) {
-      throw new Error(msg);
-    }
-    console.warn(`[SECURITY] ${msg}`);
+    throw new AuthSecretError(
+      'invalid_auth_secret',
+      `AUTH_SECRET is set to what looks like an environment variable name (${displayValue}). ` +
+      'Set AUTH_SECRET to a strong random value (min 32 chars) in Azure Application Settings, not a variable name.'
+    );
   }
 
   if (secret.length < 32) {
@@ -58,11 +63,15 @@ export function getAuthSecretOrThrow(): string {
 }
 
 /** True when AUTH_SECRET is missing, the insecure fallback value, or looks like an env-var name. */
-export const isAuthSecretInsecure =
-  !process.env.AUTH_SECRET ||
-  process.env.AUTH_SECRET.trim() === '' ||
-  process.env.AUTH_SECRET === 'CHANGE_ME_IN_AZURE' ||
-  LOOKS_LIKE_ENV_VAR_NAME.test(process.env.AUTH_SECRET);
+export const isAuthSecretInsecure = (() => {
+  const raw = process.env.AUTH_SECRET;
+  const secret = raw?.trim() ?? '';
+  return (
+    !secret ||
+    secret === 'CHANGE_ME_IN_AZURE' ||
+    LOOKS_LIKE_ENV_VAR_NAME.test(secret)
+  );
+})();
 
 export interface AuthResult {
     userId: string | null;
@@ -105,8 +114,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     }
 
     // Use slice('Bearer '.length) to extract the token after "Bearer "; trim to handle any
-    // accidental whitespace.  split(" ")[1] would return "" for "Bearer " (empty
-    // token) and fall through to invalid_token instead of the clearer missing_token.
+    // accidental whitespace.
     const token = authHeader.slice('Bearer '.length).trim();
     if (!token) {
         const reason = "missing_token";
@@ -115,14 +123,22 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 
+    // Log token header.alg for debugging signature algorithm mismatches
+    try {
+        const headerB64 = token.split('.')[0];
+        const headerJson = Buffer.from(headerB64, 'base64url').toString('utf-8');
+        const header = JSON.parse(headerJson) as { alg?: string };
+        console.log(`[Auth] token_header alg=${header.alg ?? 'missing'} requestId=${correlationId}`);
+    } catch {
+        console.warn(`[Auth] token_header parse_failed requestId=${correlationId}`);
+    }
+
     let secret: string;
     try {
       secret = getAuthSecretOrThrow();
     } catch (err) {
+      const reason: string = err instanceof AuthSecretError ? err.code : 'missing_auth_secret';
       const msg = (err as Error).message;
-      const isInsecureDefault = msg.includes('insecure default');
-      const isInvalidValue = msg.includes('environment variable name');
-      const reason = isInsecureDefault ? 'insecure_default_secret' : isInvalidValue ? 'invalid_auth_secret' : 'missing_auth_secret';
       lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
       console.warn(`[Auth] MISCONFIGURED_AUTH_SECRET token validation skipped: ${msg} reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
       return {
@@ -134,29 +150,8 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     }
     
     try {
-        // Token format: base64url(payload).base64url(signature)
-        const parts = token.split('.');
-        if (parts.length !== 2) {
-            const reason = "invalid_token";
-            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
-            console.warn(`[Auth] auth_failed reason=${reason} cause=unexpected_format parts=${parts.length} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
-            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
-        }
-
-        const [payloadB64, sigB64] = parts;
-        
-        // Verify signature
-        const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
-        if (sigB64 !== expectedSig) {
-            const reason = "signature_mismatch";
-            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
-            console.warn(`[Auth] auth_failed reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
-            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
-        }
-
-        // Decode payload
-        const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf-8');
-        const payload = JSON.parse(payloadJson);
+        // Verify using jsonwebtoken with HS256 — same algorithm used by jwt.sign in signToken()
+        const payload = jwt.verify(token, secret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
 
         if (!payload.uid) {
             const reason = "invalid_token";
@@ -165,20 +160,12 @@ export const validateToken = (request: HttpRequest): AuthResult => {
             return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
         }
 
-        // Check token age (1 year)
-        const tokenAge = Date.now() - (payload.iat || 0);
-        if (tokenAge > TOKEN_EXPIRATION_MS) {
-            const reason = "token_expired";
-            lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
-            console.warn(`[Auth] auth_failed reason=${reason} ageMs=${tokenAge} userId=${payload.uid} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
-            return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
-        }
-
-        return { userId: payload.uid, isAuthenticated: true, requestId: correlationId };
-    } catch {
-        const reason = "invalid_token";
+        return { userId: payload.uid as string, isAuthenticated: true, requestId: correlationId };
+    } catch (err) {
+        const verifyMsg = (err as Error).message;
+        console.warn(`[Auth] jwt.verify error="${verifyMsg}" requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+        const reason = err instanceof jwt.TokenExpiredError ? 'token_expired' : 'invalid_token';
         lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
-        console.warn(`[Auth] auth_failed reason=${reason} cause=decode_error requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
         return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 };

@@ -1,10 +1,10 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
 import * as sql from "mssql";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
+import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_SECONDS, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
@@ -21,13 +21,11 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
   return await bcrypt.compare(password, hash);
 };
 
-/** Signed token: base64(payload).base64(signature) */
+/** Signs a token using HS256 via jsonwebtoken with 1-year expiry. */
 function signToken(payload: object): string {
   const secret = getAuthSecretOrThrow();
-  const payloadJson = JSON.stringify(payload);
-  const payloadB64 = Buffer.from(payloadJson, "utf8").toString("base64url");
-  const sig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
-  return `${payloadB64}.${sig}`;
+  // jwt.sign accepts expiresIn as seconds; payload must not include exp (it's added by jwt.sign)
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: TOKEN_EXPIRATION_SECONDS });
 }
 
 export async function login(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -285,34 +283,30 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
   }
 
   try {
-    const parts = token.split(".");
-    if (parts.length !== 2) {
+    // Verify using jwt.verify; ignoreExpiration allows refreshing recently-expired tokens
+    // within the grace window. Signature and algorithm are always verified.
+    let payload: jwt.JwtPayload;
+    try {
+      payload = jwt.verify(token, secret, { algorithms: ['HS256'], ignoreExpiration: true }) as jwt.JwtPayload;
+    } catch (verifyErr) {
+      context.warn(`[RefreshToken] jwt.verify error="${(verifyErr as Error).message}"`);
       return unauthorized("توکن نامعتبر است.", "invalid_token");
     }
-
-    const [payloadB64, sigB64] = parts;
-
-    // Verify HMAC signature — reject tokens signed with a different secret
-    const expectedSig = crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
-    if (sigB64 !== expectedSig) {
-      return unauthorized("توکن نامعتبر است.", "signature_mismatch");
-    }
-
-    const payloadJson = Buffer.from(payloadB64, "base64url").toString("utf-8");
-    const payload = JSON.parse(payloadJson);
 
     if (!payload.uid) {
       return unauthorized("توکن نامعتبر است.", "invalid_token");
     }
 
-    const tokenAge = Date.now() - (payload.iat || 0);
+    // jwt standard: iat is in seconds; convert to ms for grace-window check
+    const issuedAtMs = (payload.iat ?? 0) * 1000;
+    const tokenAge = Date.now() - issuedAtMs;
     if (tokenAge > TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS) {
       // Token is too old even for the grace window — full re-login required
       return unauthorized("نشست شما به طور کامل منقضی شده است. لطفاً دوباره وارد شوید.", "token_too_old");
     }
 
-    const newToken = signToken({ uid: payload.uid, iat: Date.now() });
-    telemetry?.trackEvent({ name: "TokenRefreshed", properties: { userId: payload.uid } });
+    const newToken = signToken({ uid: payload.uid });
+    telemetry?.trackEvent({ name: "TokenRefreshed", properties: { userId: payload.uid as string } });
     return success({ token: newToken });
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
