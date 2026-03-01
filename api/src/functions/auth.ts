@@ -7,10 +7,7 @@ import * as appInsights from "applicationinsights";
 import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
-// Initialize App Insights (Telemetry)
-if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
-  appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
-}
+// App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
 
 // Secure password hashing with bcrypt
@@ -201,10 +198,20 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
     // the 'unknown_reason' fallback is a safety net only.
     const reason = auth.reason ?? "unknown_reason";
     const authHeaderPresent = !!request.headers.get("authorization");
+    let path = "unknown";
+    try { path = new URL(request.url).pathname; } catch { /* path is only used for logging; default "unknown" is safe */ }
+    const method = request.method;
     context.warn(`[getMe] auth_failed requestId=${auth.requestId ?? 'none'} reason=${reason} authHeaderPresent=${authHeaderPresent}`);
     telemetry?.trackTrace({
       message: "[getMe] auth_failed",
-      properties: { requestId: auth.requestId ?? "none", reason, authHeaderPresent: String(authHeaderPresent) },
+      properties: {
+        requestId: auth.requestId ?? "none",
+        reason,
+        authHeaderPresent: String(authHeaderPresent),
+        path,
+        method,
+        category: "AUTH_REQUIRED",
+      },
     });
     return authErr;
   }
