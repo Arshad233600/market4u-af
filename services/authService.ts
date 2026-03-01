@@ -6,7 +6,7 @@ import { safeStorage } from '../utils/safeStorage';
 const STORAGE_KEY_USER = 'bazar_af_user';
 const STORAGE_KEY_TOKEN = 'bazar_af_token';
 const STORAGE_KEY_REFRESH_TOKEN = 'bazar_af_refresh_token';
-const TOKEN_EXPIRY_MS = 365 * 24 * 60 * 60 * 1000; // 1 year (matches server TOKEN_EXPIRATION_MS)
+const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (matches server TOKEN_EXPIRATION_SECONDS)
 
 // Mock Data for Offline/Demo Mode
 const MOCK_USER: User = {

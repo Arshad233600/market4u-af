@@ -245,6 +245,16 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         throw new AuthError(reason);
       }
 
+      // invalid_token means the stored token's signature does not match the server's
+      // AUTH_SECRET (e.g. the secret was rotated). The token can never be used again,
+      // so clear it immediately to prevent repeated 401 failures on every subsequent
+      // request. This is the only reason that triggers a proactive session clear here;
+      // all other 401 reasons (missing_token, etc.) leave session management to the caller.
+      if (reason === 'invalid_token') {
+        authService.onAuthInvalid('invalid_token');
+        throw new AuthError(reason);
+      }
+
       // For all other 401 reasons: throw the error without invalidating the session.
       // Automatic logout is disabled — users are never logged out without their action.
       throw new AuthError(reason ?? logReason);

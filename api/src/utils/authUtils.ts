@@ -14,6 +14,12 @@ console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
 if (!AUTH_SECRET) {
   throw new Error("[STARTUP] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
 }
+// Warn if the secret contains leading/trailing whitespace; such whitespace would cause
+// jwt.verify to fail for any token signed without it (and vice-versa), producing 401
+// invalid_token errors even for freshly-issued tokens.
+if (AUTH_SECRET !== AUTH_SECRET.trim()) {
+  console.warn("[STARTUP] WARNING: AUTH_SECRET has leading/trailing whitespace. This will cause JWT verification failures. Remove the whitespace from the Azure Application Setting.");
+}
 
 /**
  * Returns the AUTH_SECRET. The module-level check above guarantees it is set.
