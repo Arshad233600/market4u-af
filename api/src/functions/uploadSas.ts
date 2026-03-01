@@ -3,10 +3,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions } from "@azure/storage-blob";
 import * as appInsights from "applicationinsights";
 
-// Initialize App Insights (Telemetry)
-if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
-    appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
-}
+// App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
 
 const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
