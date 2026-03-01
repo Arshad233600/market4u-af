@@ -53,11 +53,16 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
    * is readable by the server. This is a diagnostic-only check — it must never
    * throw or block the login flow regardless of what the server returns.
    *
+   * If getToken() returns null the token was not persisted (e.g. storage is
+   * blocked by iOS Safari ITP / private browsing). In that case skip the call
+   * entirely — there is nothing to verify and the request would fail with 401.
+   *
    * If this returns 401 it is a strong signal that either storage is blocked
    * (token was not persisted) or there is an AUTH_SECRET mismatch.
    * If this returns 503 the server is misconfigured (AUTH_SECRET not set).
    */
   const verifySessionAfterLogin = async () => {
+    if (!authService.getToken()) return; // Token not persisted; nothing to verify
     try {
       await apiClient.get('/auth/me', { silent: true });
     } catch (err) {
