@@ -27,8 +27,13 @@ import "./functions/health";
 import { isAuthSecretInsecure } from "./utils/authUtils";
 if (isAuthSecretInsecure) {
   console.warn(
-    '[STARTUP] AUTH_SECRET is missing, insecure, or set to an environment variable name instead of a real secret. ' +
+    '[STARTUP] MISCONFIGURED_AUTH_SECRET — AUTH_SECRET is missing, insecure, or set to an environment variable name instead of a real secret. ' +
     'All protected endpoints will return 503 misconfigured_auth until this is fixed. ' +
     'Set AUTH_SECRET to a strong random value (minimum 32 characters) in Azure Application Settings.'
+  );
+} else {
+  const secretLen = (process.env.AUTH_SECRET ?? '').length;
+  console.log(
+    `[STARTUP] AUTH_SECRET is configured (length=${secretLen} chars, sufficient=${secretLen >= 32}).`
   );
 }
