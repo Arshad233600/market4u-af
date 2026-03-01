@@ -102,8 +102,37 @@ function generateCorrelationId(): string {
 }
 
 async function request<T>(endpoint: string, method: string, body?: unknown, retries = 2, backoff = 300, refreshAttempted = false, silent = false): Promise<T> {
-  const token = authService.getToken();
   const correlationId = generateCorrelationId();
+
+  // Compute protected-endpoint flag early so the expired-token pre-flight can use it.
+  const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard|auth\/me|ads\/my-ads)/;
+  const isPostAds = method === 'POST' && /^\/ads($|\?)/.test(endpoint);
+  const isProtected = PROTECTED_ENDPOINT_PATTERN.test(endpoint) || isPostAds;
+
+  // Pre-flight: handle client-side-expired tokens before making the network request.
+  // This avoids unnecessary 401 round-trips that produce DevTools console errors.
+  //
+  // - Protected endpoints (e.g. POST /ads, GET /ads/my-ads): attempt a silent token
+  //   refresh; if refresh fails, throw AuthError early so no network request is made.
+  // - Non-protected endpoints (e.g. GET /ads): strip the expired token so the request
+  //   is forwarded as anonymous. Azure SWA validates Bearer tokens even on routes
+  //   configured with allowedRoles: ["anonymous"] — an expired token causes a 401
+  //   even though the endpoint is public.
+  const rawToken = authService.getToken();
+  let token = rawToken;
+  if (rawToken && authService.isTokenExpired()) {
+    if (isProtected && !refreshAttempted) {
+      const newToken = await tryRefreshToken();
+      if (newToken) {
+        return request<T>(endpoint, method, body, retries, backoff, true, silent);
+      }
+      throw new AuthError('token_expired');
+    }
+    if (!isProtected) {
+      token = null;
+    }
+  }
+
   const authAttached = Boolean(token);
 
   // PHASE 0: log snapshot before every request when debug mode is active
@@ -124,9 +153,6 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
 
   // PHASE 3: structured pre-request log for protected endpoints and POST /ads
   // (storage may be blocked by Safari ITP / PWA restrictions)
-  const PROTECTED_ENDPOINT_PATTERN = /\/(user|notifications|favorites|messages|wallet|admin|upload|dashboard|auth\/me|ads\/my-ads)/;
-  const isPostAds = method === 'POST' && /^\/ads($|\?)/.test(endpoint);
-  const isProtected = PROTECTED_ENDPOINT_PATTERN.test(endpoint) || isPostAds;
   if (isProtected) {
     const callerStack = (() => {
       try {
