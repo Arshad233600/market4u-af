@@ -65,6 +65,23 @@ const unauthNotifBody = await unauthNotifRes.json().catch(() => null);
 assert(Array.isArray(unauthNotifBody), 'GET /api/notifications returns an array when unauthenticated');
 
 // ---------------------------------------------------------------------------
+// Step 0c: POST /api/ads without auth – must return 401
+// (regression guard: unauthenticated POST must be rejected, not silently accepted)
+// ---------------------------------------------------------------------------
+console.log('\n[0c/4] POST /api/ads (no auth – must return 401)');
+
+const unauthPostAdRes = await fetch(`${BASE_URL}/api/ads`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ title: 'No-auth test', price: 1, category: 'test', location: 'Test' }),
+});
+
+assert(
+  unauthPostAdRes.status === 401,
+  `POST /api/ads returns 401 for unauthenticated requests (got ${unauthPostAdRes.status})`
+);
+
+// ---------------------------------------------------------------------------
 // Step 1: Login
 // ---------------------------------------------------------------------------
 console.log('\n[1/4] POST /api/auth/login');
