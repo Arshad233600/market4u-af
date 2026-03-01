@@ -44,6 +44,25 @@ jobs:
       - name: Build API
         run: npm run build --prefix api
 
+      - name: Validate required secrets
+        # Fail the build immediately if AUTH_SECRET is not configured.
+        # An empty or missing AUTH_SECRET would either crash the function app at startup
+        # (throw in authUtils.ts) or override the Azure Portal value with an empty string,
+        # causing 401 invalid_token for ALL authenticated requests after deployment.
+        run: |
+          if [ -z "$AUTH_SECRET" ]; then
+            echo "::error::AUTH_SECRET is not set. Add it as a GitHub Actions secret (Settings → Secrets → Actions → New repository secret). Generate a value with: openssl rand -hex 32"
+            exit 1
+          fi
+          SECRET_LEN=${#AUTH_SECRET}
+          if [ "$SECRET_LEN" -lt 32 ]; then
+            echo "::error::AUTH_SECRET is too short (${SECRET_LEN} chars; minimum 32). Generate a secure value with: openssl rand -hex 32"
+            exit 1
+          fi
+          echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

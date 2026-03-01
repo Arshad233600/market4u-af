@@ -100,7 +100,9 @@ export async function diagnostics(
   const storageConnAvailable = !!process.env.AZURE_STORAGE_CONNECTION_STRING;
   const storageContainerAvailable =
     !!process.env.AZURE_STORAGE_CONTAINER || !!process.env.STORAGE_CONTAINER_NAME;
-  const authSecretAvailable = !!process.env.AUTH_SECRET && process.env.AUTH_SECRET !== 'CHANGE_ME_IN_AZURE';
+  // authSecretAvailable: true only when AUTH_SECRET is set AND is not a known placeholder.
+  // isAuthSecretInsecure already encodes this logic (missing OR placeholder → insecure).
+  const authSecretAvailable = !isAuthSecretInsecure;
 
   const configuredRequiredCount = [
     authSecretAvailable,
@@ -159,19 +161,26 @@ export async function diagnostics(
   };
 
   if (isAuthSecretInsecure) {
+    const secretValue = process.env.AUTH_SECRET;
+    const isPlaceholder = !!secretValue; // set but still insecure → known placeholder
     issues.push({
       phase: "Phase 2",
-      issue: "AUTH_SECRET uses insecure default value",
-      evidence: "AUTH_SECRET === 'CHANGE_ME_IN_AZURE' (environment variable not set)",
+      issue: isPlaceholder
+        ? "AUTH_SECRET is set to a known insecure placeholder value"
+        : "AUTH_SECRET is missing (environment variable not set)",
+      evidence: isPlaceholder
+        ? "AUTH_SECRET matches a known placeholder from the example configuration files"
+        : "AUTH_SECRET is empty or undefined",
       rootCause:
-        "AUTH_SECRET was not added to Azure Application settings. " +
+        "AUTH_SECRET was not configured with a real random secret in Azure Application settings. " +
         "Tokens signed by this deployment cannot be verified by any other deployment " +
         "that uses the real secret (or vice versa), causing immediate 401 → logout.",
       severity: "Critical",
       fix:
         "1. Generate a secure random secret: openssl rand -hex 32\n" +
         "2. Add AUTH_SECRET=<generated_value> in Azure → Static Web App → Configuration → Application settings\n" +
-        "3. Redeploy; existing sessions will need to re-login once",
+        "3. Also add AUTH_SECRET as a GitHub repository secret (Settings → Secrets → Actions → New repository secret)\n" +
+        "4. Redeploy; existing sessions will need to re-login once",
     });
     authTestResult = { status: 'failed', latencyMs: 0, reason: 'insecure_default_secret' };
   } else {
