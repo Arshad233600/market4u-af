@@ -269,7 +269,12 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
     return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
   }
 
-  const token = authHeader.split(" ")[1];
+  // Use slice('Bearer '.length) + trim to robustly extract the token; split(" ")[1] would
+  // silently return "" for "Bearer " (empty value) and fall through to invalid_token.
+  const token = authHeader.slice('Bearer '.length).trim();
+  if (!token) {
+    return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
+  }
 
   let secret: string;
   try {
