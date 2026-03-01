@@ -50,12 +50,11 @@ export const authService = {
         window.dispatchEvent(new Event('auth-change'));
         return null;
       }
-      // The server only accepts 2-part tokens (base64url(payload).base64url(signature)).
-      // Tokens in any other format (e.g. old 3-part JWTs from a previous implementation)
-      // will always be rejected with a 401. Detect and clear them here so the user is
-      // directed to the login screen cleanly instead of seeing a network-level 401.
-      if (!USE_MOCK_DATA && token.split('.').length !== 2) {
-        console.warn('[auth] token_format_invalid — clearing stale token (expected 2-part format)');
+      // The server issues standard 3-part JWTs (header.payload.signature via jwt.sign HS256).
+      // Old 2-part tokens from a previous custom HMAC implementation are no longer accepted.
+      // Detect and clear any non-standard token so the user is prompted to re-authenticate.
+      if (!USE_MOCK_DATA && token.split('.').length !== 3) {
+        console.warn('[auth] token_format_invalid — clearing stale token (expected standard 3-part JWT)');
         safeStorage.removeItem(STORAGE_KEY_TOKEN);
         safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
         safeStorage.removeItem(STORAGE_KEY_USER);
@@ -69,44 +68,23 @@ export const authService = {
   },
 
   // Client-side check: returns true if no token or the token's expiry has passed.
-  // Handles both:
-  //   - 2-part server-issued tokens: base64url(payload).base64url(signature)  [iat in ms]
-  //   - 3-part standard JWTs: header.payload.signature  [exp in seconds, iat in seconds]
-  // Tokens in unknown formats or missing the iat claim are treated as expired
+  // Handles standard 3-part JWTs: header.payload.signature [exp in seconds, iat in seconds]
+  // Tokens in unknown formats or missing the exp claim are treated as expired
   // so the user is directed to re-authenticate rather than receiving a server 401.
   isTokenExpired: (): boolean => {
     try {
       const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
       if (!token) return true;
       const parts = token.split('.');
-
-      // 2-part server token: base64url(JSON payload).base64url(signature)
-      if (parts.length === 2) {
-        // Add padding required by atob for base64url-encoded strings
-        const padded = parts[0].replace(/-/g, '+').replace(/_/g, '/');
-        const pad = padded.length % 4;
-        const b64 = pad ? padded + '='.repeat(4 - pad) : padded;
-        const payloadJson = atob(b64);
-        const payload = JSON.parse(payloadJson);
-        if (payload.iat) {
-          const tokenAge = Date.now() - payload.iat; // iat is stored in ms on server
-          return tokenAge > TOKEN_EXPIRY_MS;
-        }
-        // No iat claim in a 2-part server token means the token is malformed.
-        // Treat it as expired so the user is prompted to re-authenticate rather
-        // than sending an unverifiable token and receiving a 401 from the server.
-        return true;
-      }
-
-      if (parts.length !== 3) return true; // Unknown format → treat as expired
-      // Decode the payload (middle part) of the JWT
+      if (parts.length !== 3) return true; // Non-standard format → treat as expired
+      // Decode the payload (middle part) of the standard JWT
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
       // Use standard JWT `exp` claim (seconds since epoch) if available
       if (payload.exp) return Date.now() / 1000 > payload.exp;
-      // Fall back to `iat` (seconds) + custom expiry window
+      // Fall back to `iat` (seconds since epoch) + TOKEN_EXPIRY_MS window
       const tokenAge = Date.now() - (payload.iat || 0) * 1000;
-      return tokenAge > TOKEN_EXPIRY_MS; // 30 days
+      return tokenAge > TOKEN_EXPIRY_MS;
     } catch {
       return true; // Cannot decode → treat as expired so the user is prompted to re-authenticate
     }
