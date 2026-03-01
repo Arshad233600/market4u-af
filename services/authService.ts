@@ -50,6 +50,18 @@ export const authService = {
         window.dispatchEvent(new Event('auth-change'));
         return null;
       }
+      // The server only accepts 2-part tokens (base64url(payload).base64url(signature)).
+      // Tokens in any other format (e.g. old 3-part JWTs from a previous implementation)
+      // will always be rejected with a 401. Detect and clear them here so the user is
+      // directed to the login screen cleanly instead of seeing a network-level 401.
+      if (!USE_MOCK_DATA && token.split('.').length !== 2) {
+        console.warn('[auth] token_format_invalid — clearing stale token (expected 2-part format)');
+        safeStorage.removeItem(STORAGE_KEY_TOKEN);
+        safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
+        safeStorage.removeItem(STORAGE_KEY_USER);
+        window.dispatchEvent(new Event('auth-change'));
+        return null;
+      }
       return token;
     } catch {
       return null;
@@ -60,7 +72,8 @@ export const authService = {
   // Handles both:
   //   - 2-part server-issued tokens: base64url(payload).base64url(signature)  [iat in ms]
   //   - 3-part standard JWTs: header.payload.signature  [exp in seconds, iat in seconds]
-  // Unknown formats are treated as valid (server will be the final authority).
+  // Tokens in unknown formats or missing the iat claim are treated as expired
+  // so the user is directed to re-authenticate rather than receiving a server 401.
   isTokenExpired: (): boolean => {
     try {
       const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
@@ -79,10 +92,13 @@ export const authService = {
           const tokenAge = Date.now() - payload.iat; // iat is stored in ms on server
           return tokenAge > TOKEN_EXPIRY_MS;
         }
-        return false; // No iat claim → cannot determine age → assume valid
+        // No iat claim in a 2-part server token means the token is malformed.
+        // Treat it as expired so the user is prompted to re-authenticate rather
+        // than sending an unverifiable token and receiving a 401 from the server.
+        return true;
       }
 
-      if (parts.length !== 3) return false; // Unknown format → assume valid
+      if (parts.length !== 3) return true; // Unknown format → treat as expired
       // Decode the payload (middle part) of the JWT
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
@@ -92,7 +108,7 @@ export const authService = {
       const tokenAge = Date.now() - (payload.iat || 0) * 1000;
       return tokenAge > TOKEN_EXPIRY_MS; // 30 days
     } catch {
-      return false; // Cannot decode → let the server decide
+      return true; // Cannot decode → treat as expired so the user is prompted to re-authenticate
     }
   },
 
