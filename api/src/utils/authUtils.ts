@@ -6,19 +6,20 @@ import { unauthorized, serviceUnavailable } from "./responses";
 export const TOKEN_EXPIRATION_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
 export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000;
 
-// Single source of truth: AUTH_SECRET read once from process.env, no trim, no fallback
-const AUTH_SECRET = process.env.AUTH_SECRET;
+// Single source of truth: AUTH_SECRET read once from process.env and trimmed.
+// Trimming handles copy-paste whitespace from Azure Application Settings which
+// would otherwise cause jwt.verify to fail for freshly-issued tokens (invalid_token).
+const rawAuthSecret = process.env.AUTH_SECRET;
+const AUTH_SECRET = rawAuthSecret !== undefined ? rawAuthSecret.trim() : undefined;
 
 // Startup log and fail-fast: log length so sign and verify can be confirmed to match
 console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
 if (!AUTH_SECRET) {
   throw new Error("[STARTUP] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
 }
-// Warn if the secret contains leading/trailing whitespace; such whitespace would cause
-// jwt.verify to fail for any token signed without it (and vice-versa), producing 401
-// invalid_token errors even for freshly-issued tokens.
-if (AUTH_SECRET !== AUTH_SECRET.trim()) {
-  console.warn("[STARTUP] WARNING: AUTH_SECRET has leading/trailing whitespace. This will cause JWT verification failures. Remove the whitespace from the Azure Application Setting.");
+// Inform the operator if the raw value had whitespace that was trimmed.
+if (rawAuthSecret !== AUTH_SECRET) {
+  console.warn("[STARTUP] WARNING: AUTH_SECRET had leading/trailing whitespace which has been trimmed automatically. Remove the whitespace from the Azure Application Setting to avoid confusion.");
 }
 
 /**
