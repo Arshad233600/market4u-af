@@ -601,7 +601,7 @@ export const azureService = {
       return mapAdsToProducts(data);
     } catch (err: unknown) {
       if (err instanceof AuthError) {
-        console.error('[azureService.searchAds] Unexpected 401 on public /ads endpoint – possible configuration issue. Returning empty list as fallback.');
+        console.warn('[azureService.searchAds] 401 on public /ads endpoint – expired token or configuration issue. Returning empty list as fallback.');
         return [];
       }
       throw err;
