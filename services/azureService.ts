@@ -725,6 +725,8 @@ export const azureService = {
           // Instant response for better feel
           return db.get<ChatConversation[]>('conversations', []);
       }
+      // Skip the API call when not authenticated or token is expired to avoid unnecessary 401 errors.
+      if (!authService.getToken() || authService.isTokenExpired()) return [];
       try {
           const data = await apiClient.get<InboxItem[]>('/messages/inbox');
           if (!Array.isArray(data)) return [];
