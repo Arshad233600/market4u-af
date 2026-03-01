@@ -124,7 +124,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
       const isInvalidValue = msg.includes('environment variable name');
       const reason = isInsecureDefault ? 'insecure_default_secret' : isInvalidValue ? 'invalid_auth_secret' : 'missing_auth_secret';
       lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
-      console.warn('[Auth] Token validation skipped:', msg, `reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
+      console.warn(`[Auth] MISCONFIGURED_AUTH_SECRET token validation skipped: ${msg} reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
       return {
         userId: null,
         isAuthenticated: false,

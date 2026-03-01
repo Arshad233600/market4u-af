@@ -227,10 +227,25 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // 5xx Server Errors - Retryable only for idempotent methods (GET, DELETE, PUT).
     // POST/PATCH are not retried: POST is not idempotent (creates a new resource each call),
     // and PATCH semantics vary per endpoint.
+    // 503 misconfigured_auth is a permanent server configuration error — never retry it.
     const isIdempotent = method === 'GET' || method === 'DELETE' || method === 'PUT';
     if (response.status >= 500 && retries > 0 && isIdempotent) {
+      // For 503, peek at the body to detect permanent misconfigured_auth before retrying.
+      let shouldRetry = true;
+      if (response.status === 503) {
+        try {
+          const peek = await response.clone().json() as { error?: string };
+          if (peek.error === 'misconfigured_auth') {
+            shouldRetry = false; // permanent config error — fall through to !response.ok handler
+          }
+        } catch {
+          console.warn(`[apiClient] 503 ${method} ${endpoint} — could not parse response body; treating as retryable`);
+        }
+      }
+      if (shouldRetry) {
         await wait(backoff);
         return request<T>(endpoint, method, body, retries - 1, backoff * 2, refreshAttempted, silent);
+      }
     }
 
     if (!response.ok) {
