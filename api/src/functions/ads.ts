@@ -545,10 +545,10 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
 app.http("getAds", { methods: ["GET"], authLevel: "anonymous", route: "ads", handler: getAds });
 app.http("getMyAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/my-ads", handler: getMyAds });
 app.http("getSellerAds", { methods: ["GET"], authLevel: "anonymous", route: "ads/user/{userId}", handler: getSellerAds });
-app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id}", handler: getAdDetail });
+app.http("getAdDetail", { methods: ["GET"], authLevel: "anonymous", route: "ads/{id:guid}", handler: getAdDetail });
 app.http("postAd", { methods: ["POST"], authLevel: "anonymous", route: "ads", handler: postAd });
-app.http("updateAd", { methods: ["PUT"], authLevel: "anonymous", route: "ads/{id}", handler: updateAd });
-app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/{id}", handler: deleteAd });
+app.http("updateAd", { methods: ["PUT"], authLevel: "anonymous", route: "ads/{id:guid}", handler: updateAd });
+app.http("deleteAd", { methods: ["DELETE"], authLevel: "anonymous", route: "ads/{id:guid}", handler: deleteAd });
 
 export async function updateAdStatus(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
