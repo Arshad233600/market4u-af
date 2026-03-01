@@ -95,7 +95,10 @@ const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
 assert(loginRes.ok, `Login responds 2xx (got ${loginRes.status})`);
 
 const loginBody = await loginRes.json();
-const token = loginBody?.token;
+// Backend wraps successful responses in { success: true, data: { ... } }.
+// Fall back to the flat shape for compatibility with alternative response formats.
+const loginData = loginBody?.data ?? loginBody;
+const token = loginData?.token;
 assert(typeof token === 'string' && token.length > 0, 'Login returns a non-empty token');
 
 if (!token) {
