@@ -25,6 +25,16 @@ class RealtimeService {
 
   constructor() {
     this.connect();
+    // Stop polling when the user logs out or the session is invalidated.
+    // Re-check the token so that non-auth events (e.g. profile updates) do not
+    // disconnect an active polling session unnecessarily.
+    // NOTE: This listener is intentionally never removed because this service is
+    // a module-level singleton that lives for the entire page lifetime.
+    window.addEventListener('auth-change', () => {
+      if (!authService.getToken() || authService.isTokenExpired()) {
+        this.disconnect();
+      }
+    });
   }
 
   public connect() {
@@ -51,7 +61,7 @@ class RealtimeService {
     if (this.pollingInterval) return; // already polling
 
     const token = authService.getToken();
-    if (!token) return;
+    if (!token || authService.isTokenExpired()) return;
 
     // Skip polling entirely when persistent storage is blocked (Safari ITP /
     // private browsing).  Without durable storage the token cannot survive page
@@ -69,7 +79,7 @@ class RealtimeService {
 
   private async pollInbox() {
     const token = authService.getToken();
-    if (!token) {
+    if (!token || authService.isTokenExpired()) {
         this.disconnect();
         return;
     }
