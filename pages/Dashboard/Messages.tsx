@@ -2,11 +2,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   WifiOff, Search, MessageSquare, ArrowRight, MoreVertical,
-  Trash2, CheckCheck, AlertCircle, Clock, Plus, Send, StopCircle, Mic
+  Trash2, CheckCheck, AlertCircle, Clock, Plus, Send, StopCircle, Mic,
+  UserPlus, X, Check, Users
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
 import { realtimeService } from '../../services/realtimeService';
-import { ChatConversation, ChatMessage } from '../../types';
+import { ChatConversation, ChatMessage, ChatRequest, UserSuggestion } from '../../types';
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
 import { safeStorage } from '../../utils/safeStorage';
@@ -65,6 +66,20 @@ const Messages: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // User search for new chat request
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userResults, setUserResults] = useState<UserSuggestion[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+
+  // Incoming chat requests
+  const [chatRequests, setChatRequests] = useState<ChatRequest[]>([]);
+  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
+
+  // Conversation search (filter existing)
+  const [convoSearch, setConvoSearch] = useState('');
 
   useEffect(() => {
       const handleOnline = () => setIsOnline(true);
@@ -125,12 +140,18 @@ const Messages: React.FC = () => {
       }
   };
 
+  const loadChatRequests = async () => {
+      const data = await azureService.getChatRequests();
+      setChatRequests(data);
+  };
+
   useEffect(() => {
     // Ensure WebSocket is connected when the user opens the Messages page
     // (handles the case where the service loaded before the user logged in)
     realtimeService.connect();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConvos();
+    loadChatRequests();
 
     // Subscribe to Realtime Updates
     const unsubscribe = realtimeService.subscribe((incomingMsg) => {
@@ -145,8 +166,16 @@ const Messages: React.FC = () => {
         loadConvos();
     });
 
+    // Listen for chat-request-accepted event (mock auto-accept)
+    const handleRequestAccepted = () => {
+        loadConvos();
+        toastService.success('درخواست گفتگو پذیرفته شد!');
+    };
+    window.addEventListener('chat-request-accepted', handleRequestAccepted);
+
     return () => {
         unsubscribe();
+        window.removeEventListener('chat-request-accepted', handleRequestAccepted);
     }
   }, [activeChatId]);
 
@@ -158,6 +187,49 @@ const Messages: React.FC = () => {
           });
       }
   }, [activeChatId]);
+
+  // User search as user types
+  useEffect(() => {
+      const timer = setTimeout(async () => {
+          if (searchQuery.length < 2) {
+              setUserResults([]);
+              return;
+          }
+          setIsSearchingUsers(true);
+          const results = await azureService.searchUsers(searchQuery);
+          setUserResults(results);
+          setIsSearchingUsers(false);
+      }, 300);
+      return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSendChatRequest = async (user: UserSuggestion) => {
+      setSendingRequestTo(user.id);
+      const success = await azureService.sendChatRequest(user.id, user.name);
+      setSendingRequestTo(null);
+      if (success) {
+          toastService.success(`درخواست گفتگو به ${user.name} ارسال شد.`);
+          setSearchQuery('');
+          setUserResults([]);
+      }
+  };
+
+  const handleAcceptRequest = async (req: ChatRequest) => {
+      setAcceptingRequestId(req.id);
+      const convoId = await azureService.acceptChatRequest(req.id);
+      setAcceptingRequestId(null);
+      if (convoId) {
+          await loadConvos();
+          await loadChatRequests();
+          setActiveChatId(convoId);
+          toastService.success('گفتگو شروع شد!');
+      }
+  };
+
+  const handleRejectRequest = async (req: ChatRequest) => {
+      await azureService.rejectChatRequest(req.id);
+      await loadChatRequests();
+  };
 
   const handleSendMessage = async () => {
       if (!activeChatId || !newMessage.trim()) return;
@@ -229,6 +301,11 @@ const Messages: React.FC = () => {
   };
 
   const activeConversation = conversations.find(c => c.id === activeChatId);
+  const filteredConversations = convoSearch
+      ? conversations.filter(c =>
+          c.otherUserName.toLowerCase().includes(convoSearch.toLowerCase()) ||
+          c.productTitle.toLowerCase().includes(convoSearch.toLowerCase()))
+      : conversations;
 
   return (
     <div className="bg-ui-surface rounded-2xl shadow-sm border border-ui-border overflow-hidden h-[calc(100vh-140px)] min-h-[500px] flex">
@@ -241,20 +318,133 @@ const Messages: React.FC = () => {
              </div>
          )}
          <div className="p-4 border-b border-ui-border bg-ui-surface2/50">
-            <h2 className="font-bold text-ui-text mb-3">پیام‌ها</h2>
-            <div className="relative">
-               <input type="text" placeholder="جستجو..." className="w-full bg-ui-surface border border-ui-border rounded-xl pr-9 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500" />
-               <Search className="absolute right-3 top-3 w-4 h-4 text-ui-muted" />
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-ui-text">پیام‌ها</h2>
+                <button
+                    onClick={() => { setShowUserSearch(v => !v); setSearchQuery(''); setUserResults([]); }}
+                    className={`p-1.5 rounded-lg transition-colors ${showUserSearch ? 'text-white bg-brand-600' : 'text-brand-600 hover:bg-brand-50'}`}
+                    title="گفتگوی جدید"
+                >
+                    <UserPlus className="w-4 h-4" />
+                </button>
             </div>
+
+            {/* User search for new chat request */}
+            {showUserSearch && (
+            <div className="relative mb-2">
+               <input
+                 type="text"
+                 value={searchQuery}
+                 onChange={e => setSearchQuery(e.target.value)}
+                 placeholder="جستجوی کاربر برای گفتگو..."
+                 className="w-full bg-ui-surface border border-ui-border rounded-xl pr-9 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                 autoFocus
+               />
+               {isSearchingUsers
+                 ? <div className="absolute right-3 top-3 w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                 : <Search className="absolute right-3 top-3 w-4 h-4 text-ui-muted" />
+               }
+               {searchQuery && (
+                   <button onClick={() => { setSearchQuery(''); setUserResults([]); }} className="absolute left-2.5 top-2.5 text-ui-muted hover:text-ui-text p-0.5 rounded">
+                       <X className="w-4 h-4" />
+                   </button>
+               )}
+            </div>
+            )}
+
+            {/* User search results dropdown */}
+            {showUserSearch && userResults.length > 0 && (
+                <div className="bg-ui-surface border border-ui-border rounded-xl shadow-lg overflow-hidden mb-2">
+                    {userResults.map(user => (
+                        <div key={user.id} className="flex items-center justify-between p-3 hover:bg-ui-surface2 border-b border-gray-50 last:border-0">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 font-bold text-sm">
+                                    {user.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-ui-text">{user.name}</p>
+                                    {user.province && <p className="text-xs text-ui-muted">{user.province}</p>}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleSendChatRequest(user)}
+                                disabled={sendingRequestTo === user.id}
+                                className="text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1"
+                            >
+                                {sendingRequestTo === user.id
+                                    ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    : <UserPlus className="w-3 h-3" />
+                                }
+                                درخواست
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Conversation filter */}
+            {conversations.length > 0 && !showUserSearch && (
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={convoSearch}
+                        onChange={e => setConvoSearch(e.target.value)}
+                        placeholder="فیلتر گفتگوها..."
+                        className="w-full bg-ui-surface border border-ui-border rounded-xl pr-9 pl-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <Users className="absolute right-3 top-2.5 w-4 h-4 text-ui-muted" />
+                </div>
+            )}
          </div>
          <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-ui-muted text-sm">
+            {/* Incoming chat requests */}
+            {chatRequests.length > 0 && (
+                <div className="border-b border-ui-border">
+                    <p className="text-[10px] font-bold text-ui-muted uppercase px-4 pt-3 pb-1">درخواست‌های گفتگو ({chatRequests.length})</p>
+                    {chatRequests.map(req => (
+                        <div key={req.id} className="px-4 py-3 flex items-center gap-3 border-b border-gray-50 bg-brand-50/50">
+                            <div className="w-9 h-9 bg-brand-100 rounded-full flex-shrink-0 flex items-center justify-center text-brand-600 font-bold text-sm">
+                                {req.fromUserName.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-sm text-ui-text truncate">{req.fromUserName}</p>
+                                <p className="text-[10px] text-ui-muted">{req.createdAt}</p>
+                            </div>
+                            <div className="flex gap-1.5">
+                                <button
+                                    onClick={() => handleAcceptRequest(req)}
+                                    disabled={acceptingRequestId === req.id}
+                                    className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                                    title="قبول"
+                                >
+                                    {acceptingRequestId === req.id
+                                        ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        : <Check className="w-3 h-3" />
+                                    }
+                                </button>
+                                <button
+                                    onClick={() => handleRejectRequest(req)}
+                                    className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                                    title="رد"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {filteredConversations.length === 0 && !showUserSearch ? (
+                <div className="flex flex-col items-center justify-center h-full text-ui-muted text-sm p-4">
                     <MessageSquare className="w-10 h-10 mb-2 opacity-30" />
                     <p>هیچ گفتگویی ندارید.</p>
+                    <p className="text-xs mt-1 text-center">برای شروع گفتگو، روی آیکون + کلیک کنید</p>
                 </div>
+            ) : filteredConversations.length === 0 && showUserSearch ? (
+                <div className="p-4 text-center text-sm text-ui-muted">نتیجه‌ای یافت نشد.</div>
             ) : (
-                conversations.map(conv => (
+                filteredConversations.map(conv => (
                 <div key={conv.id} onClick={() => setActiveChatId(conv.id)} className={`p-4 flex gap-3 hover:bg-ui-surface2 cursor-pointer border-b border-gray-50 transition-colors ${activeChatId === conv.id ? 'bg-brand-50 border-r-4 border-r-brand-500' : ''}`}>
                     <div className="w-12 h-12 bg-ui-surface2 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-ui-muted relative">
                         {conv.otherUserName.charAt(0)}

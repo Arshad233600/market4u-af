@@ -216,11 +216,11 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const files: File[] = Array.from(e.target.files);
-      const remainingSlots = 5 - images.length;
+      const remainingSlots = 4 - images.length;
       const filesToUpload = files.slice(0, remainingSlots);
 
       if (filesToUpload.length === 0) {
-          toastService.error('حداکثر ۵ عکس می‌توانید انتخاب کنید.');
+          toastService.error('حداکثر ۴ عکس می‌توانید انتخاب کنید.');
           return;
       }
 
@@ -312,6 +312,19 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           onNavigate(Page.POST_AD);
           return;
       }
+
+      // Limit unverified users to 5 ads
+      if (!existingAd) {
+          const currentUser = authService.getCurrentUser();
+          if (currentUser && !currentUser.isVerified) {
+              const myAds = await azureService.getMyAds();
+              if (myAds.length >= 5) {
+                  toastService.warning('شما به حداکثر ۵ آگهی رسیده‌اید. برای ثبت آگهی بیشتر، لطفاً احراز هویت کنید.');
+                  onNavigate(Page.DASHBOARD_SETTINGS);
+                  return;
+              }
+          }
+      }
       
       setIsSubmitting(true);
       const fullLocation = district ? `${province} - ${district}` : province;
@@ -400,16 +413,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
         
         {/* Images Section */}
         <div className="bg-ui-surface p-5 rounded-2xl border border-ui-border shadow-sm">
-            <label className="block text-sm font-bold text-ui-muted mb-3">{t('post_lbl_images')} (حداکثر ۵ عکس)</label>
+            <label className="block text-sm font-bold text-ui-muted mb-3">{t('post_lbl_images')} (حداکثر ۴ عکس)</label>
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                <div className={`relative flex-shrink-0 w-24 h-24 bg-brand-600 rounded-xl flex flex-col items-center justify-center text-white transition-transform cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}>
+                <div className={`relative flex-shrink-0 w-24 h-24 rounded-xl flex flex-col items-center justify-center text-white transition-transform shadow-sm ${images.length >= 4 || uploadingImages.length > 0 ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-brand-600 cursor-pointer hover:scale-105 active:scale-95'}`}>
                     <input 
                       type="file" 
                       className="absolute inset-0 opacity-0 cursor-pointer" 
                       onChange={handleImageUpload} 
                       accept="image/*" 
                       multiple
-                      disabled={uploadingImages.length > 0}
+                      disabled={uploadingImages.length > 0 || images.length >= 4}
                     />
                     {uploadingImages.length > 0 ? <Icon name="Loader2" size={32} strokeWidth={1.8} className="animate-spin" /> : <Icon name="Plus" size={32} strokeWidth={1.8} className="mb-1 text-white" />}
                     <span className="text-[10px] font-bold">{uploadingImages.length > 0 ? '...' : 'افزودن عکس'}</span>

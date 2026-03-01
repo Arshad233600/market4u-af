@@ -1,5 +1,5 @@
 
-import { Product, User, UserSuggestion, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification } from '../types';
+import { Product, User, UserSuggestion, WalletTransaction, DashboardStats, ChatConversation, AdStatus, ChatMessage, Notification, ChatRequest } from '../types';
 import { MOCK_PRODUCTS } from '../constants';
 import { apiClient, AuthError, ApiError } from './apiClient';
 import { USE_MOCK_DATA } from '../config';
@@ -186,6 +186,9 @@ const db = {
         }
         if (!safeStorage.getItem(DB_PREFIX + 'settings')) {
             safeStorage.setItem(DB_PREFIX + 'settings', JSON.stringify({ notif_msg: true, notif_ad: true, notif_promo: true }));
+        }
+        if (!safeStorage.getItem(DB_PREFIX + 'chatRequests')) {
+            safeStorage.setItem(DB_PREFIX + 'chatRequests', JSON.stringify([]));
         }
     }
 };
@@ -876,6 +879,116 @@ export const azureService = {
       }
       try {
           await apiClient.delete(`/messages/${messageId}`);
+          return true;
+      } catch { return false; }
+  },
+
+  // --- CHAT REQUESTS ---
+  sendChatRequest: async (toUserId: string, toUserName: string): Promise<boolean> => {
+      if (USE_MOCK_DATA) {
+          if (toUserId === CURRENT_USER_ID) {
+              toastService.warning('شما نمی‌توانید با خودتان چت کنید!');
+              return false;
+          }
+          const requests = db.get<ChatRequest[]>('chatRequests', []);
+          // Check if a pending request already exists
+          if (requests.some(r => r.toUserId === toUserId && r.fromUserId === CURRENT_USER_ID && r.status === 'PENDING')) {
+              toastService.info('قبلاً درخواست گفتگو فرستاده‌اید.');
+              return false;
+          }
+          // If conversation already exists, just open it
+          const conversations = db.get<ChatConversation[]>('conversations', []);
+          if (conversations.some(c => c.otherUserId === toUserId)) {
+              toastService.info('گفتگو از قبل موجود است.');
+              return false;
+          }
+          const newRequest: ChatRequest = {
+              id: `req_${Date.now()}`,
+              fromUserId: CURRENT_USER_ID,
+              fromUserName: authService.getCurrentUser()?.name || 'کاربر',
+              toUserId,
+              status: 'PENDING',
+              createdAt: new Date().toLocaleDateString('fa-AF'),
+          };
+          requests.push(newRequest);
+          db.save('chatRequests', requests);
+          // Simulate auto-accept after 2 seconds (mock demo)
+          setTimeout(async () => {
+              await azureService.acceptChatRequest(newRequest.id, toUserId, toUserName);
+              const event = new CustomEvent('chat-request-accepted', { detail: { requestId: newRequest.id } });
+              window.dispatchEvent(event);
+          }, 2000);
+          return true;
+      }
+      try {
+          await apiClient.post('/chat/requests', { toUserId });
+          return true;
+      } catch { return false; }
+  },
+
+  getChatRequests: async (): Promise<ChatRequest[]> => {
+      if (USE_MOCK_DATA) {
+          const requests = db.get<ChatRequest[]>('chatRequests', []);
+          return requests.filter(r => r.toUserId === CURRENT_USER_ID && r.status === 'PENDING');
+      }
+      try {
+          const data = await apiClient.get<ChatRequest[]>('/chat/requests');
+          return Array.isArray(data) ? data : [];
+      } catch { return []; }
+  },
+
+  acceptChatRequest: async (requestId: string, fromUserId?: string, fromUserName?: string): Promise<string> => {
+      if (USE_MOCK_DATA) {
+          const requests = db.get<ChatRequest[]>('chatRequests', []);
+          const reqIndex = requests.findIndex(r => r.id === requestId);
+          let req = reqIndex !== -1 ? requests[reqIndex] : null;
+          if (!req && fromUserId && fromUserName) {
+              // Called internally for mock auto-accept
+              req = { id: requestId, fromUserId, fromUserName, toUserId: CURRENT_USER_ID, status: 'PENDING', createdAt: '' };
+          }
+          if (!req) return '';
+          if (reqIndex !== -1) {
+              requests[reqIndex] = { ...req, status: 'ACCEPTED' };
+              db.save('chatRequests', requests);
+          }
+          // Create conversation
+          const conversations = db.get<ChatConversation[]>('conversations', []);
+          if (conversations.some(c => c.otherUserId === req!.fromUserId)) {
+              return conversations.find(c => c.otherUserId === req!.fromUserId)!.id;
+          }
+          const newConvoId = `c_${Date.now()}`;
+          const newConvo: ChatConversation = {
+              id: newConvoId,
+              otherUserId: req.fromUserId,
+              otherUserName: req.fromUserName,
+              otherUserAvatar: '',
+              productId: '',
+              productTitle: '',
+              lastMessage: '',
+              lastMessageTime: 'همین الان',
+              unreadCount: 0,
+          };
+          conversations.unshift(newConvo);
+          db.save('conversations', conversations);
+          return newConvoId;
+      }
+      try {
+          const data = await apiClient.post<{ conversationId: string }>(`/chat/requests/${requestId}/accept`, {});
+          return data.conversationId;
+      } catch { return ''; }
+  },
+
+  rejectChatRequest: async (requestId: string): Promise<boolean> => {
+      if (USE_MOCK_DATA) {
+          const requests = db.get<ChatRequest[]>('chatRequests', []);
+          const idx = requests.findIndex(r => r.id === requestId);
+          if (idx === -1) return false;
+          requests[idx] = { ...requests[idx], status: 'REJECTED' };
+          db.save('chatRequests', requests);
+          return true;
+      }
+      try {
+          await apiClient.post(`/chat/requests/${requestId}/reject`, {});
           return true;
       } catch { return false; }
   },

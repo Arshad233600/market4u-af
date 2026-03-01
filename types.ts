@@ -157,6 +157,15 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface ChatRequest {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+}
+
 export enum Page {
   HOME = 'home',
   POST_AD = 'post_ad',
