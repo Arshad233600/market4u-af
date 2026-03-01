@@ -50,8 +50,12 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
 
   /**
    * Calls /api/auth/me immediately after a successful login to verify the token
-   * is readable by the server. If this returns 401, it is a strong signal that
-   * either storage is blocked (token was not persisted) or AUTH_SECRET mismatch.
+   * is readable by the server. This is a diagnostic-only check — it must never
+   * throw or block the login flow regardless of what the server returns.
+   *
+   * If this returns 401 it is a strong signal that either storage is blocked
+   * (token was not persisted) or there is an AUTH_SECRET mismatch.
+   * If this returns 503 the server is misconfigured (AUTH_SECRET not set).
    */
   const verifySessionAfterLogin = async () => {
     try {
@@ -64,6 +68,12 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
           storageTest: safeStorage.selfTest(),
           reason: err.reason,
         });
+      } else {
+        // Non-AuthError (e.g. ApiError 503 when AUTH_SECRET is not configured,
+        // or a network error). Log for diagnostics but do NOT re-throw — the
+        // credentials were accepted by the login endpoint and the session is
+        // valid; only the diagnostic check failed.
+        console.warn('[Login] post_login_me_check_failed', err instanceof Error ? err.message : err);
       }
     }
   };
