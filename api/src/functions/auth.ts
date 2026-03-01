@@ -67,8 +67,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     const profile = profileResult.recordset[0];
 
     const token = signToken({
-      uid: user.Id,
-      iat: Date.now()
+      uid: user.Id
     });
 
     telemetry?.trackEvent({ name: "LoginSucceeded", properties: { userId: user.Id } });
@@ -161,7 +160,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
     context.log(`User registered successfully: ${id}`);
     telemetry?.trackEvent({ name: "RegisterSucceeded", properties: { userId: id } });
     telemetry?.trackMetric({ name: "RegisterDuration", value: Date.now() - startTime });
-    const token = signToken({ uid: id, iat: Date.now() });
+    const token = signToken({ uid: id });
 
     return success({
       token,
