@@ -4,7 +4,7 @@ import * as sql from "mssql";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_SECONDS, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
+import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
 import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
@@ -21,11 +21,11 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
   return await bcrypt.compare(password, hash);
 };
 
-/** Signs a token using HS256 via jsonwebtoken with 1-year expiry. */
+/** Signs a token using HS256 via jsonwebtoken with 7-day expiry. */
 function signToken(payload: object): string {
   const secret = getAuthSecretOrThrow();
-  // jwt.sign accepts expiresIn as seconds; payload must not include exp (it's added by jwt.sign)
-  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: TOKEN_EXPIRATION_SECONDS });
+  console.log("Signing with secret length:", secret.length);
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
 }
 
 export async function login(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {

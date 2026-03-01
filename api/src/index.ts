@@ -21,25 +21,12 @@ import "./functions/user";
 import "./functions/wallet";
 import "./functions/health";
 
-// Startup sanity check: emit a loud warning if AUTH_SECRET is not configured or looks wrong.
-// A missing/insecure/misconfigured secret causes all protected endpoints to return 503 (not 401)
-// so operators can distinguish a configuration problem from a client auth failure.
+// Startup sanity check: log AUTH_SECRET length so sign and verify can be confirmed to match.
+// authUtils throws on startup if AUTH_SECRET is missing, so reaching here guarantees it is set.
 import { isAuthSecretInsecure } from "./utils/authUtils";
-const _authSecretRaw = process.env.AUTH_SECRET ?? '';
-const _authSecretLen = _authSecretRaw.length;
-const _authSecretMissing = _authSecretLen === 0;
-const _authSecretLooksLikeEnvVar = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(_authSecretRaw);
+console.log("AUTH_SECRET length:", process.env.AUTH_SECRET?.length);
 if (isAuthSecretInsecure) {
-  console.error(
-    `[STARTUP] MISCONFIGURED_AUTH_SECRET — ` +
-    `missing=${_authSecretMissing} length=${_authSecretLen} looks_like_env_var=${_authSecretLooksLikeEnvVar}. ` +
-    'AUTH_SECRET is missing, insecure, or set to an environment variable name instead of a real secret. ' +
-    'All protected endpoints will return 503 misconfigured_auth until this is fixed. ' +
-    'Set AUTH_SECRET to a strong random value (minimum 32 characters) in Azure Application Settings.'
-  );
+  console.error('[STARTUP] AUTH_SECRET is missing. All protected endpoints will fail until this is fixed.');
 } else {
-  console.log(
-    `[STARTUP] AUTH_SECRET is configured — ` +
-    `length=${_authSecretLen} missing=${_authSecretMissing} looks_like_env_var=${_authSecretLooksLikeEnvVar} sufficient=${_authSecretLen >= 32}.`
-  );
+  console.log(`[STARTUP] AUTH_SECRET is configured — length=${process.env.AUTH_SECRET?.length}.`);
 }
