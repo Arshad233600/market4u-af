@@ -108,13 +108,24 @@ GEMINI_API_KEY=your-google-gemini-api-key
 APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=your-key
 ```
 
-### Frontend Environment (Optional)
+### Frontend Environment
 
-The frontend automatically uses `/api` for Azure Static Web Apps proxy. For local development:
+The frontend API base URL is resolved in `services/apiClient.ts` as:
+
+```ts
+const base = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+```
+
+**Production (Azure Static Web App):** Add `VITE_API_BASE_URL=/api` in the Azure Static Web App
+→ Configuration → Environment variables panel, then **redeploy** (or trigger a new build) for
+the change to take effect. Using any absolute `https://*.azurewebsites.net` URL here will
+bypass the SWA auth middleware and cause CORS / 401 errors.
+
+**Local development:** create `.env.local` and point to the local Functions runtime:
 
 ```bash
-# .env.local (optional for dev)
-VITE_API_URL=http://localhost:7071/api
+# .env.local
+VITE_API_BASE_URL=http://localhost:7071/api
 VITE_USE_MOCK_DATA=false
 ```
 

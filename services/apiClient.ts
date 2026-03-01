@@ -1,8 +1,10 @@
 
-import { API_BASE_URL } from '../config';
 import { authService } from './authService';
 import { logApiCall, logApiResponse, logAuthSnapshot } from '../utils/debugAuth';
 import { safeStorage } from '../utils/safeStorage';
+
+const base = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+if (import.meta.env.DEV) console.log("[apiClient] baseURL=", base);
 
 /** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
 export class AuthError extends Error {
@@ -165,7 +167,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const response = await fetch(`${base}${endpoint}`, config);
 
     // PHASE 0: log response status
     logApiResponse(method, endpoint, response.status, correlationId);
