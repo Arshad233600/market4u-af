@@ -4,7 +4,7 @@ import { Page } from '../../types';
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
 import { safeStorage } from '../../utils/safeStorage';
-import { apiClient, AuthError } from '../../services/apiClient';
+import { API_BASE_URL } from '../../config';
 
 const STORAGE_BLOCKED_MSG = 'مرورگر اجازه ذخیره‌سازی را نمیدهد. لطفاً از حالت عادی Safari یا Chrome استفاده کنید.';
 
@@ -53,33 +53,44 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
    * is readable by the server. This is a diagnostic-only check — it must never
    * throw or block the login flow regardless of what the server returns.
    *
+   * Uses a direct fetch (not apiClient) so that a 401 invalid_token response
+   * does NOT trigger onAuthInvalid and clear the freshly-issued session.
+   * The session is valid at this point (login just succeeded); if the diagnostic
+   * call fails it means the server has a configuration issue, not that the
+   * user's credentials are bad.
+   *
    * If getToken() returns null the token was not persisted (e.g. storage is
    * blocked by iOS Safari ITP / private browsing). In that case skip the call
    * entirely — there is nothing to verify and the request would fail with 401.
-   *
-   * If this returns 401 it is a strong signal that either storage is blocked
-   * (token was not persisted) or there is an AUTH_SECRET mismatch.
-   * If this returns 503 the server is misconfigured (AUTH_SECRET not set).
    */
   const verifySessionAfterLogin = async () => {
-    if (!authService.getToken()) return; // Token not persisted; nothing to verify
+    const token = authService.getToken();
+    if (!token) return; // Token not persisted; nothing to verify
     try {
-      await apiClient.get('/auth/me', { silent: true });
-    } catch (err) {
-      if (err instanceof AuthError) {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        let reason: string | undefined;
+        try {
+          const body = await response.json() as { reason?: string };
+          reason = body.reason;
+        } catch {
+          // ignore parse failure
+        }
         console.warn('[Login] login_ok_but_me_401', {
+          status: response.status,
+          reason: reason ?? '(unparseable response)',
           storageMode: safeStorage.getMode(),
           storageAvailable: safeStorage.isAvailable(),
           storageTest: safeStorage.selfTest(),
-          reason: err.reason,
         });
-      } else {
-        // Non-AuthError (e.g. ApiError 503 when AUTH_SECRET is not configured,
-        // or a network error). Log for diagnostics but do NOT re-throw — the
-        // credentials were accepted by the login endpoint and the session is
-        // valid; only the diagnostic check failed.
-        console.warn('[Login] post_login_me_check_failed', err instanceof Error ? err.message : err);
       }
+    } catch (err) {
+      console.warn('[Login] post_login_me_check_failed', err instanceof Error ? err.message : err);
     }
   };
 
