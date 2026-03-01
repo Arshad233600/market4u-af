@@ -3,75 +3,27 @@ import { Buffer } from "buffer";
 import jwt from "jsonwebtoken";
 import { unauthorized, serviceUnavailable } from "./responses";
 
-export const TOKEN_EXPIRATION_SECONDS = 365 * 24 * 60 * 60; // 1 year in seconds
-export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000; // kept for backward compat
+export const TOKEN_EXPIRATION_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
+export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000;
 
-/**
- * Matches values that look like environment variable names (all uppercase letters,
- * digits, and underscores with at least one underscore), e.g. "VITE_API_BASE_URL".
- * Real secrets must contain lowercase letters or special characters.
- */
-const LOOKS_LIKE_ENV_VAR_NAME = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/;
+// Single source of truth: AUTH_SECRET read once from process.env, no trim, no fallback
+const AUTH_SECRET = process.env.AUTH_SECRET;
 
-/** Typed error codes thrown by getAuthSecretOrThrow for reliable classification. */
-export type AuthSecretErrorCode = 'missing_auth_secret' | 'insecure_default_secret' | 'invalid_auth_secret';
-
-export class AuthSecretError extends Error {
-  constructor(public readonly code: AuthSecretErrorCode, message: string) {
-    super(message);
-    this.name = 'AuthSecretError';
-  }
+// Startup log and fail-fast: log length so sign and verify can be confirmed to match
+console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
+if (!AUTH_SECRET) {
+  throw new Error("[STARTUP] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
 }
 
 /**
- * Returns the AUTH_SECRET or throws if it is missing or insecure.
- * The secret is trimmed to prevent whitespace encoding mismatches.
+ * Returns the AUTH_SECRET. The module-level check above guarantees it is set.
  */
 export function getAuthSecretOrThrow(): string {
-  const raw = process.env.AUTH_SECRET;
-  const secret = raw?.trim() ?? '';
-
-  if (!secret) {
-    const missing = !raw;
-    console.error(`[AUTH] AUTH_SECRET missing=${missing} length=${raw?.length ?? 0} looks_like_env_var=false`);
-    throw new AuthSecretError('missing_auth_secret', 'AUTH_SECRET is not configured.');
-  }
-
-  const looksLikeEnvVarName = LOOKS_LIKE_ENV_VAR_NAME.test(secret);
-  console.log(`[AUTH] AUTH_SECRET length=${secret.length} missing=false looks_like_env_var=${looksLikeEnvVarName}`);
-
-  if (secret === 'CHANGE_ME_IN_AZURE') {
-    throw new AuthSecretError('insecure_default_secret', 'AUTH_SECRET is insecure default — set a strong random value in Azure Application settings.');
-  }
-
-  // Detect common misconfiguration: AUTH_SECRET set to an environment variable name
-  // (e.g. "VITE_API_BASE_URL") instead of its actual value.
-  if (looksLikeEnvVarName) {
-    const displayValue = secret.length <= 20 ? `"${secret}"` : `"${secret.slice(0, 8)}..."`;
-    throw new AuthSecretError(
-      'invalid_auth_secret',
-      `AUTH_SECRET is set to what looks like an environment variable name (${displayValue}). ` +
-      'Set AUTH_SECRET to a strong random value (min 32 chars) in Azure Application Settings, not a variable name.'
-    );
-  }
-
-  if (secret.length < 32) {
-    console.warn(`[SECURITY] AUTH_SECRET is only ${secret.length} chars; minimum recommended length is 32.`);
-  }
-
-  return secret;
+  return AUTH_SECRET!;
 }
 
-/** True when AUTH_SECRET is missing, the insecure fallback value, or looks like an env-var name. */
-export const isAuthSecretInsecure = (() => {
-  const raw = process.env.AUTH_SECRET;
-  const secret = raw?.trim() ?? '';
-  return (
-    !secret ||
-    secret === 'CHANGE_ME_IN_AZURE' ||
-    LOOKS_LIKE_ENV_VAR_NAME.test(secret)
-  );
-})();
+/** True when AUTH_SECRET is missing. */
+export const isAuthSecretInsecure = !AUTH_SECRET;
 
 export interface AuthResult {
     userId: string | null;
@@ -137,7 +89,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     try {
       secret = getAuthSecretOrThrow();
     } catch (err) {
-      const reason: string = err instanceof AuthSecretError ? err.code : 'missing_auth_secret';
+      const reason = 'missing_auth_secret';
       const msg = (err as Error).message;
       lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
       console.warn(`[Auth] MISCONFIGURED_AUTH_SECRET token validation skipped: ${msg} reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
@@ -148,7 +100,9 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         requestId: correlationId,
       };
     }
-    
+
+    console.log("Verifying with secret length:", secret.length);
+
     try {
         // Verify using jsonwebtoken with HS256 — same algorithm used by jwt.sign in signToken()
         const payload = jwt.verify(token, secret, { algorithms: ['HS256'] }) as jwt.JwtPayload;

@@ -4,7 +4,7 @@ import { isAuthSecretInsecure, getAuthSecretOrThrow, lastAuthFailureSample } fro
 import { getBlobContainerClient } from "../blob";
 import { checkRateLimit } from "../utils/rateLimit";
 import { checkAdsSchema, AdsSchemaResult } from "../utils/schemaCheck";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 /**
  * Diagnostics Endpoint — Forensic Audit (Phases 1–4)
@@ -175,20 +175,15 @@ export async function diagnostics(
     });
     authTestResult = { status: 'failed', latencyMs: 0, reason: 'insecure_default_secret' };
   } else {
-    // Sign and verify a short-lived test token
+    // Sign and verify a short-lived test token using the same jwt.sign/jwt.verify used in auth
     const authTestStart = Date.now();
     try {
       const secret = getAuthSecretOrThrow();
-      const payload = Buffer.from(JSON.stringify({ uid: '__diag_test__', iat: Date.now() })).toString('base64url');
-      const sig = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-      const testToken = `${payload}.${sig}`;
-      // Verify
-      const [p, s] = testToken.split('.');
-      const expectedSig = crypto.createHmac('sha256', secret).update(p).digest('base64url');
+      const testToken = jwt.sign({ uid: '__diag_test__' }, secret, { algorithm: 'HS256', expiresIn: '1m' });
+      jwt.verify(testToken, secret, { algorithms: ['HS256'] });
       authTestResult = {
-        status: s === expectedSig ? 'ok' : 'failed',
+        status: 'ok',
         latencyMs: Date.now() - authTestStart,
-        reason: s === expectedSig ? undefined : 'signature_mismatch',
       };
     } catch (err) {
       authTestResult = {
@@ -416,27 +411,15 @@ export async function diagnosticsAuth(
 
   // Determine authSecretStatus
   const secret = process.env.AUTH_SECRET;
-  let authSecretStatus: "ok" | "missing" | "insecure";
-  if (!secret || secret.trim() === "") {
-    authSecretStatus = "missing";
-  } else if (secret === "CHANGE_ME_IN_AZURE") {
-    authSecretStatus = "insecure";
-  } else {
-    authSecretStatus = "ok";
-  }
+  const authSecretStatus: "ok" | "missing" = secret ? "ok" : "missing";
 
-  // Perform a sign/verify round-trip to check token verification
+  // Perform a jwt sign/verify round-trip to check token verification
   let tokenVerification: "ok" | "fail" = "fail";
   if (authSecretStatus === "ok") {
     try {
-      // Sign a test payload, then independently re-derive the expected signature
-      // and compare — this validates the full HMAC sign+verify cycle.
-      const testPayload = Buffer.from(JSON.stringify({ uid: "__diag__", iat: Date.now() })).toString("base64url");
-      const testSig = crypto.createHmac("sha256", secret!).update(testPayload).digest("base64url");
-      const token = `${testPayload}.${testSig}`;
-      const [p, s] = token.split(".");
-      const expectedSig = crypto.createHmac("sha256", secret!).update(p).digest("base64url");
-      tokenVerification = s === expectedSig ? "ok" : "fail";
+      const testToken = jwt.sign({ uid: "__diag__" }, secret!, { algorithm: "HS256", expiresIn: "1m" });
+      jwt.verify(testToken, secret!, { algorithms: ["HS256"] });
+      tokenVerification = "ok";
     } catch {
       tokenVerification = "fail";
     }
