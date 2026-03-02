@@ -1,16 +1,9 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { getOrCreateBlobContainerClient } from "../blob";
 
 export async function upload(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     try {
-        const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
-        const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
-
-        if (!conn) {
-            return { status: 500, body: "Missing AZURE_STORAGE_CONNECTION_STRING" };
-        }
-
         const body = await request.json() as any;
         const { fileName, contentType, base64 } = body || {};
         
@@ -19,9 +12,7 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         }
 
         const buffer = Buffer.from(base64, "base64");
-        const blobServiceClient = BlobServiceClient.fromConnectionString(conn);
-        const containerClient = blobServiceClient.getContainerClient(containerName);
-        await containerClient.createIfNotExists();
+        const containerClient = await getOrCreateBlobContainerClient();
 
         // Unique safe name to prevent collisions
         const safeName = `${crypto.randomUUID()}-${fileName.replace(/[^\w.-]/g, "_")}`;
