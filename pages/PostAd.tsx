@@ -356,8 +356,6 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           }
       } catch (err) {
           // AuthError: the server rejected the token (missing, expired, or invalid).
-          // apiClient already called onAuthInvalid for invalid_token (clears session);
-          // for other auth reasons call it here so the session is always cleared.
           if (err instanceof AuthError) {
               const reason = err.reason ?? 'auth_error_post_ad';
               // 'storage_blocked' means the browser's privacy settings (e.g. Safari ITP /
@@ -367,9 +365,14 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               if (reason === 'storage_blocked') {
                   toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
                   onNavigate(Page.POST_AD);
+              } else if (reason === 'invalid_token') {
+                  // apiClient already attempted a silent refresh before throwing.
+                  // Do NOT logout immediately — show an error so the user can
+                  // choose to re-authenticate rather than being silently logged out.
+                  toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+                  onNavigate(Page.POST_AD);
               } else {
-                  // Clear the session for all other auth failures (expired, invalid, missing).
-                  // Note: apiClient does NOT call onAuthInvalid — the UI is responsible here.
+                  // Clear the session for all other auth failures (expired, missing, etc.).
                   authService.onAuthInvalid(reason);
                   toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
                   onNavigate(Page.POST_AD);

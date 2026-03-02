@@ -31,11 +31,17 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
         setAds(data);
       } catch (err) {
         if (err instanceof AuthError) {
-          // Clear the session so the dashboard guard in App.tsx redirects the user
-          // to the login page. onAuthInvalid is idempotent: if apiClient already
-          // cleared the token (e.g. for invalid_token), the storage calls are no-ops
-          // but the auth-change event re-fires to ensure the UI updates.
-          authService.onAuthInvalid(err.reason ?? 'unauthorized');
+          const reason = err.reason ?? 'unauthorized';
+          // For invalid_token: apiClient already attempted a silent refresh before
+          // throwing. Do NOT logout immediately — show an error so the user can
+          // choose to re-authenticate rather than being silently logged out.
+          if (reason === 'invalid_token') {
+            setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+            return;
+          }
+          // For all other auth failures (missing_token, token_expired, etc.) clear
+          // the session so the dashboard guard in App.tsx redirects to login.
+          authService.onAuthInvalid(reason);
           return;
         }
         const msg = err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها';
