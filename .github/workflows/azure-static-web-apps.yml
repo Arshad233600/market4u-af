@@ -36,6 +36,7 @@ jobs:
         run: npm run build
         env:
           VITE_USE_MOCK_DATA: 'false'
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
       - name: Install API dependencies
         # --ignore-scripts skips the azure-functions-core-tools binary download (not needed in CI)
@@ -89,15 +90,16 @@ jobs:
           done
           echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
 
-          # Validate SqlConnectionString: if neither SqlConnectionString nor
-          # AZURE_SQL_CONNECTION_STRING is set, the deploy action syncs empty strings to Azure
-          # Application Settings, overwriting any correctly-configured values and causing all
-          # database-dependent endpoints (e.g. /api/ads/my-ads) to return 503 (Service Unavailable).
-          if [ -z "$SQL_CONN_STRING" ] && [ -z "$AZURE_SQL_CONN_STRING" ]; then
-            echo "::error::SqlConnectionString (or AZURE_SQL_CONNECTION_STRING) is not set in GitHub Secrets."
+          # Validate SqlConnectionString: if none of SqlConnectionString,
+          # SQLCONNECTIONSTRING, or AZURE_SQL_CONNECTION_STRING is set, the deploy
+          # action syncs empty strings to Azure Application Settings, overwriting any
+          # correctly-configured values and causing all database-dependent endpoints
+          # (e.g. /api/ads/my-ads) to return 503 (Service Unavailable).
+          if [ -z "$SQL_CONN_STRING" ] && [ -z "$SQLCONNECTIONSTRING" ] && [ -z "$AZURE_SQL_CONN_STRING" ]; then
+            echo "::error::SqlConnectionString (or SQLCONNECTIONSTRING / AZURE_SQL_CONNECTION_STRING) is not set in GitHub Secrets."
             echo "::error::Without it, the deploy action will overwrite the Azure Application Setting with an empty string,"
             echo "::error::causing all database-dependent API endpoints (e.g. GET /api/ads/my-ads) to return 503."
-            echo "::error::Add SqlConnectionString to GitHub Secrets (Settings→Secrets→Actions) with the Azure SQL connection string."
+            echo "::error::Add SQLCONNECTIONSTRING to GitHub Secrets (Settings→Secrets→Actions) with the Azure SQL connection string."
             echo "::error::Format: Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<db>;User Id=<user>;Password=<pass>;Encrypt=True;"
             exit 1
           fi
@@ -105,6 +107,7 @@ jobs:
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           SQL_CONN_STRING: ${{ secrets.SqlConnectionString }}
+          SQLCONNECTIONSTRING: ${{ secrets.SQLCONNECTIONSTRING }}
           AZURE_SQL_CONN_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
 
       - name: Build And Deploy
@@ -120,7 +123,9 @@ jobs:
           skip_app_build: true
         env:
           VITE_USE_MOCK_DATA: "false"
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
           SqlConnectionString: ${{ secrets.SqlConnectionString }}
+          SQLCONNECTIONSTRING: ${{ secrets.SQLCONNECTIONSTRING }}
           AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}

@@ -6,6 +6,8 @@
 
     "SqlConnectionString": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;Persist Security Info=False;User ID=YOUR_USER;Password=YOUR_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;ApplicationName=market4u-api;",
     "_note_Connection_Timeout": "Connection Timeout is in seconds here; in db.ts config object it maps to connectionTimeout in milliseconds (30000ms = 30s)",
+    "SQLCONNECTIONSTRING": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;Persist Security Info=False;User ID=YOUR_USER;Password=YOUR_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;ApplicationName=market4u-api;",
+    "_note_SQLCONNECTIONSTRING": "All-caps alias for SqlConnectionString; set whichever name matches your GitHub Secret name. db.ts accepts either.",
 
     "AUTH_SECRET": "change-this-to-a-random-string-min-32-characters-long",
 
