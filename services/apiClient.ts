@@ -225,15 +225,12 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         );
       }
 
-      // When storage is blocked (Safari ITP / private browsing), a 401 means the
-      // browser cannot persist credentials — not that the session is invalid.
-      // Throw the error so the UI can show a proper message to the user.
-      if (!safeStorage.isAvailable() && isProtected) {
-        throw new AuthError('storage_blocked');
-      }
-
       // If the token is expired, attempt a silent refresh before giving up.
       // Skip if we already tried once for this request (prevents infinite loops).
+      // This runs before the storage_blocked check so that a recoverable
+      // token_expired error is not incorrectly surfaced as storage_blocked
+      // when the storage backend has fallen back to in-memory (e.g. due to
+      // browser tracking prevention blocking localStorage/sessionStorage).
       if (reason === 'token_expired' && !refreshAttempted) {
         const newToken = await tryRefreshToken();
         if (newToken) {
@@ -243,6 +240,15 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         // Refresh failed — throw without invalidating the session.
         // The user must log out explicitly; we never auto-logout.
         throw new AuthError(reason);
+      }
+
+      // When storage is blocked (Safari ITP / private browsing), a 401 means the
+      // browser cannot persist credentials — not that the session is invalid.
+      // Throw the error so the UI can show a proper message to the user.
+      // This check runs after the token_expired refresh attempt above so that
+      // a recoverable expired token is not incorrectly masked as storage_blocked.
+      if (!safeStorage.isAvailable() && isProtected) {
+        throw new AuthError('storage_blocked');
       }
 
       // invalid_token means the stored token's signature does not match the server's
