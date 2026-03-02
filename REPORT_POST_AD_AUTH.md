@@ -142,3 +142,67 @@ On a 401, the following warning is now emitted:
 [postAd] 401 requestId=<uuid> reason=missing_token authHeaderPresent=false
 ```
 This confirms whether the header was absent entirely vs. a bad/expired token.
+
+---
+
+## Post-Deploy Test Steps
+
+Follow these steps after every deployment to confirm that auth works end-to-end
+and the `invalid_token` → logout loop is not triggered.
+
+### 1. Clear state and hard reload
+
+In the browser (or Capacitor DevTools):
+
+```
+// DevTools Console
+localStorage.clear();
+sessionStorage.clear();
+```
+
+Then unregister the service worker:
+
+```
+// DevTools → Application → Service Workers → Unregister
+// OR in console:
+(await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
+```
+
+Finally, hard reload the page (`Ctrl+Shift+R` / `Cmd+Shift+R`).
+
+### 2. Log in
+
+- Navigate to the Login page.
+- Enter valid credentials and submit.
+- **Expected**: redirect to home/dashboard, no errors in console.
+
+### 3. POST /api/ads
+
+- Navigate to the Post Ad page and submit a new ad.
+- **Expected**:
+  - HTTP 201 response with `{ success: true, id: "<uuid>", requestId: "<uuid>" }`.
+  - No 401 response, no logout, no redirect to login.
+
+### 4. GET /api/ads/my-ads
+
+- Navigate to My Ads / Dashboard.
+- **Expected**:
+  - HTTP 200 response with a JSON array of your ads.
+  - No 401 response, no logout, no redirect to login.
+
+### 5. Verify no logout loop
+
+After completing steps 3 and 4, confirm:
+
+- The user is still authenticated (avatar/name shown in header).
+- The browser console shows no `[apiClient] 401` warnings.
+- The session persists across page reloads.
+
+### Diagnostic endpoint (optional)
+
+If you suspect an AUTH_SECRET mismatch between deployments, enable the diag endpoint:
+
+1. Set `AUTH_DIAG_ENABLED=true` in Azure Application Settings.
+2. Call `GET /api/auth/diag`.
+3. Confirm `secretFingerprint` matches across all deployment slots.
+4. Disable the endpoint after confirming (`AUTH_DIAG_ENABLED=false` or remove the setting).

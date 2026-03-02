@@ -70,7 +70,9 @@ jobs:
           else
             SECRET_LEN=${#AUTH_SECRET}
             if [ "$SECRET_LEN" -lt 32 ]; then
-              echo "::warning::AUTH_SECRET is too short (${SECRET_LEN} chars; minimum 32). Generate a secure value with: openssl rand -hex 32"
+              echo "::error::AUTH_SECRET is too short (${SECRET_LEN} chars; minimum 32). A short secret is insecure and will cause all auth endpoints to return 503."
+              echo "::error::Generate a secure value with: openssl rand -hex 32"
+              exit 1
             else
               echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
             fi
