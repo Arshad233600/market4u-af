@@ -62,10 +62,16 @@ const Login: React.FC<LoginProps> = ({ onNavigate, onLoginSuccess }) => {
    * If getToken() returns null the token was not persisted (e.g. storage is
    * blocked by iOS Safari ITP / private browsing). In that case skip the call
    * entirely — there is nothing to verify and the request would fail with 401.
+   *
+   * If isTokenExpired() returns true (covers expired real tokens AND non-standard
+   * tokens such as mock_token_xxx used in demo mode which are not valid JWTs),
+   * skip the call — sending an invalid token to the server would always produce
+   * a 401 DevTools console error with no diagnostic value.
    */
   const verifySessionAfterLogin = async () => {
     const token = authService.getToken();
     if (!token) return; // Token not persisted; nothing to verify
+    if (authService.isTokenExpired()) return; // Skip: expired or non-standard (e.g. mock) token
     try {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
