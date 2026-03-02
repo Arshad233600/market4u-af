@@ -124,9 +124,11 @@ jobs:
         env:
           VITE_USE_MOCK_DATA: "false"
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-          SqlConnectionString: ${{ secrets.SqlConnectionString }}
-          SQLCONNECTIONSTRING: ${{ secrets.SQLCONNECTIONSTRING }}
-          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+          # Consolidate all SQL connection string secret variants into the single canonical
+          # name that db.ts reads first. Using || ensures the first non-empty secret is used
+          # rather than writing an empty string to Azure and overwriting a previously valid
+          # Application Setting — which was the root cause of GET /api/ads/my-ads → 503.
+          SqlConnectionString: ${{ secrets.SqlConnectionString || secrets.SQLCONNECTIONSTRING || secrets.AZURE_SQL_CONNECTION_STRING }}
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
