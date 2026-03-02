@@ -45,7 +45,14 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
           authService.onAuthInvalid(reason);
         }
       } else if (err instanceof ApiError && err.status === 503) {
-        setLoadError('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
+        // Distinguish permanent configuration errors (no retry helps) from transient
+        // database outages (DB_UNAVAILABLE — retrying after a short wait may succeed).
+        const isTransient = err.category === 'DB_UNAVAILABLE';
+        setLoadError(
+          isTransient
+            ? 'سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.'
+            : 'پیکربندی سرور دچار مشکل شده است. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.'
+        );
       } else {
         const msg = err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها';
         setLoadError(msg);

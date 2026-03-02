@@ -80,6 +80,7 @@ export function serviceUnavailable(reason: string): HttpResponseInit {
     jsonBody: {
       success: false,
       error: 'misconfigured_auth',
+      category: 'MISCONFIGURED_AUTH',
       reason,
     } as ApiResponse
   };
