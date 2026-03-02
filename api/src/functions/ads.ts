@@ -206,6 +206,10 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getMyAds Error", err);
+    const { status, category } = classifyPostAdError(err);
+    if (status === 503) {
+      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason: "db_unavailable" } };
+    }
     return { status: 500, jsonBody: { error: "Server Error", message: errMessage(err) } };
   }
 }
