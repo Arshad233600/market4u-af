@@ -9,7 +9,7 @@ import { azureService } from '../../services/azureService';
 import { Product, AdStatus } from '../../types';
 import { APP_STRINGS } from '../../constants';
 import { toastService } from '../../services/toastService';
-import { AuthError } from '../../services/apiClient';
+import { AuthError, ApiError } from '../../services/apiClient';
 import { authService } from '../../services/authService';
 
 interface MyAdsProps {
@@ -42,6 +42,10 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
           // For all other auth failures (missing_token, token_expired, etc.) clear
           // the session so the dashboard guard in App.tsx redirects to login.
           authService.onAuthInvalid(reason);
+          return;
+        }
+        if (err instanceof ApiError && err.status === 503) {
+          setLoadError('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
           return;
         }
         const msg = err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها';

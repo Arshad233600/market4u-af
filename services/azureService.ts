@@ -511,6 +511,9 @@ export const azureService = {
               if (err.status === 404) {
                   toastService.error('مسیر my-ads در سرور موجود نیست');
               }
+              if (err.status === 503) {
+                  throw err;
+              }
           }
           return [];
       }
