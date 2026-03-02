@@ -190,8 +190,10 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
 
 export async function getMyAds(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
-  if (!auth.isAuthenticated) {
-    return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason, category: "AUTH_REQUIRED" } };
+  const authErr = authResponse(auth);
+  if (authErr) {
+    context.warn(`[getMyAds] auth_failed reason=${auth.reason ?? "unknown"} requestId=${auth.requestId ?? "none"}`);
+    return authErr;
   }
 
   try {
