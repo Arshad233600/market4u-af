@@ -65,6 +65,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng,
       const startLat = initialLat || defaultLat;
       const startLng = initialLng || defaultLng;
 
+      // Override default marker icon to use locally-hosted images, avoiding
+      // browser tracking-prevention warnings for unpkg.com CDN resources.
+      window.L.Icon.Default.mergeOptions({
+        iconUrl: '/images/leaflet/marker-icon.png',
+        iconRetinaUrl: '/images/leaflet/marker-icon-2x.png',
+        shadowUrl: '/images/leaflet/marker-shadow.png',
+      });
+
       const map = window.L.map(mapRef.current).setView([startLat, startLng], 13);
       
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
