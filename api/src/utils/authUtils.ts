@@ -159,7 +159,21 @@ export const validateToken = (request: HttpRequest): AuthResult => {
     } catch (err) {
         const verifyMsg = (err as Error).message;
         console.warn(`[Auth] jwt.verify error="${verifyMsg}" requestId=${correlationId} method=${method} endpoint=${endpoint} hasAuthHeader=${hasAuthHeader}`);
-        const reason = err instanceof jwt.TokenExpiredError ? 'token_expired' : 'invalid_token';
+
+        let reason: string;
+        if (err instanceof jwt.TokenExpiredError) {
+            reason = 'token_expired';
+        } else if (err instanceof jwt.JsonWebTokenError && verifyMsg.includes('invalid signature')) {
+            // The token has a valid structure but its signature does not match the current
+            // AUTH_SECRET.  This is a server-side configuration issue (AUTH_SECRET was rotated
+            // or differs across deployments) rather than a bad client token.
+            // Returning 'invalid_auth_secret' (a MISCONFIGURED_REASON) causes authResponse to
+            // return HTTP 503 instead of 401, so the client is NOT automatically logged out.
+            reason = 'invalid_auth_secret';
+        } else {
+            reason = 'invalid_token';
+        }
+
         lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
         return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }

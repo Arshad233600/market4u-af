@@ -360,13 +360,22 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           // for other auth reasons call it here so the session is always cleared.
           if (err instanceof AuthError) {
               const reason = err.reason ?? 'auth_error_post_ad';
-              // Only call onAuthInvalid if apiClient hasn't already done so.
-              // apiClient calls it for 'invalid_token'; for all other reasons we call it here.
-              if (reason !== 'invalid_token') {
-                  authService.onAuthInvalid(reason);
+              // 'storage_blocked' means the browser's privacy settings (e.g. Safari ITP /
+              // private browsing) prevented reading the token from storage.  The user IS
+              // authenticated — the session data just cannot be retrieved right now.
+              // Do NOT clear the session; show a storage-specific message instead.
+              if (reason === 'storage_blocked') {
+                  toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
+                  onNavigate(Page.POST_AD);
+              } else {
+                  // Only call onAuthInvalid if apiClient hasn't already done so.
+                  // apiClient calls it for 'invalid_token'; for all other reasons we call it here.
+                  if (reason !== 'invalid_token') {
+                      authService.onAuthInvalid(reason);
+                  }
+                  toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+                  onNavigate(Page.POST_AD);
               }
-              toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-              onNavigate(Page.POST_AD);
           } else if (err instanceof ApiError) {
               const cat = err.category?.toUpperCase();
               const reqId = err.requestId ?? null;
