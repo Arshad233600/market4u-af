@@ -2,38 +2,38 @@ import { HttpRequest, HttpResponseInit } from "@azure/functions";
 import { Buffer } from "buffer";
 import jwt from "jsonwebtoken";
 import { unauthorized, serviceUnavailable } from "./responses";
+import { getAuthSecretStrict, getSecretFingerprint } from "./authSecret";
 
 export const TOKEN_EXPIRATION_SECONDS = 7 * 24 * 60 * 60; // 7 days in seconds
 export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000;
 
-// Single source of truth: AUTH_SECRET read once from process.env and trimmed.
-// Trimming handles copy-paste whitespace from Azure Application Settings which
-// would otherwise cause jwt.verify to fail for freshly-issued tokens (invalid_token).
-const rawAuthSecret = process.env.AUTH_SECRET;
-const AUTH_SECRET = rawAuthSecret !== undefined ? rawAuthSecret.trim() : undefined;
-
-// Startup log: log length so sign and verify can be confirmed to match
-console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
-if (!AUTH_SECRET) {
+// Single source of truth: AUTH_SECRET is always obtained via getAuthSecretStrict()
+// which reads process.env.AUTH_SECRET, trims whitespace, and validates length >= 32.
+// We evaluate it once at startup to log diagnostics and populate isAuthSecretInsecure.
+let _startupSecret: string | undefined;
+let _startupFingerprint: string | undefined;
+try {
+  _startupSecret = getAuthSecretStrict();
+  _startupFingerprint = getSecretFingerprint(_startupSecret);
+  console.log(
+    `[STARTUP] AUTH_SECRET configured: secretLength=${_startupSecret.length} secretFingerprint=${_startupFingerprint}`
+  );
+} catch (err) {
   // Log a clear error but do NOT throw here — a module-level throw crashes all
-  // Azure Functions (not just auth ones).  Individual auth endpoints already guard
-  // via isAuthSecretInsecure and return 503 when the secret is missing.
-  console.error('[STARTUP] AUTH_SECRET is not configured. All authenticated endpoints will return 503. Set AUTH_SECRET in Azure Application Settings: openssl rand -hex 32');
-}
-// Inform the operator if the raw value had whitespace that was trimmed.
-if (rawAuthSecret !== undefined && rawAuthSecret !== AUTH_SECRET) {
-  console.warn("[STARTUP] WARNING: AUTH_SECRET had leading/trailing whitespace which has been trimmed automatically. Remove the whitespace from the Azure Application Setting to avoid confusion.");
+  // Azure Functions (not just auth ones).  Individual auth endpoints guard via
+  // isAuthSecretInsecure and return 503 when the secret is missing or too short.
+  console.error(
+    "[STARTUP] AUTH_SECRET is not configured or too short. All authenticated endpoints will return 503.",
+    (err as Error).message
+  );
 }
 
 /**
- * Returns the AUTH_SECRET or throws if it is not configured.
- * Callers should guard with isAuthSecretInsecure before calling this.
+ * Returns the AUTH_SECRET via getAuthSecretStrict(), or throws if it is not
+ * configured or too short. Callers should guard with isAuthSecretInsecure first.
  */
 export function getAuthSecretOrThrow(): string {
-  if (!AUTH_SECRET) {
-    throw new Error("[getAuthSecretOrThrow] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
-  }
-  return AUTH_SECRET;
+  return getAuthSecretStrict();
 }
 
 /**
@@ -50,10 +50,11 @@ const INSECURE_SECRET_PLACEHOLDERS = new Set([
   'secret',
 ]);
 
-/** True when AUTH_SECRET is missing or is a known insecure placeholder value. */
-export const isAuthSecretInsecure = !AUTH_SECRET || INSECURE_SECRET_PLACEHOLDERS.has(AUTH_SECRET);
+/** True when AUTH_SECRET is missing, too short, or is a known insecure placeholder value. */
+export const isAuthSecretInsecure =
+  !_startupSecret || INSECURE_SECRET_PLACEHOLDERS.has(_startupSecret);
 
-if (isAuthSecretInsecure && AUTH_SECRET) {
+if (isAuthSecretInsecure && _startupSecret) {
   console.error('[STARTUP] AUTH_SECRET is set to a known insecure placeholder value. Rotate it immediately: openssl rand -hex 32');
 }
 
@@ -107,12 +108,24 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 
-    // Log token header.alg for debugging signature algorithm mismatches
+    // Log token header.alg and payload iat/exp (decoded without verification) for debugging
+    // signature algorithm mismatches and token expiry issues.
+    // Raw token and secret are never logged.
     try {
-        const headerB64 = token.split('.')[0];
+        const parts = token.split('.');
+        const headerB64 = parts[0];
+        const payloadB64 = parts[1];
         const headerJson = Buffer.from(headerB64, 'base64url').toString('utf-8');
         const header = JSON.parse(headerJson) as { alg?: string };
-        console.log(`[Auth] token_header alg=${header.alg ?? 'missing'} requestId=${correlationId}`);
+        let iat: number | undefined;
+        let exp: number | undefined;
+        try {
+            const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf-8');
+            const payloadDecoded = JSON.parse(payloadJson) as { iat?: number; exp?: number };
+            iat = payloadDecoded.iat;
+            exp = payloadDecoded.exp;
+        } catch { /* ignore payload decode failures */ }
+        console.log(`[Auth] token_header alg=${header.alg ?? 'missing'} iat=${iat ?? 'missing'} exp=${exp ?? 'missing'} requestId=${correlationId}`);
     } catch {
         console.warn(`[Auth] token_header parse_failed requestId=${correlationId}`);
     }
@@ -128,7 +141,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
 
     let secret: string;
     try {
-      secret = getAuthSecretOrThrow();
+      secret = getAuthSecretStrict();
     } catch (err) {
       const reason = 'missing_auth_secret';
       const msg = (err as Error).message;
@@ -142,7 +155,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
       };
     }
 
-    console.log("Verifying with secret length:", secret.length);
+    console.log(`Verifying with secretLength=${secret.length} secretFingerprint=${getSecretFingerprint(secret)}`);
 
     try {
         // Verify using jsonwebtoken with HS256 — same algorithm used by jwt.sign in signToken()
