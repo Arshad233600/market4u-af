@@ -48,6 +48,7 @@ export function unauthorized(message = "Unauthorized", reason?: string, requestI
     jsonBody: {
       success: false,
       error: message,
+      category: "AUTH_REQUIRED",
       ...(reason && { reason }),
       ...(requestId && { requestId }),
     } as ApiResponse,
