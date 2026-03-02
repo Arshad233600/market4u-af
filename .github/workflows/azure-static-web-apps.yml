@@ -45,17 +45,17 @@ jobs:
         run: npm run build --prefix api
 
       - name: Validate required secrets
-        # AUTH_SECRET must be set in GitHub Secrets for ALL deployments (push to main and PR
-        # previews). The env: block in the Build And Deploy step syncs these values to Azure
-        # Application Settings. If AUTH_SECRET is absent here, the deploy action would sync
-        # an empty string to Azure, overwriting any previously-configured value and causing
-        # ALL auth endpoints to return 503 in that environment.
-        # We therefore FAIL the workflow when AUTH_SECRET is missing or too short on ANY event.
+        # AUTH_SECRET and SqlConnectionString must be set in GitHub Secrets for ALL deployments
+        # (push to main and PR previews). The env: block in the Build And Deploy step syncs these
+        # values to Azure Application Settings. If a secret is absent here, the deploy action
+        # would sync an empty string to Azure, overwriting any previously-configured value and
+        # causing ALL endpoints that depend on it to return 503.
+        # We therefore FAIL the workflow when these secrets are missing or too short on ANY event.
         #
         # How to configure:
         #   GitHub: Settings → Secrets and variables → Actions → New repository secret
-        #   Name: AUTH_SECRET  Value: <output of: openssl rand -hex 32>
-        #   Azure: Static Web App → Configuration → Application settings (set the same value)
+        #   AUTH_SECRET:        openssl rand -hex 32
+        #   SqlConnectionString: Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<db>;...
         run: |
           if [ -z "$AUTH_SECRET" ]; then
             # Fail on ALL events (push to main AND pull request preview deploys) so that
@@ -88,8 +88,24 @@ jobs:
             fi
           done
           echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
+
+          # Validate SqlConnectionString: if neither SqlConnectionString nor
+          # AZURE_SQL_CONNECTION_STRING is set, the deploy action syncs empty strings to Azure
+          # Application Settings, overwriting any correctly-configured values and causing all
+          # database-dependent endpoints (e.g. /api/ads/my-ads) to return 503 (Service Unavailable).
+          if [ -z "$SQL_CONN_STRING" ] && [ -z "$AZURE_SQL_CONN_STRING" ]; then
+            echo "::error::SqlConnectionString (or AZURE_SQL_CONNECTION_STRING) is not set in GitHub Secrets."
+            echo "::error::Without it, the deploy action will overwrite the Azure Application Setting with an empty string,"
+            echo "::error::causing all database-dependent API endpoints (e.g. GET /api/ads/my-ads) to return 503."
+            echo "::error::Add SqlConnectionString to GitHub Secrets (Settings→Secrets→Actions) with the Azure SQL connection string."
+            echo "::error::Format: Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<db>;User Id=<user>;Password=<pass>;Encrypt=True;"
+            exit 1
+          fi
+          echo "SQL connection string is configured. OK."
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          SQL_CONN_STRING: ${{ secrets.SqlConnectionString }}
+          AZURE_SQL_CONN_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
 
       - name: Build And Deploy
         id: builddeploy
