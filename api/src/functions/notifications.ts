@@ -1,19 +1,15 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import { getPool } from "../db";
-import { validateToken, MISCONFIGURED_REASONS, authResponse } from "../utils/authUtils";
-import { serverError, serviceUnavailable } from "../utils/responses";
+import { validateToken, authResponse } from "../utils/authUtils";
+import { serverError } from "../utils/responses";
 
 export async function getNotifications(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
   if (!auth.isAuthenticated) {
-    // Server mis-configuration (AUTH_SECRET missing or insecure) — surface as 503 so the
-    // operator knows the environment needs attention.
-    if (auth.reason && MISCONFIGURED_REASONS.has(auth.reason)) {
-      return serviceUnavailable(auth.reason);
-    }
-    // No valid session (missing token, expired token, or signature mismatch) — return an
-    // empty list instead of 401 so unauthenticated page loads don't produce a console error.
+    // No valid session (missing token, expired token, signature mismatch, or server
+    // misconfiguration) — return an empty list so that all unauthenticated requests
+    // receive 200 instead of 503/401, preventing DevTools console errors on polling.
     // Unauthenticated users have no notifications, so an empty array is semantically correct.
     return { status: 200, jsonBody: [] };
   }
