@@ -9,6 +9,7 @@ if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
 import "./functions/ads";
 import "./functions/admin";
 import "./functions/auth";
+import "./functions/chat";
 import "./functions/dashboard";
 import "./functions/diagnostics";
 import "./functions/favorites";
