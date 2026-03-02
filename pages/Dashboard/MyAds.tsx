@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   CheckCircle, Clock, XCircle, Filter, TrendingUp, Rocket,
   Eye, MousePointerClick, AlertCircle, Edit,
-  Loader2, Trash2, X
+  Loader2, Trash2, X, RefreshCw
 } from 'lucide-react';
 import { azureService } from '../../services/azureService';
 import { Product, AdStatus } from '../../types';
@@ -19,42 +19,46 @@ interface MyAdsProps {
 const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
   const [ads, setAds] = useState<Product[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | AdStatus>('ALL');
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
   const [promoteModalAd, setPromoteModalAd] = useState<Product | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ adId: string; action: 'delete' | 'sold' } | null>(null);
 
-  useEffect(() => {
-    const loadAds = async () => {
-      try {
-        const data = await azureService.getMyAds();
-        setAds(data);
-      } catch (err) {
-        if (err instanceof AuthError) {
-          const reason = err.reason ?? 'unauthorized';
-          // For invalid_token: apiClient already attempted a silent refresh before
-          // throwing. Do NOT logout immediately — show an error so the user can
-          // choose to re-authenticate rather than being silently logged out.
-          if (reason === 'invalid_token') {
-            setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
-            return;
-          }
+  const loadAds = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await azureService.getMyAds();
+      setAds(data);
+    } catch (err) {
+      if (err instanceof AuthError) {
+        const reason = err.reason ?? 'unauthorized';
+        // For invalid_token: apiClient already attempted a silent refresh before
+        // throwing. Do NOT logout immediately — show an error so the user can
+        // choose to re-authenticate rather than being silently logged out.
+        if (reason === 'invalid_token') {
+          setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+        } else {
           // For all other auth failures (missing_token, token_expired, etc.) clear
           // the session so the dashboard guard in App.tsx redirects to login.
           authService.onAuthInvalid(reason);
-          return;
         }
-        if (err instanceof ApiError && err.status === 503) {
-          setLoadError('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
-          return;
-        }
+      } else if (err instanceof ApiError && err.status === 503) {
+        setLoadError('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
+      } else {
         const msg = err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها';
         setLoadError(msg);
         setAds([]);
       }
-    };
-    loadAds();
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadAds();
+  }, [loadAds]);
 
   const handleStatusChange = async (adId: string, newStatus: AdStatus) => {
       setLoadingActionId(adId);
@@ -128,10 +132,23 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       ctr: ((Math.floor(views * 0.15) / views) * 100).toFixed(1)
   });
 
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+    </div>
+  );
+
   if (loadError) return (
     <div role="alert" className="flex flex-col items-center justify-center h-64 gap-4">
       <AlertCircle aria-hidden="true" className="w-12 h-12 text-red-500" />
       <p className="text-ui-muted font-medium text-center max-w-sm">{loadError}</p>
+      <button
+        onClick={loadAds}
+        className="flex items-center gap-2 text-sm font-bold text-brand-600 hover:bg-brand-50 px-4 py-2 rounded-lg border border-brand-200 transition-colors"
+      >
+        <RefreshCw className="w-4 h-4" />
+        تلاش مجدد
+      </button>
     </div>
   );
 
