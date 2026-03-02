@@ -111,3 +111,47 @@ app.http('deleteAccount', {
     route: 'user/account',
     handler: deleteAccount
 });
+
+export async function searchUsers(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    const auth = validateToken(request);
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
+
+    const q = new URL(request.url).searchParams.get('q') ?? '';
+    if (q.length < 2) {
+        return { status: 200, jsonBody: [] };
+    }
+
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('Q', sql.NVarChar, `%${q}%`)
+            .input('CurrentUserId', sql.NVarChar, auth.userId)
+            .query(`
+                SELECT TOP 10 u.Id, u.Name, latest_ad.Location AS Province
+                FROM Users u
+                LEFT JOIN (
+                    SELECT UserId, Location,
+                           ROW_NUMBER() OVER (PARTITION BY UserId ORDER BY CreatedAt DESC) AS rn
+                    FROM Ads
+                    WHERE IsDeleted = 0
+                ) AS latest_ad ON latest_ad.UserId = u.Id AND latest_ad.rn = 1
+                WHERE u.Name LIKE @Q
+                  AND u.IsDeleted = 0
+                  AND u.Id != @CurrentUserId
+                ORDER BY u.Name
+            `);
+
+        return { status: 200, jsonBody: result.recordset };
+    } catch (error) {
+        context.error('searchUsers Error', error);
+        return { status: 500, body: JSON.stringify({ message: 'خطای سرور' }) };
+    }
+}
+
+app.http('searchUsers', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'users/search',
+    handler: searchUsers
+});
