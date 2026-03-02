@@ -61,6 +61,27 @@ export const authService = {
         window.dispatchEvent(new Event('auth-change'));
         return null;
       }
+      // Validate the JWT payload contains the required `uid` claim that the server
+      // uses for authentication. Tokens missing `uid` would be rejected by the server
+      // with reason "invalid_token" (401). Detect and clear them client-side so the
+      // user is prompted to re-authenticate cleanly instead of getting a 401 error.
+      if (!USE_MOCK_DATA) {
+        try {
+          const parts = token.split('.');
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(base64));
+          if (!payload.uid) {
+            console.warn('[auth] token_missing_uid — clearing stale token (expected uid claim in JWT payload)');
+            safeStorage.removeItem(STORAGE_KEY_TOKEN);
+            safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
+            safeStorage.removeItem(STORAGE_KEY_USER);
+            window.dispatchEvent(new Event('auth-change'));
+            return null;
+          }
+        } catch {
+          // If we can't decode the payload, let the server validate and reject it.
+        }
+      }
       return token;
     } catch {
       return null;

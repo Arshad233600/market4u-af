@@ -45,14 +45,12 @@ jobs:
         run: npm run build --prefix api
 
       - name: Validate required secrets
-        # AUTH_SECRET must be set in GitHub Secrets for production (push to main) deployments.
-        # The env: block in the Build And Deploy step syncs these values to Azure Application
-        # Settings for the managed Functions app.  If AUTH_SECRET is absent here, the deploy
-        # action would sync an empty string to Azure, overwriting any value previously set in
-        # the Azure portal and causing ALL auth endpoints to return 503.
-        # On push to main we therefore FAIL the workflow when AUTH_SECRET is missing so that
-        # a misconfigured secret never reaches production.  PR (preview) deployments still warn
-        # without failing, allowing code reviews to proceed.
+        # AUTH_SECRET must be set in GitHub Secrets for ALL deployments (push to main and PR
+        # previews). The env: block in the Build And Deploy step syncs these values to Azure
+        # Application Settings. If AUTH_SECRET is absent here, the deploy action would sync
+        # an empty string to Azure, overwriting any previously-configured value and causing
+        # ALL auth endpoints to return 503 in that environment.
+        # We therefore FAIL the workflow when AUTH_SECRET is missing or too short on ANY event.
         #
         # How to configure:
         #   GitHub: Settings → Secrets and variables → Actions → New repository secret
@@ -60,19 +58,15 @@ jobs:
         #   Azure: Static Web App → Configuration → Application settings (set the same value)
         run: |
           if [ -z "$AUTH_SECRET" ]; then
-            # GITHUB_EVENT_NAME is set automatically by GitHub Actions for all runner jobs.
-            # On push to main (production deploy), fail hard so an empty AUTH_SECRET is never
-            # synced to Azure Application Settings and does not overwrite a configured value.
-            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-              echo "::error::AUTH_SECRET is not set in GitHub Secrets. Production deployment requires AUTH_SECRET to be configured."
-              echo "::error::Generate a secure value with: openssl rand -hex 32"
-              echo "::error::Then add it to: (1) GitHub Secrets (Settings→Secrets→Actions) and (2) Azure Static Web App→Configuration→Application settings."
-              exit 1
-            else
-              echo "::warning::AUTH_SECRET is not set. Auth endpoints will return 503 until configured."
-              echo "::warning::Add AUTH_SECRET to: (1) GitHub Secrets (Settings→Secrets→Actions) and (2) Azure Static Web App→Configuration→Application settings."
-              echo "::warning::Generate a value with: openssl rand -hex 32"
-            fi
+            # Fail on ALL events (push to main AND pull request preview deploys) so that
+            # an empty AUTH_SECRET is never synced to Azure Application Settings.
+            # Passing AUTH_SECRET="" to the Azure deploy action would overwrite the
+            # correctly-configured Azure Application Setting with an empty string,
+            # breaking ALL authenticated endpoints on every deployment.
+            echo "::error::AUTH_SECRET is not set in GitHub Secrets. Deployment requires AUTH_SECRET to be configured."
+            echo "::error::Generate a secure value with: openssl rand -hex 32"
+            echo "::error::Then add it to: (1) GitHub Secrets (Settings→Secrets→Actions) and (2) Azure Static Web App→Configuration→Application settings."
+            exit 1
           else
             SECRET_LEN=${#AUTH_SECRET}
             if [ "$SECRET_LEN" -lt 32 ]; then
