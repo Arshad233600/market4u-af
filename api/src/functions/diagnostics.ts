@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
-import { isAuthSecretInsecure, getAuthSecretOrThrow, lastAuthFailureSample } from "../utils/authUtils";
+import { isAuthSecretInsecure, lastAuthFailureSample } from "../utils/authUtils";
+import { getAuthSecretStrict, getSecretDiagnostics } from "../utils/authSecret";
 import { getBlobContainerClient } from "../blob";
 import { checkRateLimit } from "../utils/rateLimit";
 import { checkAdsSchema, AdsSchemaResult } from "../utils/schemaCheck";
@@ -154,7 +155,13 @@ export async function diagnostics(
 
   // ── Phase 2: AUTH_SECRET Validation + sign/verify round-trip ─────────────
   const authSecretStatus = isAuthSecretInsecure ? "insecure_default" : "configured";
-  let authTestResult: { status: 'ok' | 'failed'; latencyMs: number; reason?: string } = {
+  let authTestResult: {
+    status: 'ok' | 'failed';
+    latencyMs: number;
+    reason?: string;
+    secretLength?: number;
+    secretFingerprint?: string;
+  } = {
     status: 'failed',
     latencyMs: 0,
     reason: 'not_run',
@@ -187,12 +194,15 @@ export async function diagnostics(
     // Sign and verify a short-lived test token using the same jwt.sign/jwt.verify used in auth
     const authTestStart = Date.now();
     try {
-      const secret = getAuthSecretOrThrow();
+      const secret = getAuthSecretStrict();
+      const { secretLength, secretFingerprint } = getSecretDiagnostics();
       const testToken = jwt.sign({ uid: '__diag_test__' }, secret, { algorithm: 'HS256', expiresIn: '1m' });
       jwt.verify(testToken, secret, { algorithms: ['HS256'] });
       authTestResult = {
         status: 'ok',
         latencyMs: Date.now() - authTestStart,
+        secretLength,
+        secretFingerprint,
       };
     } catch (err) {
       authTestResult = {
@@ -418,20 +428,30 @@ export async function diagnosticsAuth(
     return { status: 401, jsonBody: { error: "X-Diagnostics-Key required" } };
   }
 
-  // Determine authSecretStatus
-  const secret = process.env.AUTH_SECRET;
-  const authSecretStatus: "ok" | "missing" = secret ? "ok" : "missing";
-
-  // Perform a jwt sign/verify round-trip to check token verification
+  // Determine authSecretStatus and compute fingerprint via getAuthSecretStrict
+  let authSecretStatus: "ok" | "missing" | "too_short" = "missing";
+  let secretLength = 0;
+  let secretFingerprint = "unavailable";
   let tokenVerification: "ok" | "fail" = "fail";
-  if (authSecretStatus === "ok") {
+
+  try {
+    const diag = getSecretDiagnostics();
+    authSecretStatus = "ok";
+    secretLength = diag.secretLength;
+    secretFingerprint = diag.secretFingerprint;
+
+    // Perform a jwt sign/verify round-trip to check token verification
     try {
-      const testToken = jwt.sign({ uid: "__diag__" }, secret!, { algorithm: "HS256", expiresIn: "1m" });
-      jwt.verify(testToken, secret!, { algorithms: ["HS256"] });
+      const secret = getAuthSecretStrict();
+      const testToken = jwt.sign({ uid: "__diag__" }, secret, { algorithm: "HS256", expiresIn: "1m" });
+      jwt.verify(testToken, secret, { algorithms: ["HS256"] });
       tokenVerification = "ok";
     } catch {
       tokenVerification = "fail";
     }
+  } catch (err) {
+    const msg = (err as Error).message;
+    authSecretStatus = msg.includes("too short") ? "too_short" : "missing";
   }
 
   return {
@@ -439,6 +459,8 @@ export async function diagnosticsAuth(
     jsonBody: {
       nowUtc: new Date().toISOString(),
       authSecretStatus,
+      secretLength,
+      secretFingerprint,
       tokenVerification,
       lastFailureSample: lastAuthFailureSample,
     },

@@ -21,12 +21,17 @@ import "./functions/user";
 import "./functions/wallet";
 import "./functions/health";
 
-// Startup sanity check: log AUTH_SECRET length so sign and verify can be confirmed to match.
-// authUtils throws on startup if AUTH_SECRET is missing, so reaching here guarantees it is set.
+// Startup sanity check: log AUTH_SECRET fingerprint (not the raw secret) so sign and
+// verify can be confirmed to use the same secret across all deployments.
 import { isAuthSecretInsecure } from "./utils/authUtils";
-console.log("AUTH_SECRET length:", process.env.AUTH_SECRET?.length);
+import { getSecretDiagnostics } from "./utils/authSecret";
 if (isAuthSecretInsecure) {
-  console.error('[STARTUP] AUTH_SECRET is missing. All protected endpoints will fail until this is fixed.');
+  console.error('[STARTUP] AUTH_SECRET is missing or insecure. All protected endpoints will fail until this is fixed.');
 } else {
-  console.log(`[STARTUP] AUTH_SECRET is configured — length=${process.env.AUTH_SECRET?.length}.`);
+  try {
+    const { secretLength, secretFingerprint } = getSecretDiagnostics();
+    console.log(`[STARTUP] AUTH_SECRET configured secretLength=${secretLength} secretFingerprint=${secretFingerprint}`);
+  } catch (err) {
+    console.error('[STARTUP] getSecretDiagnostics failed:', (err as Error).message);
+  }
 }

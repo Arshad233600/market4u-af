@@ -1,10 +1,12 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
 import * as sql from "mssql";
+import { timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow, isAuthSecretInsecure, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
+import { validateToken, isAuthSecretInsecure, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
+import { getAuthSecretStrict, getSecretDiagnostics } from "../utils/authSecret";
 import { success, error, unauthorized, badRequest, serverError, serviceUnavailable } from "../utils/responses";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
@@ -26,7 +28,7 @@ function signToken(payload: object): string {
   if (isAuthSecretInsecure) {
     throw new Error('[signToken] AUTH_SECRET is set to an insecure placeholder value. Configure a real secret in Azure Application Settings.');
   }
-  const secret = getAuthSecretOrThrow();
+  const secret = getAuthSecretStrict();
   console.log("Signing with secret length:", secret.length);
   return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
 }
@@ -295,7 +297,7 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
 
   let secret: string;
   try {
-    secret = getAuthSecretOrThrow();
+    secret = getAuthSecretStrict();
   } catch (err) {
     context.error("RefreshToken Config Error", err);
     return serverError(err, "خطای پیکربندی سرور");
@@ -339,4 +341,72 @@ app.http("refreshToken", {
   authLevel: "anonymous",
   route: "auth/refresh",
   handler: refreshTokenHandler
+});
+
+/**
+ * GET /api/auth/diag
+ * Production-safe diagnostics: returns secret fingerprint (NOT the raw secret) and
+ * build metadata so operators can confirm all deployments share the same AUTH_SECRET.
+ *
+ * Only enabled when AUTH_DIAG_ENABLED=true in Azure Application Settings.
+ * Requires X-Diag-Allowlist header matching DIAG_ALLOWLIST env var (comma-separated IPs).
+ */
+export async function authDiag(
+  request: HttpRequest,
+  context: InvocationContext
+): Promise<HttpResponseInit> {
+  // Feature gate: disabled unless AUTH_DIAG_ENABLED=true
+  if (process.env.AUTH_DIAG_ENABLED !== 'true') {
+    return { status: 404, jsonBody: { error: 'Not found' } };
+  }
+
+  // Simple allowlist guard: client must supply X-Diag-Allowlist header that matches
+  // one of the values in the DIAG_ALLOWLIST env var (comma-separated).
+  // Timing-safe comparison prevents timing-based oracle attacks.
+  const allowlist = (process.env.DIAG_ALLOWLIST ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const provided = request.headers.get('x-diag-allowlist') ?? '';
+  if (allowlist.length > 0) {
+    const providedBuf = Buffer.from(provided);
+    const matched = allowlist.some((entry) => {
+      const entryBuf = Buffer.from(entry);
+      return (
+        providedBuf.length === entryBuf.length &&
+        timingSafeEqual(providedBuf, entryBuf)
+      );
+    });
+    if (!matched) {
+      context.warn(`[authDiag] unauthorized access attempt requestId=${request.headers.get('x-client-request-id') ?? 'none'}`);
+      return { status: 403, jsonBody: { error: 'Forbidden' } };
+    }
+  }
+
+  let secretLength = 0;
+  let secretFingerprint = 'unavailable';
+  try {
+    const diag = getSecretDiagnostics();
+    secretLength = diag.secretLength;
+    secretFingerprint = diag.secretFingerprint;
+  } catch (err) {
+    context.warn(`[authDiag] getSecretDiagnostics failed: ${(err as Error).message}`);
+  }
+
+  return {
+    status: 200,
+    jsonBody: {
+      secretLength,
+      secretFingerprint,
+      nodeEnv: process.env.NODE_ENV ?? 'unknown',
+      buildCommitSha: process.env.BUILD_COMMIT_SHA ?? process.env.WEBSITE_RUN_FROM_PACKAGE ?? 'unknown',
+    },
+  };
+}
+
+app.http("authDiag", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "auth/diag",
+  handler: authDiag
 });

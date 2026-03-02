@@ -234,8 +234,8 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       if (reason === 'token_expired' && !refreshAttempted) {
         const newToken = await tryRefreshToken();
         if (newToken) {
-          // Refresh succeeded — retry the original request with the new token.
-          return request<T>(endpoint, method, body, retries, backoff, true, silent);
+          // Refresh succeeded — retry with refreshAttempted=true to prevent infinite refresh loops.
+          return request<T>(endpoint, method, body, retries, backoff, /* refreshAttempted */ true, silent);
         }
         // Refresh failed — throw without invalidating the session.
         // The user must log out explicitly; we never auto-logout.
@@ -251,13 +251,18 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
         throw new AuthError('storage_blocked');
       }
 
-      // invalid_token means the stored token's signature does not match the server's
-      // AUTH_SECRET (e.g. the secret was rotated). The token can never be used again,
-      // so clear it immediately to prevent repeated 401 failures on every subsequent
-      // request. This is the only reason that triggers a proactive session clear here;
-      // all other 401 reasons (missing_token, etc.) leave session management to the caller.
-      if (reason === 'invalid_token') {
-        authService.onAuthInvalid('invalid_token');
+      // invalid_token: the stored token failed signature verification. Before giving up,
+      // attempt a silent refresh — the server may have rotated the secret and the refresh
+      // endpoint accepts the old token within the grace window.
+      // Only attempt once (refreshAttempted guard) to prevent infinite loops.
+      if (reason === 'invalid_token' && !refreshAttempted) {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          // Refresh succeeded — retry with refreshAttempted=true to prevent infinite refresh loops.
+          return request<T>(endpoint, method, body, retries, backoff, /* refreshAttempted */ true, silent);
+        }
+        // Refresh failed — do NOT clear the session here; throw so the UI can decide
+        // (e.g. show a "re-login" prompt rather than an unexpected logout).
         throw new AuthError(reason);
       }
 
