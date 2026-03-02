@@ -237,7 +237,7 @@ const AppContent: React.FC = () => {
     if (currentPage === Page.NOT_FOUND) return <NotFound onNavigate={navigateTo} />;
 
     if (typeof currentPage === 'string' && currentPage.startsWith('dashboard')) {
-      if (!user) return <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
+      if (!user || authService.isTokenExpired()) return <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
 
       let DashboardContent;
       switch (currentPage) {
