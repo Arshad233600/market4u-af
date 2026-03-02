@@ -313,19 +313,6 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           return;
       }
 
-      // Limit unverified users to 5 ads
-      if (!existingAd) {
-          const currentUser = authService.getCurrentUser();
-          if (currentUser && !currentUser.isVerified) {
-              const myAds = await azureService.getMyAds();
-              if (myAds.length >= 5) {
-                  toastService.warning('شما به حداکثر ۵ آگهی رسیده‌اید. برای ثبت آگهی بیشتر، لطفاً احراز هویت کنید.');
-                  onNavigate(Page.DASHBOARD_SETTINGS);
-                  return;
-              }
-          }
-      }
-      
       setIsSubmitting(true);
       const fullLocation = district ? `${province} - ${district}` : province;
 
@@ -337,6 +324,19 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       };
 
       try {
+          // Limit unverified users to 5 ads — inside try so AuthError is caught below.
+          if (!existingAd) {
+              const currentUser = authService.getCurrentUser();
+              if (currentUser && !currentUser.isVerified) {
+                  const myAds = await azureService.getMyAds();
+                  if (myAds.length >= 5) {
+                      toastService.warning('شما به حداکثر ۵ آگهی رسیده‌اید. برای ثبت آگهی بیشتر، لطفاً احراز هویت کنید.');
+                      onNavigate(Page.DASHBOARD_SETTINGS);
+                      return;
+                  }
+              }
+          }
+
           let success = false;
           if (existingAd) {
               success = await azureService.updateAd(existingAd.id, adData);
