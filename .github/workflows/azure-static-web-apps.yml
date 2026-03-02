@@ -67,14 +67,27 @@ jobs:
             echo "::error::Generate a secure value with: openssl rand -hex 32"
             echo "::error::Then add it to: (1) GitHub Secrets (Settings→Secrets→Actions) and (2) Azure Static Web App→Configuration→Application settings."
             exit 1
-          else
-            SECRET_LEN=${#AUTH_SECRET}
-            if [ "$SECRET_LEN" -lt 32 ]; then
-              echo "::warning::AUTH_SECRET is too short (${SECRET_LEN} chars; minimum 32). Generate a secure value with: openssl rand -hex 32"
-            else
-              echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
-            fi
           fi
+          SECRET_LEN=${#AUTH_SECRET}
+          if [ "$SECRET_LEN" -lt 32 ]; then
+            echo "::error::AUTH_SECRET is too short (${SECRET_LEN} chars; minimum 32 required). A short secret causes all authenticated endpoints to return 503 in production."
+            echo "::error::Generate a secure value with: openssl rand -hex 32"
+            exit 1
+          fi
+          # Reject known insecure placeholder values that ship in example config files.
+          # These are long enough to pass the length check but offer no real security.
+          for placeholder in \
+            "change-this-to-a-random-string-min-32-characters-long" \
+            "CHANGE_ME_IN_AZURE" \
+            "your-secret-key" \
+            "changeme"; do
+            if [ "$AUTH_SECRET" = "$placeholder" ]; then
+              echo "::error::AUTH_SECRET is set to a known insecure placeholder value ('${placeholder}'). Deploying with a placeholder causes all authenticated endpoints to return 503."
+              echo "::error::Generate a secure value with: openssl rand -hex 32"
+              exit 1
+            fi
+          done
+          echo "AUTH_SECRET is configured (length=${SECRET_LEN}). OK."
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
 

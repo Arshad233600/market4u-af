@@ -40,17 +40,53 @@ function buildConfig(): SqlConfig | string {
     };
 }
 
+/**
+ * Attempts to connect to the database with exponential-backoff retries.
+ * Retries up to `maxAttempts - 1` times after the initial failure.
+ * On final failure sets poolPromise = null so the next getPool() call retries.
+ */
+async function connectWithRetry(config: SqlConfig | string, maxAttempts = 3, baseDelayMs = 500): Promise<ConnectionPool> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await new sql.ConnectionPool(config).connect();
+        } catch (err: unknown) {
+            if (attempt === maxAttempts) {
+                poolPromise = null; // allow retry on the next request
+                throw err;
+            }
+            const delay = baseDelayMs * Math.pow(2, attempt - 1);
+            console.warn(`[db] connection attempt ${attempt}/${maxAttempts} failed; retrying in ${delay}ms`);
+            await new Promise<void>(resolve => setTimeout(resolve, delay));
+        }
+    }
+    // Unreachable, but satisfies TypeScript
+    throw new Error("connectWithRetry: unreachable");
+}
+
 export async function getPool(): Promise<ConnectionPool> {
     if (!poolPromise) {
         const config = buildConfig();
-
-        poolPromise = new sql.ConnectionPool(config)
-            .connect()
-            .catch((err: unknown) => {
-                poolPromise = null; // allow retry
-                throw err;
-            });
+        poolPromise = connectWithRetry(config);
     }
 
     return poolPromise;
+}
+
+/**
+ * Closes the current connection pool and resets the singleton so that the
+ * next call to getPool() creates a fresh pool.
+ * Call this when a query fails with a connection-level error to allow recovery
+ * on the next request rather than returning a permanently-failed pool.
+ */
+export async function resetPool(): Promise<void> {
+    const current = poolPromise;
+    poolPromise = null;
+    if (current) {
+        try {
+            const pool = await current;
+            await pool.close();
+        } catch {
+            // Ignore errors during close — the pool may already be broken.
+        }
+    }
 }
