@@ -10,6 +10,7 @@ import { Product, AdStatus } from '../../types';
 import { APP_STRINGS } from '../../constants';
 import { toastService } from '../../services/toastService';
 import { AuthError } from '../../services/apiClient';
+import { authService } from '../../services/authService';
 
 interface MyAdsProps {
     onEdit?: (product: Product) => void;
@@ -29,9 +30,15 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
         const data = await azureService.getMyAds();
         setAds(data);
       } catch (err) {
-        const msg = err instanceof AuthError
-          ? 'خطای احراز هویت. لطفاً دوباره وارد شوید.'
-          : (err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها');
+        if (err instanceof AuthError) {
+          // Clear the session so the dashboard guard in App.tsx redirects the user
+          // to the login page. onAuthInvalid is idempotent: if apiClient already
+          // cleared the token (e.g. for invalid_token), the storage calls are no-ops
+          // but the auth-change event re-fires to ensure the UI updates.
+          authService.onAuthInvalid(err.reason ?? 'unauthorized');
+          return;
+        }
+        const msg = err instanceof Error ? err.message : 'خطا در بارگذاری آگهی‌ها';
         setLoadError(msg);
         setAds([]);
       }
