@@ -15,6 +15,7 @@ const AUTH_SECRET = rawAuthSecret !== undefined ? rawAuthSecret.trim() : undefin
 // Startup log and fail-fast: log length so sign and verify can be confirmed to match
 console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
 if (!AUTH_SECRET) {
+  console.error('[STARTUP] AUTH_SECRET is not configured. All authenticated endpoints will fail. Set AUTH_SECRET in Azure Application Settings: openssl rand -hex 32');
   throw new Error("[STARTUP] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
 }
 // Inform the operator if the raw value had whitespace that was trimmed.
@@ -29,8 +30,26 @@ export function getAuthSecretOrThrow(): string {
   return AUTH_SECRET!;
 }
 
-/** True when AUTH_SECRET is missing. */
-export const isAuthSecretInsecure = !AUTH_SECRET;
+/**
+ * Known insecure placeholder values that must never be used in production.
+ * These are the default values from local.settings.json.example and .env.example.
+ * Tokens signed with a placeholder secret offer no real security and indicate
+ * that AUTH_SECRET was never properly configured in Azure Application Settings.
+ */
+const INSECURE_SECRET_PLACEHOLDERS = new Set([
+  'change-this-to-a-random-string-min-32-characters-long',
+  'CHANGE_ME_IN_AZURE',
+  'your-secret-key',
+  'changeme',
+  'secret',
+]);
+
+/** True when AUTH_SECRET is missing or is a known insecure placeholder value. */
+export const isAuthSecretInsecure = !AUTH_SECRET || INSECURE_SECRET_PLACEHOLDERS.has(AUTH_SECRET);
+
+if (isAuthSecretInsecure && AUTH_SECRET) {
+  console.error('[STARTUP] AUTH_SECRET is set to a known insecure placeholder value. Rotate it immediately: openssl rand -hex 32');
+}
 
 export interface AuthResult {
     userId: string | null;
@@ -90,6 +109,15 @@ export const validateToken = (request: HttpRequest): AuthResult => {
         console.log(`[Auth] token_header alg=${header.alg ?? 'missing'} requestId=${correlationId}`);
     } catch {
         console.warn(`[Auth] token_header parse_failed requestId=${correlationId}`);
+    }
+
+    // Guard: if AUTH_SECRET is an insecure placeholder, reject all token operations
+    // with a 503-triggering reason rather than allowing authentication with a weak secret.
+    if (isAuthSecretInsecure) {
+        const reason = 'insecure_default_secret';
+        lastAuthFailureSample = { requestId: correlationId, reason, timestamp: new Date().toISOString() };
+        console.error(`[Auth] INSECURE_AUTH_SECRET detected during token validation reason=${reason} requestId=${correlationId} method=${method} endpoint=${endpoint}`);
+        return { userId: null, isAuthenticated: false, reason, requestId: correlationId };
     }
 
     let secret: string;

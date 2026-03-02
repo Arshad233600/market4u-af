@@ -356,10 +356,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           }
       } catch (err) {
           // AuthError: the server rejected the token (missing, expired, or invalid).
-          // Invalidate the stale session and navigate to login so the user can re-authenticate.
+          // apiClient already called onAuthInvalid for invalid_token (clears session);
+          // for other auth reasons call it here so the session is always cleared.
           if (err instanceof AuthError) {
+              const reason = err.reason ?? 'auth_error_post_ad';
+              // Only call onAuthInvalid if apiClient hasn't already done so.
+              // apiClient calls it for 'invalid_token'; for all other reasons we call it here.
+              if (reason !== 'invalid_token') {
+                  authService.onAuthInvalid(reason);
+              }
               toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-              authService.onAuthInvalid(err.reason ?? 'auth_error_post_ad');
               onNavigate(Page.POST_AD);
           } else if (err instanceof ApiError) {
               const cat = err.category?.toUpperCase();
@@ -371,6 +377,10 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   toastService.error(resolveAdPostError(err.message));
               } else if (cat === 'DB_UNAVAILABLE' || cat === 'STORAGE_ERROR') {
                   toastService.error('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');
+              } else if (err.status === 503) {
+                  // Server configuration error (e.g. AUTH_SECRET not set in Azure).
+                  // Not a user error — show a server-side error message.
+                  toastService.error('خطای پیکربندی سرور. لطفاً با پشتیبانی تماس بگیرید.');
               } else {
                   // UNEXPECTED or unknown: show full requestId and instruct contact support
                   const msg = 'خطای سرور. برای پیگیری با پشتیبانی تماس بگیرید.';

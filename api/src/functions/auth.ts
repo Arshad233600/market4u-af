@@ -4,8 +4,8 @@ import * as sql from "mssql";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import * as appInsights from "applicationinsights";
-import { validateToken, getAuthSecretOrThrow, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
-import { success, error, unauthorized, badRequest, serverError } from "../utils/responses";
+import { validateToken, getAuthSecretOrThrow, isAuthSecretInsecure, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
+import { success, error, unauthorized, badRequest, serverError, serviceUnavailable } from "../utils/responses";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
@@ -23,6 +23,9 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
 
 /** Signs a token using HS256 via jsonwebtoken with 7-day expiry. */
 function signToken(payload: object): string {
+  if (isAuthSecretInsecure) {
+    throw new Error('[signToken] AUTH_SECRET is set to an insecure placeholder value. Configure a real secret in Azure Application Settings.');
+  }
   const secret = getAuthSecretOrThrow();
   console.log("Signing with secret length:", secret.length);
   return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
@@ -30,6 +33,12 @@ function signToken(payload: object): string {
 
 export async function login(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
+  // Fail fast if AUTH_SECRET is not securely configured; a token signed with a placeholder
+  // secret is as insecure as having no auth at all.
+  if (isAuthSecretInsecure) {
+    context.error("[login] AUTH_SECRET is insecure — rejecting login to prevent signing tokens with placeholder secret");
+    return serviceUnavailable('insecure_default_secret');
+  }
   try {
     const body = (await request.json()) as { email?: string; password?: string };
     const email = String(body?.email ?? "").trim();
@@ -95,6 +104,10 @@ export async function login(request: HttpRequest, context: InvocationContext): P
 
 export async function register(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
+  if (isAuthSecretInsecure) {
+    context.error("[register] AUTH_SECRET is insecure — rejecting register to prevent signing tokens with placeholder secret");
+    return serviceUnavailable('insecure_default_secret');
+  }
   try {
     const body = (await request.json()) as { name?: string; email?: string; password?: string; phone?: string };
     const name = String(body?.name ?? "").trim();
@@ -261,6 +274,13 @@ const TOKEN_REFRESH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
  * TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS are rejected with reason "token_too_old".
  */
 export async function refreshTokenHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  // Insecure secret: refreshing would produce a new token signed with a placeholder —
+  // return 503 so the client knows the server is misconfigured.
+  if (isAuthSecretInsecure) {
+    context.error("[refreshToken] AUTH_SECRET is insecure — rejecting refresh");
+    return serviceUnavailable('insecure_default_secret');
+  }
+
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
