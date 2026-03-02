@@ -208,10 +208,14 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
     context.error("getMyAds Error", err);
     const { status, category } = classifyPostAdError(err);
     if (status === 503) {
-      // Reset the pool so the next request gets a fresh connection instead of
-      // re-using a pool that may be permanently broken.
-      resetPool().catch(() => {});
-      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason: "db_unavailable" } };
+      // For transient DB errors, reset the pool so the next request gets a fresh
+      // connection. For permanent misconfiguration (DB_NOT_CONFIGURED) there is
+      // nothing to reset — poolPromise was never set — so skip the reset.
+      if (category !== "DB_NOT_CONFIGURED") {
+        resetPool().catch(() => {});
+      }
+      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
     return { status: 500, jsonBody: { error: "Server Error", message: errMessage(err) } };
   }
@@ -221,10 +225,11 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
  * Classify an error thrown in postAd into an HTTP status code and category string.
  *
  * Categories (returned in every error response for client-side handling):
- *   VALIDATION      – 400  request body missing / malformed JSON
- *   RATE_LIMIT      – 429  too many submissions (already handled before this path)
- *   DB_UNAVAILABLE  – 503  transient DB/network issue; client should retry later
- *   UNEXPECTED      – 500  truly unexpected bug; use requestId to look up in logs
+ *   VALIDATION        – 400  request body missing / malformed JSON
+ *   RATE_LIMIT        – 429  too many submissions (already handled before this path)
+ *   DB_NOT_CONFIGURED – 503  permanent: DB env vars missing; client should NOT retry
+ *   DB_UNAVAILABLE    – 503  transient DB/network issue; client should retry later
+ *   UNEXPECTED        – 500  truly unexpected bug; use requestId to look up in logs
  */
 function classifyPostAdError(err: unknown): { status: number; category: string } {
   const msg = errMessage(err);
@@ -234,14 +239,20 @@ function classifyPostAdError(err: unknown): { status: number; category: string }
     return { status: 400, category: "VALIDATION" };
   }
 
+  // Permanent misconfiguration: DB connection string env var is not set.
+  // Retrying will not help — the configuration must be fixed first.
+  if (/Database not configured/i.test(msg)) {
+    return { status: 503, category: "DB_NOT_CONFIGURED" };
+  }
+
   // mssql ConnectionError – server unreachable, TCP error, login failure
   if (err instanceof sql.ConnectionError) {
     return { status: 503, category: "DB_UNAVAILABLE" };
   }
 
-  // Infrastructure / configuration errors → 503
+  // Infrastructure / transient errors → 503 (retryable)
   if (
-    /Database not configured|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed/i.test(msg)
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed/i.test(msg)
   ) {
     return { status: 503, category: "DB_UNAVAILABLE" };
   }
@@ -422,7 +433,8 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     const errName = err instanceof Error ? err.constructor.name : "UnknownError";
     context.error(`[postAd] ads.create.error requestId=${requestId} lastStep=${lastStep} category=${errCategory} errorType=${errName}`, err);
     if (status === 503) {
-      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, reason: "db_unavailable", requestId } };
+      const reason = errCategory === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category: errCategory, reason, requestId } };
     }
     // 500: do not expose internal error details (use requestId to trace in logs)
     return { status: 500, jsonBody: { error: "Database error", category: errCategory, reason: "unexpected_server_error", requestId } };

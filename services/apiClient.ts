@@ -277,12 +277,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // 503 misconfigured_auth is a permanent server configuration error — never retry it.
     const isIdempotent = method === 'GET' || method === 'DELETE' || method === 'PUT';
     if (response.status >= 500 && retries > 0 && isIdempotent) {
-      // For 503, peek at the body to detect permanent misconfigured_auth before retrying.
+      // For 503, peek at the body to detect permanent errors before retrying.
+      // - misconfigured_auth: AUTH_SECRET is missing/insecure — permanent, never retry.
+      // - db_not_configured: DB connection string is missing — permanent, never retry.
       let shouldRetry = true;
       if (response.status === 503) {
         try {
-          const peek = await response.clone().json() as { error?: string };
-          if (peek.error === 'misconfigured_auth') {
+          const peek = await response.clone().json() as { error?: string; reason?: string };
+          if (peek.error === 'misconfigured_auth' || peek.reason === 'db_not_configured') {
             shouldRetry = false; // permanent config error — fall through to !response.ok handler
           }
         } catch {
