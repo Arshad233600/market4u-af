@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import * as sql from "mssql";
 import * as appInsights from "applicationinsights";
-import { getPool } from "../db";
+import { getPool, resetPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 import { checkAdsSchema } from "../utils/schemaCheck";
@@ -208,6 +208,9 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
     context.error("getMyAds Error", err);
     const { status, category } = classifyPostAdError(err);
     if (status === 503) {
+      // Reset the pool so the next request gets a fresh connection instead of
+      // re-using a pool that may be permanently broken.
+      resetPool().catch(() => {});
       return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason: "db_unavailable" } };
     }
     return { status: 500, jsonBody: { error: "Server Error", message: errMessage(err) } };
