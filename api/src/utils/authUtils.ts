@@ -12,22 +12,28 @@ export const TOKEN_EXPIRATION_MS = TOKEN_EXPIRATION_SECONDS * 1000;
 const rawAuthSecret = process.env.AUTH_SECRET;
 const AUTH_SECRET = rawAuthSecret !== undefined ? rawAuthSecret.trim() : undefined;
 
-// Startup log and fail-fast: log length so sign and verify can be confirmed to match
+// Startup log: log length so sign and verify can be confirmed to match
 console.log("AUTH_SECRET length:", AUTH_SECRET?.length);
 if (!AUTH_SECRET) {
-  console.error('[STARTUP] AUTH_SECRET is not configured. All authenticated endpoints will fail. Set AUTH_SECRET in Azure Application Settings: openssl rand -hex 32');
-  throw new Error("[STARTUP] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
+  // Log a clear error but do NOT throw here — a module-level throw crashes all
+  // Azure Functions (not just auth ones).  Individual auth endpoints already guard
+  // via isAuthSecretInsecure and return 503 when the secret is missing.
+  console.error('[STARTUP] AUTH_SECRET is not configured. All authenticated endpoints will return 503. Set AUTH_SECRET in Azure Application Settings: openssl rand -hex 32');
 }
 // Inform the operator if the raw value had whitespace that was trimmed.
-if (rawAuthSecret !== AUTH_SECRET) {
+if (rawAuthSecret !== undefined && rawAuthSecret !== AUTH_SECRET) {
   console.warn("[STARTUP] WARNING: AUTH_SECRET had leading/trailing whitespace which has been trimmed automatically. Remove the whitespace from the Azure Application Setting to avoid confusion.");
 }
 
 /**
- * Returns the AUTH_SECRET. The module-level check above guarantees it is set.
+ * Returns the AUTH_SECRET or throws if it is not configured.
+ * Callers should guard with isAuthSecretInsecure before calling this.
  */
 export function getAuthSecretOrThrow(): string {
-  return AUTH_SECRET!;
+  if (!AUTH_SECRET) {
+    throw new Error("[getAuthSecretOrThrow] AUTH_SECRET is not configured. Set AUTH_SECRET in Azure Application Settings.");
+  }
+  return AUTH_SECRET;
 }
 
 /**
