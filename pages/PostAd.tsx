@@ -368,11 +368,9 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
                   onNavigate(Page.POST_AD);
               } else {
-                  // Only call onAuthInvalid if apiClient hasn't already done so.
-                  // apiClient calls it for 'invalid_token'; for all other reasons we call it here.
-                  if (reason !== 'invalid_token') {
-                      authService.onAuthInvalid(reason);
-                  }
+                  // Clear the session for all other auth failures (expired, invalid, missing).
+                  // Note: apiClient does NOT call onAuthInvalid — the UI is responsible here.
+                  authService.onAuthInvalid(reason);
                   toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
                   onNavigate(Page.POST_AD);
               }
