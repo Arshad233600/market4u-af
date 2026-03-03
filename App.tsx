@@ -12,7 +12,6 @@ import ToastContainer from './components/ToastContainer';
 import OfflineBanner from './components/OfflineBanner';
 import { Page, Product, User } from './types';
 import { authService } from './services/authService';
-import { USE_MOCK_DATA } from './config';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { errorLogger } from './utils/errorLogger';
 import { azureService } from './services/azureService';
@@ -58,16 +57,6 @@ const AppContent: React.FC = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [user, setUser] = useState<User | null>(() => {
-    // In production mode, proactively clear a stored but expired token on startup
-    // so the app does not initialize with a stale session and make API calls that
-    // will fail with 401. Skip in mock mode to preserve ephemeral demo sessions.
-    if (!USE_MOCK_DATA) {
-      const token = authService.getToken();
-      if (token && authService.isTokenExpired()) {
-        authService.onAuthInvalid('token_expired_on_startup');
-        return null;
-      }
-    }
     return authService.getCurrentUser();
   });
   const [pendingPage, setPendingPage] = useState<Page | null>(null);
@@ -237,7 +226,7 @@ const AppContent: React.FC = () => {
     if (currentPage === Page.NOT_FOUND) return <NotFound onNavigate={navigateTo} />;
 
     if (typeof currentPage === 'string' && currentPage.startsWith('dashboard')) {
-      if (!user || authService.isTokenExpired()) return <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
+      if (!user) return <Login onNavigate={navigateTo} onLoginSuccess={handleLoginSuccess} />;
 
       let DashboardContent;
       switch (currentPage) {
