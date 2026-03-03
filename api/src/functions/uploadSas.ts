@@ -2,6 +2,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions } from "@azure/storage-blob";
 import * as appInsights from "applicationinsights";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
@@ -23,6 +24,10 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function uploadSas(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const startTime = Date.now();
+
+    const auth = validateToken(request);
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
 
     if (!accountName || !accountKey) {
         telemetry?.trackException({ exception: new Error("Storage configuration missing") });
