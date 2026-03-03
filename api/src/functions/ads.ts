@@ -4,7 +4,7 @@ import * as appInsights from "applicationinsights";
 import { getPool, resetPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
-import { checkAdsSchema } from "../utils/schemaCheck";
+import { checkAdsSchema, applyMissingAdsColumns } from "../utils/schemaCheck";
 
 /** Interface for database image record */
 interface ImageRecord {
@@ -307,18 +307,17 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     const pool = await getPool();
 
     // Guard: if the Ads table is missing required columns (schema outdated),
-    // return 503 immediately without attempting a doomed INSERT.
+    // auto-apply the missing column migrations and continue rather than failing.
     const adsSchema = await checkAdsSchema();
     if (!adsSchema.schemaOk) {
-      context.warn(`[postAd] db_schema_outdated requestId=${requestId} missingColumns=${adsSchema.missingColumns.join(",")}`);
-      return {
-        status: 503,
-        jsonBody: {
-          error: "db_schema_outdated",
-          missingColumns: adsSchema.missingColumns,
-          requestId,
-        },
-      };
+      context.warn(`[postAd] db_schema_outdated requestId=${requestId} missingColumns=${adsSchema.missingColumns.join(",")} — applying auto-migration`);
+      const applied = await applyMissingAdsColumns(adsSchema.missingColumns, (msg) => context.warn(msg));
+      const notMigrated = adsSchema.missingColumns.filter(c => !applied.includes(c));
+      if (notMigrated.length > 0) {
+        context.warn(`[postAd] auto_migration_partial requestId=${requestId} applied=${applied.join(",")} notMigrated=${notMigrated.join(",")}`);
+      } else {
+        context.log(`[postAd] auto_migration_ok requestId=${requestId} applied=${applied.join(",")}`);
+      }
     }
 
     // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
