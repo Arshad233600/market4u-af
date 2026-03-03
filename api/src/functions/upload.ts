@@ -1,8 +1,13 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getOrCreateBlobContainerClient } from "../blob";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 export async function upload(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+    const auth = validateToken(request);
+    const authErr = authResponse(auth);
+    if (authErr) return authErr;
+
     try {
         const body = await request.json() as any;
         const { fileName, contentType, base64 } = body || {};
