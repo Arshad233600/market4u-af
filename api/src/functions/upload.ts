@@ -40,5 +40,6 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
 app.http('upload', {
     methods: ['POST'],
     authLevel: 'anonymous',
+    route: 'upload',
     handler: upload
 });

@@ -3,7 +3,7 @@ import { authService } from './authService';
 import { logApiCall, logApiResponse, logAuthSnapshot } from '../utils/debugAuth';
 import { safeStorage } from '../utils/safeStorage';
 
-const base = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
+const base = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 if (import.meta.env.DEV) console.log("[apiClient] baseURL=", base);
 
 /** Thrown (and re-thrown) whenever the backend returns HTTP 401. */
