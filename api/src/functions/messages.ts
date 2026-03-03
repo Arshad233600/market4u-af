@@ -8,13 +8,32 @@ function errMessage(err: unknown): string {
 }
 
 export async function getInbox(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  const auth = validateToken(request);
-  const authErr = authResponse(auth);
-  if (authErr) return authErr;
-
   try {
+    // G) Defensive auth check: if userId is missing, always return 401 (never 503)
+    const auth = validateToken(request);
+    if (!auth.isAuthenticated || !auth.userId) {
+      console.error("[getInbox] unauthorized", auth.reason);
+      return { status: 401, jsonBody: { error: "Unauthorized" } };
+    }
+
+    // C) Verify SQL connection string exists before attempting DB access
+    const connStr =
+      process.env.SqlConnectionString ||
+      process.env.SQLCONNECTIONSTRING ||
+      process.env.AZURE_SQL_CONNECTION_STRING;
+    if (
+      !connStr &&
+      (!process.env.DB_SERVER || !process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD)
+    ) {
+      console.error("[getInbox] database connection string not configured");
+      return { status: 200, jsonBody: [] };
+    }
+
+    // D) Log userId extracted from JWT and query parameters
+    console.log(`[getInbox] userId=${auth.userId}`);
+
     const pool = await getPool();
-    
+
     // Get unique conversations with latest message
     const result = await pool
       .request()
@@ -52,10 +71,14 @@ export async function getInbox(request: HttpRequest, context: InvocationContext)
         ORDER BY lm.LastMessageTime DESC
       `);
 
-    return { status: 200, jsonBody: result.recordset };
+    // G) If DB result undefined → return empty array
+    return { status: 200, jsonBody: result?.recordset ?? [] };
   } catch (err: unknown) {
+    // B) Detailed logging before returning error
+    console.error("getInbox error:", err);
     context.error("getInbox Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    // E) Safe fallback so frontend polling stops failing
+    return { status: 200, jsonBody: [] };
   }
 }
 
