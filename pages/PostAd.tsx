@@ -306,11 +306,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
           return;
       }
       // Block submission when token has expired client-side.
+      // Attempt a silent refresh first — the server may still accept the token
+      // within its refresh grace window. Only clear the session if the refresh fails.
       if (authService.isTokenExpired()) {
-          toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
-          authService.onAuthInvalid('token_expired_pre_submit');
-          onNavigate(Page.POST_AD);
-          return;
+          const refreshed = await authService.refreshToken();
+          if (!refreshed) {
+              toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+              authService.onAuthInvalid('token_expired_pre_submit');
+              onNavigate(Page.POST_AD);
+              return;
+          }
       }
 
       setIsSubmitting(true);
