@@ -297,6 +297,26 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       }
     }
 
+    // When the server returns 503 misconfigured_auth with reason=invalid_auth_secret, the
+    // stored token was signed with a different AUTH_SECRET than the one currently deployed
+    // (e.g., after a secret rotation). Unlike missing/insecure-secret 503s (which are pure
+    // server config errors), invalid_auth_secret means this user's specific token is no
+    // longer valid — they need to re-login to get a fresh token. Throw AuthError so that
+    // components handle it like any other auth failure (session cleared, login prompted)
+    // rather than surfacing it as a generic server error in the DevTools console.
+    if (response.status === 503) {
+      try {
+        const body503 = await response.clone().json() as { error?: string; reason?: string };
+        if (body503.error === 'misconfigured_auth' && body503.reason === 'invalid_auth_secret') {
+          throw new AuthError('invalid_auth_secret');
+        }
+      } catch (e) {
+        if (e instanceof AuthError) throw e;
+        // Log JSON parse failures and fall through to the generic !response.ok handler.
+        console.warn(`[apiClient] 503 ${method} ${endpoint} — could not parse response body for invalid_auth_secret check`);
+      }
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string; requestId?: string; category?: string };
       // For 5xx server errors prefer the high-level "error" label so raw SQL/internal details
