@@ -420,6 +420,25 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       lastStep = "commit_ok";
       context.log(`[postAd] commit_ok requestId=${requestId}`);
       context.log(`[postAd] ads.create.success requestId=${requestId} adId=${id}`);
+
+      // Create a confirmation notification for the user (non-critical — failures are
+      // logged but do NOT roll back or change the 201 response).
+      // Deferred via setImmediate so the notification insert runs after the response
+      // is returned, keeping it fully out of the main request-response path.
+      setImmediate(() => {
+        pool.request()
+          .input("Id", sql.NVarChar, generateUUID())
+          .input("UserId", sql.NVarChar, userId)
+          .input("Title", sql.NVarChar, "آگهی شما ثبت شد")
+          .input("Message", sql.NVarChar, `آگهی "${title}" با موفقیت ثبت شد.`)
+          .input("Type", sql.NVarChar, "success")
+          .input("CreatedAt", sql.DateTime, new Date())
+          .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)")
+          .catch((notifErr: unknown) => {
+            context.warn(`[postAd] notification_create_failed requestId=${requestId} adId=${id}`, notifErr);
+          });
+      });
+
       return { status: 201, jsonBody: { success: true, id, requestId } };
     } catch (err: unknown) {
       // Rollback on any inner error. Ignore rollback failures so the original

@@ -416,7 +416,9 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               if (!reqId) {
                   console.warn('[PostAd] error response missing requestId — full error:', err);
               }
-              if (cat === 'VALIDATION') {
+              if (cat === 'VALIDATION' || cat === 'RATE_LIMIT') {
+                  // Show the user-friendly message from the API directly for both
+                  // validation errors (400) and rate-limit responses (429).
                   toastService.error(resolveAdPostError(err.message));
               } else if (cat === 'DB_UNAVAILABLE' || cat === 'STORAGE_ERROR') {
                   toastService.error('سرویس موقتاً در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید.');

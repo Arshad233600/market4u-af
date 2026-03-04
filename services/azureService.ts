@@ -407,6 +407,17 @@ export const azureService = {
             dynamicFields: adData.dynamicFields
         };
         db.save('products', [newProduct, ...products]);
+        // Create a confirmation notification in mock mode
+        const notifs = db.get<Notification[]>('notifications', []);
+        notifs.unshift({
+            id: `n_${Date.now()}`,
+            title: 'آگهی شما ثبت شد',
+            message: `آگهی "${adData.title}" با موفقیت ثبت شد.`,
+            date: 'همین الان',
+            isRead: false,
+            type: 'success'
+        });
+        db.save('notifications', notifs);
         return true;
     }
     const token = authService.getToken();
@@ -1181,8 +1192,21 @@ export const azureService = {
   adminApproveAd: async (id: string): Promise<boolean> => {
       if (USE_MOCK_DATA) {
           const products = db.get<Product[]>('products', []);
+          const ad = products.find(p => p.id === id);
           const updated = products.map(p => p.id === id ? { ...p, status: AdStatus.ACTIVE } : p);
           db.save('products', updated);
+          if (ad) {
+              const notifs = db.get<Notification[]>('notifications', []);
+              notifs.unshift({
+                  id: `n_${Date.now()}`,
+                  title: 'آگهی شما تأیید شد',
+                  message: `آگهی "${ad.title}" توسط مدیریت تأیید و منتشر شد.`,
+                  date: 'همین الان',
+                  isRead: false,
+                  type: 'success'
+              });
+              db.save('notifications', notifs);
+          }
           return true;
       }
       return apiClient.post(`/admin/ads/${id}/approve`, {});
@@ -1191,8 +1215,21 @@ export const azureService = {
   adminRejectAd: async (id: string): Promise<boolean> => {
       if (USE_MOCK_DATA) {
         const products = db.get<Product[]>('products', []);
+        const ad = products.find(p => p.id === id);
         const updated = products.map(p => p.id === id ? { ...p, status: AdStatus.REJECTED } : p);
         db.save('products', updated);
+        if (ad) {
+            const notifs = db.get<Notification[]>('notifications', []);
+            notifs.unshift({
+                id: `n_${Date.now()}`,
+                title: 'آگهی شما رد شد',
+                message: `آگهی "${ad.title}" توسط مدیریت رد شد. لطفاً آگهی را ویرایش و دوباره ارسال کنید.`,
+                date: 'همین الان',
+                isRead: false,
+                type: 'error'
+            });
+            db.save('notifications', notifs);
+        }
         return true;
       }
       return apiClient.post(`/admin/ads/${id}/reject`, {});
