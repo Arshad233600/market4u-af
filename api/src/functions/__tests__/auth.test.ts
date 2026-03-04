@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => {
   const mockInput = vi.fn().mockReturnThis();
   const mockRequest = () => ({ input: mockInput, query: mockQuery });
   const mockPool = { request: vi.fn().mockImplementation(mockRequest) };
-  const mockCheckRateLimit = vi.fn().mockReturnValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+  const mockCheckRateLimit = vi.fn().mockResolvedValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' });
   const mockResetRateLimit = vi.fn();
   return { mockQuery, mockInput, mockPool, mockCheckRateLimit, mockResetRateLimit };
 });
@@ -117,7 +117,7 @@ beforeEach(async () => {
     query: mocks.mockQuery,
   }));
   mocks.mockCheckRateLimit.mockReset();
-  mocks.mockCheckRateLimit.mockReturnValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+  mocks.mockCheckRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' });
 
   // Ensure mocked authUtils.isAuthSecretInsecure is false
   const authUtils = await import('../../utils/authUtils');
@@ -304,7 +304,7 @@ describe('insecure AUTH_SECRET guard', () => {
 
 describe('login() rate limiting', () => {
   it('returns 429 when rate limit is exceeded', async () => {
-    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
+    mocks.mockCheckRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000, storeType: 'memory' });
 
     const req = makeRequest({ body: { email: 'attacker@example.com', password: 'password' } });
     const res = await login(req, makeContext());
@@ -312,7 +312,7 @@ describe('login() rate limiting', () => {
   });
 
   it('does not expose sensitive info in 429 response', async () => {
-    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
+    mocks.mockCheckRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000, storeType: 'memory' });
 
     const req = makeRequest({ body: { email: 'attacker@example.com', password: 'password' } });
     const res = await login(req, makeContext());
@@ -325,7 +325,7 @@ describe('login() rate limiting', () => {
 
   it('builds rate-limit key from email and x-forwarded-for IP', async () => {
     // Allow the request so we can verify the key includes both email and IP
-    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+    mocks.mockCheckRateLimit.mockResolvedValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' });
     // Return no user so login fails fast after the rate-limit check
     mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
 
@@ -343,8 +343,8 @@ describe('login() rate limiting', () => {
   it('isolates rate-limit buckets by email+IP combination', async () => {
     // First identifier allowed; second identifier also allowed separately
     mocks.mockCheckRateLimit
-      .mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 })
-      .mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+      .mockResolvedValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' })
+      .mockResolvedValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' });
 
     mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [0] });
 

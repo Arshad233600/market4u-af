@@ -12,7 +12,7 @@
 |-----|----------|---------|--------|
 | BUG-005 | P0 / High | `api/src/functions/auth.ts` | ✅ Fixed |
 | BUG-003 | P0 / High | `api/src/functions/upload.ts` | ✅ Fixed |
-| BUG-001 | P0 / High | `api/src/utils/rateLimit.ts` | ✅ Guarded + TODO |
+| BUG-001 | P0 / High | `api/src/utils/rateLimit.ts`, `rateLimitStore.ts` | ✅ Fixed (Distributed) |
 | BUG-006 | P1 / Med | `favorites.ts`, `messages.ts`, `admin.ts`, `ads.ts`, `responses.ts` | ✅ Fixed |
 | BUG-004 | P1 / Med | `api/src/functions/messages.ts` | ✅ Fixed |
 | BUG-002 | P1 / Med | `api/src/functions/ads.ts` | ✅ Fixed |
@@ -79,7 +79,64 @@ curl -X POST .../api/upload \
 
 ---
 
-### BUG-001 — In-Memory Rate Limiter Guard (P0)
+### BUG-001 — Distributed Rate Limiter via Redis (P0) ✅ Fixed
+
+**Files:** `api/src/utils/rateLimitStore.ts` (new), `api/src/utils/rateLimit.ts` (updated), `api/src/functions/auth.ts` (updated)
+
+The in-memory rate limiter has been replaced with a distributed backend using
+**Azure Cache for Redis** (ioredis), while preserving full backward compatibility
+for local development and tests.
+
+**Architecture:**
+
+- `rateLimitStore.ts` — new module that defines the `RateLimitStore` interface and
+  two implementations:
+  - `MemoryRateLimitStore` — single-process, for local dev and tests.
+  - `RedisRateLimitStore` — distributed, backed by Azure Cache for Redis.  Uses an
+    **atomic Lua script** (`INCR` + `PEXPIRE` on first hit + `PTTL`) so no race
+    condition is possible even under concurrent requests.
+
+- `rateLimit.ts` — now delegates to `getActiveStore()`, which picks Redis if
+  `RATE_LIMIT_REDIS_URL` is set, otherwise falls back to the in-memory store.
+  `checkRateLimit` is now async and returns `storeType` (`'memory'` | `'redis'`).
+
+- `auth.ts` — `login()` awaits the async `checkRateLimit` and sets four rate-limit
+  response headers on every request (including 429 responses):
+  - `x-rate-limit-store: memory | redis`
+  - `x-rate-limit-limit: 10`
+  - `x-rate-limit-remaining: <n>`
+  - `x-rate-limit-reset: <unix-seconds>`
+
+**Backward compatibility:**
+- `RATE_LIMIT_REDIS_URL` not set → in-memory store (local dev / tests, no change).
+- `RATE_LIMIT_REDIS_URL` not set in production → strong `console.warn` + header
+  `x-rate-limit-store: memory` so operators know the distributed store is not active.
+
+**Configuration:**
+```
+# ioredis URL format for Azure Cache for Redis:
+RATE_LIMIT_REDIS_URL=rediss://:<access-key>@<hostname>.redis.cache.windows.net:6380
+```
+
+**How to verify:**
+```bash
+# With Redis configured
+RATE_LIMIT_REDIS_URL=rediss://... curl -I -X POST .../api/auth/login ...
+# Response headers include: x-rate-limit-store: redis
+#                            x-rate-limit-remaining: 9
+
+# Send 11 rapid POSTs → 11th returns 429 (enforced across all instances)
+for i in $(seq 1 11); do
+  curl -s -o /dev/null -w "%{http_code}\n" \
+    -X POST https://<your-app>/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"test@test.com","password":"wrong"}'
+done
+```
+
+---
+
+### BUG-001 — In-Memory Rate Limiter Guard (P0) *(historical — superseded above)*
 
 **File:** `api/src/utils/rateLimit.ts`
 
@@ -179,13 +236,15 @@ uses a dedicated config instead of accidentally loading the root `vite.config.ts
 
 | Test file | New tests |
 |-----------|-----------|
-| `auth.test.ts` | 4 new rate-limit tests (429 response, key construction, identifier isolation) |
+| `rateLimitStore.test.ts` | 20 new tests (MemoryRateLimitStore, RedisRateLimitStore with ioredis mock, getActiveStore factory) |
+| `rateLimit.test.ts` | Updated: all tests now async; +1 storeType assertion |
+| `auth.test.ts` | Updated: mockCheckRateLimit uses mockResolvedValue; rate-limit header assertions |
 | `upload.test.ts` | 12 new tests (MIME allowlist, size limit, base64 validation, content-disposition, error safety) |
 | `messages.test.ts` | 1 new test (503 when DB not configured) |
 | `ads.test.ts` | Updated: `deleteAd` 403→404 expectation |
 | `responses.test.ts` | Updated: `serverError` no longer leaks details |
 
-**Total tests:** 152 (was 133; +19 new tests, 0 deleted)
+**Total tests:** 173 (was 152; +21 new/updated tests, 0 deleted)
 
 ---
 
@@ -193,7 +252,7 @@ uses a dedicated config instead of accidentally loading the root `vite.config.ts
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `RATE_LIMIT_REDIS_URL` | Optional (TODO) | Redis connection URL for distributed rate limiting (BUG-001). When not set, in-memory store is used with a production warning. |
+| `RATE_LIMIT_REDIS_URL` | Optional | Redis connection URL for distributed rate limiting (BUG-001). Format: `rediss://:<key>@<host>.redis.cache.windows.net:6380`. When not set, in-memory store is used with a production warning. |
 
 All previously required environment variables (`AUTH_SECRET`, `SqlConnectionString`,
 `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER`) remain unchanged.
@@ -206,7 +265,7 @@ All previously required environment variables (`AUTH_SECRET`, `SqlConnectionStri
 |---------|--------|-------|
 | BUG-005: No rate limit on login | ✅ | In-memory; see BUG-001 for distributed fix |
 | BUG-003: Upload MIME/size bypass | ✅ | Allowlist + 10 MB cap + attachment disposition |
-| BUG-001: In-memory rate limiter | ⚠️ Partial | Production warning added; Redis TODO documented |
+| BUG-001: In-memory rate limiter | ✅ Fixed (Distributed) | Redis store via `RATE_LIMIT_REDIS_URL`; in-memory fallback for local dev |
 | BUG-006: DB error leakage | ✅ | Generic messages only; details logged server-side |
 | BUG-004: getInbox silent 200 | ✅ | Now returns 503 on DB misconfiguration |
 | BUG-002: deleteAd 403 disclosure | ✅ | Returns 404 uniformly |

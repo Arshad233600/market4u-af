@@ -59,10 +59,16 @@ export async function login(request: HttpRequest, context: InvocationContext): P
       request.headers.get("x-client-ip") ||
       "";
     const rateLimitKey = `login:${email}:${clientIp}`;
-    const rateResult = checkRateLimit({ identifier: rateLimitKey, maxRequests: 10, windowMs: 15 * 60 * 1000 });
+    const rateResult = await checkRateLimit({ identifier: rateLimitKey, maxRequests: 10, windowMs: 15 * 60 * 1000 });
+    const rateLimitHeaders = {
+      'x-rate-limit-store': rateResult.storeType,
+      'x-rate-limit-limit': '10',
+      'x-rate-limit-remaining': String(rateResult.remaining),
+      'x-rate-limit-reset': String(Math.ceil(rateResult.resetAt / 1000)),
+    };
     if (!rateResult.allowed) {
       context.warn(`[login] rate_limit_exceeded identifier=${rateLimitKey}`);
-      return { status: 429, jsonBody: { error: "Too many login attempts. Please try again later." } };
+      return { status: 429, headers: rateLimitHeaders, jsonBody: { error: "Too many login attempts. Please try again later." } };
     }
 
     const pool = await getPool();
