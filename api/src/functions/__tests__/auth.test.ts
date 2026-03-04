@@ -1,0 +1,292 @@
+/**
+ * Tests for api/src/functions/auth.ts
+ *
+ * All external dependencies (DB pool, applicationinsights, bcrypt) are mocked so
+ * tests run entirely in-process without any network or file-system access.
+ */
+import { vi, describe, it, expect, beforeEach } from 'vitest';
+import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+
+// ─── hoisted mock state ────────────────────────────────────────────────────
+const mocks = vi.hoisted(() => {
+  const mockQuery = vi.fn().mockResolvedValue({ recordset: [], rowsAffected: [0] });
+  const mockInput = vi.fn().mockReturnThis();
+  const mockRequest = () => ({ input: mockInput, query: mockQuery });
+  const mockPool = { request: vi.fn().mockImplementation(mockRequest) };
+  return { mockQuery, mockInput, mockPool };
+});
+
+// ─── module mocks ──────────────────────────────────────────────────────────
+
+vi.mock('applicationinsights', () => ({
+  default: {
+    defaultClient: null,
+    setup: vi.fn().mockReturnThis(),
+    start: vi.fn(),
+  },
+  defaultClient: null,
+}));
+
+vi.mock('../../db', () => ({
+  getPool: vi.fn().mockResolvedValue(mocks.mockPool),
+  resetPool: vi.fn(),
+}));
+
+vi.mock('../../utils/authUtils', () => ({
+  isAuthSecretInsecure: false,
+  validateToken: vi.fn().mockReturnValue({ userId: 'u_test_123', isAuthenticated: true }),
+  authResponse: vi.fn().mockReturnValue(null),
+  TOKEN_EXPIRATION_MS: 604800000,
+  TOKEN_EXPIRATION_SECONDS: 604800,
+  MISCONFIGURED_REASONS: new Set([
+    'missing_auth_secret',
+    'insecure_default_secret',
+    'invalid_auth_secret',
+  ]),
+  lastAuthFailureSample: null,
+}));
+
+vi.mock('../../utils/authSecret', () => ({
+  getAuthSecretStrict: vi
+    .fn()
+    .mockReturnValue('test-auth-secret-value-that-is-at-least-32-chars-long'),
+  getSecretFingerprint: vi.fn().mockReturnValue('abcdef123456'),
+  getSecretDiagnostics: vi
+    .fn()
+    .mockReturnValue({ secretLength: 48, secretFingerprint: 'abcdef123456' }),
+}));
+
+vi.mock('bcryptjs', () => ({
+  default: {
+    hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
+    compare: vi.fn().mockImplementation(
+      (plain: string, _hash: string) =>
+        Promise.resolve(plain === 'correct-password')
+    ),
+  },
+}));
+
+// ─── helpers ──────────────────────────────────────────────────────────────
+
+function makeRequest(opts: {
+  body?: unknown;
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+  method?: string;
+  url?: string;
+}): HttpRequest {
+  return {
+    json: vi.fn().mockResolvedValue(opts.body ?? {}),
+    headers: { get: (name: string) => opts.headers?.[name.toLowerCase()] ?? null },
+    params: opts.params ?? {},
+    method: opts.method ?? 'POST',
+    url: opts.url ?? 'http://localhost/api/test',
+    query: new URLSearchParams(),
+  } as unknown as HttpRequest;
+}
+
+function makeContext(): InvocationContext {
+  return {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  } as unknown as InvocationContext;
+}
+
+// ─── tests ────────────────────────────────────────────────────────────────
+
+// Deferred import so mocks are in place before the module is first evaluated
+let login: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
+let register: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
+
+beforeEach(async () => {
+  // mockReset clears call history AND the once-queue to prevent mock state leaking.
+  mocks.mockQuery.mockReset();
+  mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [0] });
+  mocks.mockPool.request.mockImplementation(() => ({
+    input: mocks.mockInput,
+    query: mocks.mockQuery,
+  }));
+
+  // Ensure mocked authUtils.isAuthSecretInsecure is false
+  const authUtils = await import('../../utils/authUtils');
+  (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = false;
+
+  const mod = await import('../auth');
+  login = mod.login;
+  register = mod.register;
+});
+
+// ─── login ────────────────────────────────────────────────────────────────
+
+describe('login()', () => {
+  it('returns 400 when email is missing', async () => {
+    const req = makeRequest({ body: { email: '', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when password is missing', async () => {
+    const req = makeRequest({ body: { email: 'user@example.com', password: '' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 401 when user is not found in DB', async () => {
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
+
+    const req = makeRequest({ body: { email: 'notfound@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 when password is incorrect', async () => {
+    // First query: user lookup
+    mocks.mockQuery.mockResolvedValueOnce({
+      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+    });
+    // bcrypt.compare returns false for wrong passwords (see mock above)
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'wrong-password' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with token on valid credentials', async () => {
+    // First query: user lookup
+    mocks.mockQuery.mockResolvedValueOnce({
+      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+    });
+    // Second query: profile fetch
+    mocks.mockQuery.mockResolvedValueOnce({
+      recordset: [
+        {
+          Id: 'u_1',
+          Name: 'Test User',
+          Email: 'user@example.com',
+          Phone: '0700000000',
+          AvatarUrl: '',
+          Role: 'USER',
+          IsVerified: false,
+          CreatedAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const req = makeRequest({
+      body: { email: 'user@example.com', password: 'correct-password' },
+    });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(200);
+    expect((res.jsonBody as Record<string, unknown>)?.success).toBe(true);
+    const data = (res.jsonBody as Record<string, unknown>)?.data as Record<string, unknown>;
+    expect(typeof data?.token).toBe('string');
+    expect((data?.user as Record<string, unknown>)?.email).toBe('user@example.com');
+  });
+});
+
+// ─── register ─────────────────────────────────────────────────────────────
+
+describe('register()', () => {
+  it('returns 400 when name is missing', async () => {
+    const req = makeRequest({
+      body: { name: '', email: 'a@b.com', password: 'longpassword' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when email is missing', async () => {
+    const req = makeRequest({ body: { name: 'Alice', email: '', password: 'longpassword' } });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when email format is invalid', async () => {
+    const req = makeRequest({
+      body: { name: 'Alice', email: 'not-an-email', password: 'longpassword' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when password is too short (< 8 chars)', async () => {
+    const req = makeRequest({
+      body: { name: 'Alice', email: 'alice@example.com', password: 'short' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 409 when email is already registered', async () => {
+    // Email check query returns existing user
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ Id: 'u_existing' }] });
+
+    const req = makeRequest({
+      body: { name: 'Alice', email: 'existing@example.com', password: 'password123' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 201 with token on successful registration', async () => {
+    // Email check query: no existing user
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    // INSERT query
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { name: 'Alice', email: 'new@example.com', password: 'password123' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(201);
+    const data = (res.jsonBody as Record<string, unknown>)?.data as Record<string, unknown>;
+    expect(typeof data?.token).toBe('string');
+    expect((data?.user as Record<string, unknown>)?.email).toBe('new@example.com');
+  });
+
+  it('stores a bcrypt-hashed password (never plaintext)', async () => {
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { name: 'Bob', email: 'bob@example.com', password: 'mypassword123' },
+    });
+    await register(req, makeContext());
+
+    // bcrypt.hash must have been called — password is never stored in plain text
+    const bcrypt = await import('bcryptjs');
+    expect(bcrypt.default.hash).toHaveBeenCalledWith('mypassword123', 10);
+  });
+});
+
+// ─── insecure secret path ─────────────────────────────────────────────────
+
+describe('insecure AUTH_SECRET guard', () => {
+  it('login returns 503 when isAuthSecretInsecure is true', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = true;
+
+    const req = makeRequest({ body: { email: 'a@b.com', password: 'password123' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+
+    // Restore for subsequent tests
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = false;
+  });
+
+  it('register returns 503 when isAuthSecretInsecure is true', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = true;
+
+    const req = makeRequest({
+      body: { name: 'A', email: 'a@b.com', password: 'password123' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(503);
+
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = false;
+  });
+});
