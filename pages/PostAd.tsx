@@ -215,6 +215,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      // Pre-upload auth check: block upload if no valid token is available.
+      if (!authService.getToken()) {
+          toastService.error('لطفاً ابتدا وارد شوید تا بتوانید عکس آپلود کنید.');
+          authService.onAuthInvalid('no_token_pre_upload');
+          // Navigate to POST_AD so the App.tsx auth guard sets pendingPage=POST_AD
+          // and redirects to LOGIN; after login the user returns to this page.
+          onNavigate(Page.POST_AD);
+          return;
+      }
+
       const files: File[] = Array.from(e.target.files);
       const remainingSlots = 4 - images.length;
       const filesToUpload = files.slice(0, remainingSlots);
@@ -225,23 +235,41 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       }
 
       setUploadingImages(prev => [...prev, ...new Array(filesToUpload.length).fill(true)]);
-      
-      const uploadPromises = filesToUpload.map(async (file) => {
-          if (file.size > 5 * 1024 * 1024) {
-              toastService.error(`فایل ${file.name} بزرگتر از ۵ مگابایت است.`);
-              return null;
+
+      try {
+          const uploadPromises = filesToUpload.map(async (file) => {
+              if (file.size > 5 * 1024 * 1024) {
+                  toastService.error(`فایل ${file.name} بزرگتر از ۵ مگابایت است.`);
+                  return null;
+              }
+              return await azureService.uploadImage(file);
+          });
+
+          const results = await Promise.all(uploadPromises);
+          const successfulUrls = results.filter((url): url is string => url !== null);
+
+          setImages(prev => [...prev, ...successfulUrls]);
+          setUploadingImages(prev => prev.slice(0, prev.length - filesToUpload.length));
+
+          if (successfulUrls.length < filesToUpload.length) {
+              toastService.error('برخی از عکس‌ها آپلود نشدند.');
           }
-          return await azureService.uploadImage(file);
-      });
-
-      const results = await Promise.all(uploadPromises);
-      const successfulUrls = results.filter((url): url is string => url !== null);
-
-      setImages(prev => [...prev, ...successfulUrls]);
-      setUploadingImages(prev => prev.slice(0, prev.length - filesToUpload.length));
-
-      if (successfulUrls.length < filesToUpload.length) {
-          toastService.error('برخی از عکس‌ها آپلود نشدند.');
+      } catch (err) {
+          setUploadingImages(prev => prev.slice(0, prev.length - filesToUpload.length));
+          if (err instanceof AuthError) {
+              const reason = err.reason ?? 'upload_auth_error';
+              if (reason === 'storage_blocked') {
+                  toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
+              } else {
+                  authService.onAuthInvalid(reason);
+                  toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
+                  // Navigate to POST_AD so the App.tsx auth guard sets pendingPage=POST_AD
+                  // and redirects to LOGIN; after login the user returns to this page.
+                  onNavigate(Page.POST_AD);
+              }
+          } else {
+              toastService.error('خطا در آپلود عکس. لطفاً دوباره تلاش کنید.');
+          }
       }
     }
   };
