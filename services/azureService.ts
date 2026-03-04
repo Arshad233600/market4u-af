@@ -376,6 +376,7 @@ export const azureService = {
         console.error('Blob upload failed');
         return null;
     } catch (error) {
+        if (error instanceof AuthError) throw error;
         console.error('Upload process error:', error);
         return null;
     }
