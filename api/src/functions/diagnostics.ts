@@ -40,7 +40,7 @@ export async function diagnostics(
 
   if (!isAuthorized) {
     // Rate limit failed auth attempts: max 10 per 60 seconds per IP
-    const rl = checkRateLimit({
+    const rl = await checkRateLimit({
       identifier: `diag_auth:${clientIp}`,
       maxRequests: 10,
       windowMs: 60 * 1000,

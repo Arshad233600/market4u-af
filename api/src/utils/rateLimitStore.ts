@@ -123,7 +123,7 @@ export class RedisRateLimitStore implements RateLimitStore {
   }
 
   async hit(key: string, windowMs: number, max: number): Promise<RateLimitHitResult> {
-    const result = await this.client.eval(INCR_SCRIPT, 1, key, String(windowMs));
+    const result = await this.client.eval(INCR_SCRIPT, 1, key, String(windowMs)) as [number, number];
 
     const count = result[0];
     const pttl = result[1];
