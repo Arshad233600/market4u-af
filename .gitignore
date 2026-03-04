@@ -15,6 +15,9 @@ dist-ssr
 # Auto-generated build artifacts
 public/version.json
 
+# Test coverage reports
+coverage/
+
 # Azure Functions local settings (contains secrets)
 api/local.settings.json
 
