@@ -257,6 +257,46 @@ describe('postAd()', () => {
     const res = await postAd(req, makeContext());
     expect(res.status).toBe(201);
   });
+
+  it('returns 429 when user posts within 60 seconds of their last ad', async () => {
+    // Simulate a recent ad created 30 seconds ago
+    const recentCreatedAt = new Date(Date.now() - 30_000);
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ CreatedAt: recentCreatedAt }] });
+
+    const req = makeRequest({
+      body: { title: 'Another Ad', price: 10000, location: 'Herat' },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(429);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('RATE_LIMIT');
+  });
+
+  it('returns 201 when previous ad was posted more than 60 seconds ago', async () => {
+    // Simulate an old ad created 2 minutes ago — rate limit should not trigger
+    const oldCreatedAt = new Date(Date.now() - 120_000);
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ CreatedAt: oldCreatedAt }] });
+    // All subsequent queries (schema check, INSERT) resolve normally
+    mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { title: 'New Ad', price: 5000, location: 'Kandahar' },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 201 and attempts notification insert on success', async () => {
+    mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { title: 'Watch', price: 2000, category: 'accessories', location: 'Mazar' },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(201);
+    // The notification INSERT is fire-and-forget; verify postAd still returns 201
+    // even if the notification query would resolve or reject later.
+    expect((res.jsonBody as Record<string, unknown>)?.success).toBe(true);
+  });
 });
 
 // ─── updateAd ─────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
+import { generateUUID } from "../utils/uuidUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -73,6 +74,29 @@ export async function adminApproveAd(request: HttpRequest, context: InvocationCo
       return { status: 404, jsonBody: { error: "Ad not found" } };
     }
 
+    // Notify the ad owner that their ad was approved (non-critical).
+    setImmediate(() => {
+      pool.request()
+        .input("AdId", sql.NVarChar, id)
+        .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+        .then(async (adRow) => {
+          if (adRow.recordset.length > 0) {
+            const { UserId: adUserId, Title: adTitle } = adRow.recordset[0] as { UserId: string; Title: string };
+            await pool.request()
+              .input("Id", sql.NVarChar, generateUUID())
+              .input("UserId", sql.NVarChar, adUserId)
+              .input("Title", sql.NVarChar, "آگهی شما تأیید شد")
+              .input("Message", sql.NVarChar, `آگهی "${adTitle}" توسط مدیریت تأیید و منتشر شد.`)
+              .input("Type", sql.NVarChar, "success")
+              .input("CreatedAt", sql.DateTime, new Date())
+              .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)");
+          }
+        })
+        .catch((notifErr: unknown) => {
+          context.warn("adminApproveAd notification_failed", notifErr);
+        });
+    });
+
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("adminApproveAd Error", err);
@@ -99,6 +123,29 @@ export async function adminRejectAd(request: HttpRequest, context: InvocationCon
     if (result.rowsAffected[0] === 0) {
       return { status: 404, jsonBody: { error: "Ad not found" } };
     }
+
+    // Notify the ad owner that their ad was rejected (non-critical).
+    setImmediate(() => {
+      pool.request()
+        .input("AdId", sql.NVarChar, id)
+        .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+        .then(async (adRow) => {
+          if (adRow.recordset.length > 0) {
+            const { UserId: adUserId, Title: adTitle } = adRow.recordset[0] as { UserId: string; Title: string };
+            await pool.request()
+              .input("Id", sql.NVarChar, generateUUID())
+              .input("UserId", sql.NVarChar, adUserId)
+              .input("Title", sql.NVarChar, "آگهی شما رد شد")
+              .input("Message", sql.NVarChar, `آگهی "${adTitle}" توسط مدیریت رد شد. لطفاً آگهی را ویرایش و دوباره ارسال کنید.`)
+              .input("Type", sql.NVarChar, "error")
+              .input("CreatedAt", sql.DateTime, new Date())
+              .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)");
+          }
+        })
+        .catch((notifErr: unknown) => {
+          context.warn("adminRejectAd notification_failed", notifErr);
+        });
+    });
 
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
