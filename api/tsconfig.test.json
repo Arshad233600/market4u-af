@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "noEmit": true
+  },
+  "include": ["src/**/__tests__/**/*.ts"],
+  "exclude": ["node_modules"]
+}
