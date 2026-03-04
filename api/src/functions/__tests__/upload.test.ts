@@ -81,6 +81,24 @@ describe('upload() auth', () => {
     const req = makeRequest({ body: { fileName: 'test.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
     const res = await upload(req, makeContext());
     expect(res.status).toBe(401);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('AUTH_REQUIRED');
+  });
+
+  it('returns 503 when AUTH_SECRET is misconfigured (insecure_default_secret)', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    vi.mocked(authUtils.validateToken).mockReturnValueOnce({
+      userId: null,
+      isAuthenticated: false,
+      reason: 'insecure_default_secret',
+    });
+    vi.mocked(authUtils.authResponse).mockReturnValueOnce({
+      status: 503,
+      jsonBody: { error: 'misconfigured_auth', reason: 'insecure_default_secret' },
+    });
+
+    const req = makeRequest({ body: { fileName: 'test.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+    expect(res.status).toBe(503);
   });
 });
 
