@@ -49,7 +49,7 @@ export async function adminGetPendingAds(request: HttpRequest, context: Invocati
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("adminGetPendingAds Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -76,7 +76,7 @@ export async function adminApproveAd(request: HttpRequest, context: InvocationCo
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("adminApproveAd Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -103,7 +103,7 @@ export async function adminRejectAd(request: HttpRequest, context: InvocationCon
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("adminRejectAd Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -126,7 +126,7 @@ export async function adminGetPendingVerifications(request: HttpRequest, context
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("adminGetPendingVerifications Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -169,7 +169,7 @@ export async function adminVerifyUser(request: HttpRequest, context: InvocationC
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("adminVerifyUser Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 

@@ -1,7 +1,26 @@
 /**
- * Simple in-memory rate limiter for API endpoints
- * For production, use Redis or similar distributed cache
+ * In-memory rate limiter for API endpoints.
+ *
+ * WARNING: This store is per-process. In a horizontally-scaled deployment
+ * (e.g. Azure Functions with multiple instances) each instance keeps its own
+ * independent counter, so a client can exceed the configured limit by having
+ * requests routed to different instances.
+ *
+ * TODO (BUG-001): Replace with a distributed backend such as:
+ *   - Azure Cache for Redis (set RATE_LIMIT_REDIS_URL env var)
+ *   - Azure API Management built-in rate-limit policy
+ * Until then, this in-memory fallback is acceptable for local/dev only.
  */
+
+// Warn loudly when the in-memory store is active in a production environment
+// so operators know the distributed back-end is not yet wired up.
+if (process.env.NODE_ENV === 'production') {
+  console.warn(
+    '[rateLimit] WARNING: using in-memory rate-limit store in production. ' +
+    'Requests can bypass limits when load-balanced across multiple instances. ' +
+    'Configure RATE_LIMIT_REDIS_URL to enable the distributed store (BUG-001).'
+  );
+}
 
 interface RateLimitRecord {
   count: number;

@@ -94,6 +94,18 @@ describe('getInbox()', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 503 when database connection string is not configured (BUG-004)', async () => {
+    // Temporarily remove connection strings to trigger the guard
+    const saved = process.env.SqlConnectionString;
+    delete process.env.SqlConnectionString;
+
+    const res = await getInbox(makeRequest({}), makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.error).toBeTruthy();
+
+    process.env.SqlConnectionString = saved;
+  });
+
   it('returns 200 with empty inbox when no messages exist', async () => {
     mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
     const res = await getInbox(makeRequest({}), makeContext());

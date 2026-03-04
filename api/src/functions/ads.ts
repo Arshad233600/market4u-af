@@ -112,7 +112,7 @@ export async function getAds(request: HttpRequest, context: InvocationContext): 
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getAds SQL Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -130,7 +130,7 @@ export async function getSellerAds(request: HttpRequest, context: InvocationCont
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getSellerAds Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -184,7 +184,7 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
     return { status: 200, jsonBody: ad };
   } catch (err: unknown) {
     context.error("getAdDetail Error", err);
-    return { status: 500, jsonBody: { error: "Server Error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -217,7 +217,7 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
       const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
       return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
-    return { status: 500, jsonBody: { error: "Server Error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -529,7 +529,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
     }
   } catch (err: unknown) {
     context.error("updateAd Error", err);
-    return { status: 500, jsonBody: { error: "Error updating ad", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -552,13 +552,13 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
       .query("UPDATE Ads SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE Id = @Id AND UserId = @UserId");
 
     if (result.rowsAffected[0] === 0) {
-      return { status: 403, jsonBody: { error: "Forbidden or Not Found" } };
+      return { status: 404, jsonBody: { error: "Ad not found" } };
     }
 
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("deleteAd Error", err);
-    return { status: 500, jsonBody: { error: "Error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -603,7 +603,7 @@ export async function updateAdStatus(request: HttpRequest, context: InvocationCo
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("updateAdStatus Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -684,7 +684,7 @@ export async function promoteAd(request: HttpRequest, context: InvocationContext
     }
   } catch (err: unknown) {
     context.error("promoteAd Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 

@@ -42,6 +42,9 @@ jobs:
         # --ignore-scripts skips the azure-functions-core-tools binary download (not needed in CI)
         run: npm ci --prefix api --ignore-scripts
 
+      - name: Run API tests
+        run: npm test --prefix api
+
       - name: Build API
         run: npm run build --prefix api
 

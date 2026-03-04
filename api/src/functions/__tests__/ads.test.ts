@@ -290,13 +290,13 @@ describe('deleteAd()', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 403 when ad does not belong to user', async () => {
-    // UPDATE returns 0 rowsAffected (no row matched), so code returns 403
+  it('returns 404 when ad does not belong to user or does not exist', async () => {
+    // UPDATE returns 0 rowsAffected (no row matched), so code returns 404
     mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
 
     const req = makeRequest({ params: { id: 'ad_other' } });
     const res = await deleteAd(req, makeContext());
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it('returns 200 when soft-delete succeeds', async () => {

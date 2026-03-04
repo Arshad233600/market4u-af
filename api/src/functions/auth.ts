@@ -8,6 +8,7 @@ import * as appInsights from "applicationinsights";
 import { validateToken, isAuthSecretInsecure, TOKEN_EXPIRATION_MS, authResponse } from "../utils/authUtils";
 import { getAuthSecretStrict, getSecretDiagnostics } from "../utils/authSecret";
 import { success, error, unauthorized, badRequest, serverError, serviceUnavailable } from "../utils/responses";
+import { checkRateLimit } from "../utils/rateLimit";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
@@ -48,6 +49,20 @@ export async function login(request: HttpRequest, context: InvocationContext): P
 
     if (!email || !password) {
       return badRequest("ایمیل و رمز عبور الزامی است.");
+    }
+
+    // Rate-limit by email + client IP to prevent credential stuffing.
+    // x-forwarded-for is set by the Azure / reverse-proxy layer; fall back to
+    // x-client-ip if present, otherwise use the email alone as the key.
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-client-ip") ||
+      "";
+    const rateLimitKey = `login:${email}:${clientIp}`;
+    const rateResult = checkRateLimit({ identifier: rateLimitKey, maxRequests: 10, windowMs: 15 * 60 * 1000 });
+    if (!rateResult.allowed) {
+      context.warn(`[login] rate_limit_exceeded identifier=${rateLimitKey}`);
+      return { status: 429, jsonBody: { error: "Too many login attempts. Please try again later." } };
     }
 
     const pool = await getPool();

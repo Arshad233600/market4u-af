@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => {
   const mockInput = vi.fn().mockReturnThis();
   const mockRequest = () => ({ input: mockInput, query: mockQuery });
   const mockPool = { request: vi.fn().mockImplementation(mockRequest) };
-  return { mockQuery, mockInput, mockPool };
+  const mockCheckRateLimit = vi.fn().mockReturnValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+  const mockResetRateLimit = vi.fn();
+  return { mockQuery, mockInput, mockPool, mockCheckRateLimit, mockResetRateLimit };
 });
 
 // ─── module mocks ──────────────────────────────────────────────────────────
@@ -44,6 +46,11 @@ vi.mock('../../utils/authUtils', () => ({
     'invalid_auth_secret',
   ]),
   lastAuthFailureSample: null,
+}));
+
+vi.mock('../../utils/rateLimit', () => ({
+  checkRateLimit: mocks.mockCheckRateLimit,
+  resetRateLimit: mocks.mockResetRateLimit,
 }));
 
 vi.mock('../../utils/authSecret', () => ({
@@ -109,6 +116,8 @@ beforeEach(async () => {
     input: mocks.mockInput,
     query: mocks.mockQuery,
   }));
+  mocks.mockCheckRateLimit.mockReset();
+  mocks.mockCheckRateLimit.mockReturnValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
 
   // Ensure mocked authUtils.isAuthSecretInsecure is false
   const authUtils = await import('../../utils/authUtils');
@@ -288,5 +297,80 @@ describe('insecure AUTH_SECRET guard', () => {
     expect(res.status).toBe(503);
 
     (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = false;
+  });
+});
+
+// ─── login rate limiting (BUG-005) ────────────────────────────────────────
+
+describe('login() rate limiting', () => {
+  it('returns 429 when rate limit is exceeded', async () => {
+    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
+
+    const req = makeRequest({ body: { email: 'attacker@example.com', password: 'password' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(429);
+  });
+
+  it('does not expose sensitive info in 429 response', async () => {
+    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60000 });
+
+    const req = makeRequest({ body: { email: 'attacker@example.com', password: 'password' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(429);
+    const body = res.jsonBody as Record<string, unknown>;
+    // Must have a generic error message; must not contain password or DB details
+    expect(typeof body?.error).toBe('string');
+    expect(JSON.stringify(body)).not.toContain('password');
+  });
+
+  it('builds rate-limit key from email and x-forwarded-for IP', async () => {
+    // Allow the request so we can verify the key includes both email and IP
+    mocks.mockCheckRateLimit.mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+    // Return no user so login fails fast after the rate-limit check
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
+
+    const req = makeRequest({
+      body: { email: 'user@example.com', password: 'pass' },
+      headers: { 'x-forwarded-for': '1.2.3.4, 5.6.7.8' },
+    });
+    await login(req, makeContext());
+
+    expect(mocks.mockCheckRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: 'login:user@example.com:1.2.3.4' })
+    );
+  });
+
+  it('isolates rate-limit buckets by email+IP combination', async () => {
+    // First identifier allowed; second identifier also allowed separately
+    mocks.mockCheckRateLimit
+      .mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 })
+      .mockReturnValueOnce({ allowed: true, remaining: 9, resetAt: Date.now() + 60000 });
+
+    mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [0] });
+
+    const req1 = makeRequest({
+      body: { email: 'user1@example.com', password: 'pass' },
+      headers: { 'x-forwarded-for': '1.1.1.1' },
+    });
+    const req2 = makeRequest({
+      body: { email: 'user2@example.com', password: 'pass' },
+      headers: { 'x-forwarded-for': '2.2.2.2' },
+    });
+
+    const [res1, res2] = await Promise.all([
+      login(req1, makeContext()),
+      login(req2, makeContext()),
+    ]);
+
+    // Both should reach DB lookup (not 429)
+    expect(res1.status).not.toBe(429);
+    expect(res2.status).not.toBe(429);
+
+    // Verify each call used its own distinct identifier
+    const calls = mocks.mockCheckRateLimit.mock.calls;
+    const ids = calls.map((c: unknown[]) => (c[0] as { identifier: string }).identifier);
+    expect(ids[0]).toContain('user1@example.com');
+    expect(ids[1]).toContain('user2@example.com');
+    expect(ids[0]).not.toBe(ids[1]);
   });
 });
