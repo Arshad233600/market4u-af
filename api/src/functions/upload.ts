@@ -1,19 +1,17 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getOrCreateBlobContainerClient } from "../blob";
-import { validateToken } from "../utils/authUtils";
+import { validateToken, authResponse } from "../utils/authUtils";
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export async function upload(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    // Defensive auth check: always return 401 for any auth failure (never 503).
-    // Using authResponse() here would return 503 when AUTH_SECRET is misconfigured,
-    // causing spurious "Service Unavailable" errors instead of a clear "Unauthorized".
     const auth = validateToken(request);
-    if (!auth.isAuthenticated || !auth.userId) {
-        context.warn(`[upload] unauthorized reason=${auth.reason ?? "unknown"} requestId=${auth.requestId ?? "none"}`);
-        return { status: 401, jsonBody: { error: "Unauthorized", reason: auth.reason, requestId: auth.requestId } };
+    const authErr = authResponse(auth);
+    if (authErr || !auth.userId) {
+        context.warn(`[upload] auth_failed reason=${auth.reason ?? "unknown"} requestId=${auth.requestId ?? "none"}`);
+        return authErr ?? { status: 401, jsonBody: { error: "Unauthorized", category: "AUTH_REQUIRED", reason: auth.reason, requestId: auth.requestId } };
     }
 
     try {
