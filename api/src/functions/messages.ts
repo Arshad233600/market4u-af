@@ -26,7 +26,7 @@ export async function getInbox(request: HttpRequest, context: InvocationContext)
       (!process.env.DB_SERVER || !process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASSWORD)
     ) {
       console.error("[getInbox] database connection string not configured");
-      return { status: 200, jsonBody: [] };
+      return { status: 503, jsonBody: { error: "Service temporarily unavailable" } };
     }
 
     // D) Log userId extracted from JWT and query parameters
@@ -77,8 +77,7 @@ export async function getInbox(request: HttpRequest, context: InvocationContext)
     // B) Detailed logging before returning error
     console.error("getInbox error:", err);
     context.error("getInbox Error", err);
-    // E) Safe fallback so frontend polling stops failing
-    return { status: 200, jsonBody: [] };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -134,7 +133,7 @@ export async function getThread(request: HttpRequest, context: InvocationContext
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getThread Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -185,7 +184,7 @@ export async function sendMessage(request: HttpRequest, context: InvocationConte
     return { status: 201, jsonBody: { success: true, id } };
   } catch (err: unknown) {
     context.error("sendMessage Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -243,7 +242,7 @@ export async function deleteMessage(request: HttpRequest, context: InvocationCon
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("deleteMessage Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 

@@ -3,6 +3,9 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { getOrCreateBlobContainerClient } from "../blob";
 import { validateToken } from "../utils/authUtils";
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export async function upload(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     // Defensive auth check: always return 401 for any auth failure (never 503).
     // Using authResponse() here would return 503 when AUTH_SECRET is misconfigured,
@@ -16,12 +19,29 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
     try {
         const body = await request.json() as any;
         const { fileName, contentType, base64 } = body || {};
-        
+
         if (!fileName || !base64) {
-            return { status: 400, body: "fileName and base64 are required" };
+            return { status: 400, jsonBody: { error: "fileName and base64 are required" } };
+        }
+
+        // Validate content type against allowlist
+        if (!ALLOWED_MIME_TYPES.includes(contentType)) {
+            return { status: 400, jsonBody: { error: "Unsupported file type. Allowed: image/jpeg, image/png, image/webp, image/gif" } };
+        }
+
+        // Validate base64 encoding (must be valid base64 characters)
+        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+        if (typeof base64 !== 'string' || !base64Regex.test(base64)) {
+            return { status: 400, jsonBody: { error: "Invalid base64 encoding" } };
         }
 
         const buffer = Buffer.from(base64, "base64");
+
+        // Enforce maximum file size
+        if (buffer.byteLength > MAX_SIZE_BYTES) {
+            return { status: 413, jsonBody: { error: "File too large. Maximum size is 10 MB" } };
+        }
+
         const containerClient = await getOrCreateBlobContainerClient();
 
         // Unique safe name to prevent collisions
@@ -29,7 +49,12 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         const blobClient = containerClient.getBlockBlobClient(safeName);
 
         await blobClient.uploadData(buffer, {
-            blobHTTPHeaders: { blobContentType: contentType || "application/octet-stream" },
+            blobHTTPHeaders: {
+                // Content-type from validated allowlist only (never from client)
+                blobContentType: contentType,
+                // Force download behavior to prevent inline rendering / stored XSS
+                blobContentDisposition: `attachment; filename="${safeName}"`,
+            },
         });
 
         return {
@@ -42,8 +67,7 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         };
     } catch (e: unknown) {
         context.error("Upload Error:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        return { status: 500, body: errorMessage };
+        return { status: 500, jsonBody: { error: "Internal server error" } };
     }
 }
 

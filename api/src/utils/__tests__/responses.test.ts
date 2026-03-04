@@ -80,14 +80,15 @@ describe('API Response Helpers', () => {
       expect(res.status).toBe(500);
     });
 
-    it('includes error detail from Error object', () => {
+    it('does not expose internal error details in the response body', () => {
       const res = serverError(new Error('connection refused'));
-      expect((res.jsonBody as any).details?.detail).toBe('connection refused');
+      // Raw error message must NOT appear in the response (BUG-006)
+      expect(JSON.stringify(res.jsonBody)).not.toContain('connection refused');
     });
 
-    it('handles non-Error values', () => {
+    it('handles non-Error values without leaking them', () => {
       const res = serverError('raw string error');
-      expect((res.jsonBody as any).details?.detail).toBe('raw string error');
+      expect(JSON.stringify(res.jsonBody)).not.toContain('raw string error');
     });
   });
 

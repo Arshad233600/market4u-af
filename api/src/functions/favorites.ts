@@ -32,7 +32,7 @@ export async function getFavorites(request: HttpRequest, context: InvocationCont
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getFavorites Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -82,7 +82,7 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
     return { status: 201, jsonBody: { success: true, id } };
   } catch (err: unknown) {
     context.error("addFavorite Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 
@@ -111,7 +111,7 @@ export async function removeFavorite(request: HttpRequest, context: InvocationCo
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("removeFavorite Error", err);
-    return { status: 500, jsonBody: { error: "Database error", message: errMessage(err) } };
+    return { status: 500, jsonBody: { error: "Internal server error" } };
   }
 }
 

@@ -63,11 +63,11 @@ export function notFound(message = "Resource not found"): HttpResponseInit {
 }
 
 /**
- * Server error response
+ * Server error response — returns a generic 500 without exposing internal error details.
+ * Always log the original error with context.error() before calling this helper.
  */
-export function serverError(err: unknown, message = "Internal server error"): HttpResponseInit {
-  const errorMessage = err instanceof Error ? err.message : String(err);
-  return error(message, 500, { detail: errorMessage });
+export function serverError(_err: unknown, message = "Internal server error"): HttpResponseInit {
+  return error(message, 500);
 }
 
 /**
