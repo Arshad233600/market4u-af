@@ -2,6 +2,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+/// <reference types="vitest" />
 
 // Resolve app version at build time (git short hash, falls back to 'dev')
 let appVersion = 'dev';
@@ -59,6 +60,22 @@ export default defineConfig(({ mode }) => {
         minify: 'esbuild',
         esbuildOptions: {
           drop: ['console', 'debugger'],
+        },
+      },
+      test: {
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: ['./src/test/setup.ts'],
+        include: [
+          'utils/__tests__/**/*.test.ts',
+          'utils/__tests__/**/*.test.tsx',
+          'components/__tests__/**/*.test.tsx',
+          'src/**/__tests__/**/*.test.ts',
+          'src/**/__tests__/**/*.test.tsx',
+        ],
+        coverage: {
+          provider: 'v8',
+          reporter: ['text', 'lcov'],
         },
       },
     };

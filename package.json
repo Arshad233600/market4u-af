@@ -9,7 +9,10 @@
     "build": "vite build",
     "postbuild": "node scripts/copy-sw.js",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "lucide-react": "^0.564.0",
@@ -26,10 +29,14 @@
     "@capacitor/ios": "^8.1.0",
     "@google/genai": "^1.42.0",
     "@tailwindcss/postcss": "^4.2.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "applicationinsights": "^3.13.0",
     "autoprefixer": "^10.4.24",
     "buffer": "^6.0.3",
@@ -37,11 +44,13 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.0",
     "globals": "^17.3.0",
+    "jsdom": "^28.1.0",
     "mssql": "^12.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.0",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.56.0",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vitest": "^4.0.18"
   }
 }
