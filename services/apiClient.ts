@@ -284,7 +284,7 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       if (response.status === 503) {
         try {
           const peek = await response.clone().json() as { error?: string; reason?: string };
-          if (peek.error === 'misconfigured_auth' || peek.reason === 'db_not_configured') {
+          if (peek.error === 'misconfigured_auth' || peek.reason === 'db_not_configured' || peek.reason === 'storage_not_configured') {
             shouldRetry = false; // permanent config error — fall through to !response.ok handler
           }
         } catch {

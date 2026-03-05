@@ -40,6 +40,32 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
             return { status: 413, jsonBody: { error: "File too large. Maximum size is 10 MB" } };
         }
 
+        // Guard: fail fast with 503 (not 500) when blob storage is not configured,
+        // so the client can distinguish a permanent server configuration error
+        // from a transient internal error and avoid pointless retries.
+        if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
+            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING is not set');
+            return {
+                status: 503,
+                jsonBody: {
+                    error: 'Service unavailable',
+                    reason: 'storage_not_configured',
+                    category: 'STORAGE_NOT_CONFIGURED',
+                },
+            };
+        }
+        if (!process.env.AZURE_STORAGE_CONTAINER && !process.env.STORAGE_CONTAINER_NAME) {
+            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONTAINER and STORAGE_CONTAINER_NAME are both unset');
+            return {
+                status: 503,
+                jsonBody: {
+                    error: 'Service unavailable',
+                    reason: 'storage_not_configured',
+                    category: 'STORAGE_NOT_CONFIGURED',
+                },
+            };
+        }
+
         const containerClient = await getOrCreateBlobContainerClient();
 
         // Unique safe name to prevent collisions

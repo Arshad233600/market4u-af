@@ -4,7 +4,7 @@
  * Azure blob storage and auth utilities are mocked so no real network traffic
  * is generated.
  */
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { HttpRequest, InvocationContext } from '@azure/functions';
 
 // ─── hoisted mock state ───────────────────────────────────────────────────
@@ -59,6 +59,11 @@ let upload: typeof import('../upload').upload;
 beforeEach(async () => {
   mocks.mockUploadData.mockReset();
   mocks.mockUploadData.mockResolvedValue({});
+
+  // Ensure blob storage env vars are set for all tests that exercise the happy path.
+  // The storage_not_configured tests override (and restore) these in their own afterEach.
+  process.env.AZURE_STORAGE_CONNECTION_STRING = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
+  process.env.AZURE_STORAGE_CONTAINER = 'test-container';
 
   const authUtils = await import('../../utils/authUtils');
   vi.mocked(authUtils.validateToken).mockReturnValue({ userId: 'u_test_123', isAuthenticated: true });
@@ -215,5 +220,58 @@ describe('upload() error handling', () => {
     expect(res.status).toBe(500);
     expect(JSON.stringify(res.jsonBody)).not.toContain('AccountKey');
     expect(JSON.stringify(res.jsonBody)).not.toContain('secret123');
+  });
+});
+
+// ─── storage configuration guard ──────────────────────────────────────────
+
+describe('upload() storage_not_configured', () => {
+  const originalConnString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  const originalContainer = process.env.AZURE_STORAGE_CONTAINER;
+  const originalContainerName = process.env.STORAGE_CONTAINER_NAME;
+
+  afterEach(() => {
+    // Restore env vars after each test in this suite
+    if (originalConnString !== undefined) {
+      process.env.AZURE_STORAGE_CONNECTION_STRING = originalConnString;
+    } else {
+      delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    }
+    if (originalContainer !== undefined) {
+      process.env.AZURE_STORAGE_CONTAINER = originalContainer;
+    } else {
+      delete process.env.AZURE_STORAGE_CONTAINER;
+    }
+    if (originalContainerName !== undefined) {
+      process.env.STORAGE_CONTAINER_NAME = originalContainerName;
+    } else {
+      delete process.env.STORAGE_CONTAINER_NAME;
+    }
+  });
+
+  it('returns 503 with storage_not_configured when AZURE_STORAGE_CONNECTION_STRING is not set', async () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_not_configured');
+    expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
+  });
+
+  it('returns 503 with storage_not_configured when container name env vars are both unset', async () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
+    delete process.env.AZURE_STORAGE_CONTAINER;
+    delete process.env.STORAGE_CONTAINER_NAME;
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_not_configured');
+    expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
   });
 });
