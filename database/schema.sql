@@ -13,6 +13,7 @@ CREATE TABLE Users (
     AvatarUrl NVARCHAR(1000),
     Role NVARCHAR(50) DEFAULT 'USER',
     IsVerified BIT DEFAULT 0,
+    VerificationStatus NVARCHAR(50) DEFAULT 'NONE',
     IsDeleted BIT DEFAULT 0,
     DeletedAt DATETIME2 NULL,
     CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
@@ -95,7 +96,7 @@ CREATE INDEX IX_Messages_ToUser ON Messages(ToUserId);
 CREATE INDEX IX_Messages_AdId ON Messages(AdId);
 CREATE INDEX IX_Messages_CreatedAt ON Messages(CreatedAt DESC);
 
--- Type values: CREDIT, DEBIT
+-- Type values: CREDIT, DEBIT, PAYMENT_AD_PROMO
 -- Status values: PENDING, SUCCESS, FAILED
 CREATE TABLE WalletTransactions (
     Id NVARCHAR(100) PRIMARY KEY,
@@ -125,3 +126,16 @@ CREATE TABLE Notifications (
 
 CREATE INDEX IX_Notifications_UserId ON Notifications(UserId);
 CREATE INDEX IX_Notifications_CreatedAt ON Notifications(CreatedAt DESC);
+
+CREATE TABLE ChatRequests (
+    Id NVARCHAR(100) PRIMARY KEY,
+    FromUserId NVARCHAR(100) NOT NULL,
+    ToUserId NVARCHAR(100) NOT NULL,
+    Status NVARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+    FOREIGN KEY (FromUserId) REFERENCES Users(Id),
+    FOREIGN KEY (ToUserId) REFERENCES Users(Id)
+);
+
+CREATE INDEX IX_ChatRequests_ToUserId ON ChatRequests(ToUserId);
+CREATE INDEX IX_ChatRequests_FromUserId ON ChatRequests(FromUserId);

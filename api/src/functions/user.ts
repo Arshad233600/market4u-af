@@ -13,7 +13,7 @@ export async function getUserProfile(request: HttpRequest, context: InvocationCo
         const pool = await getPool();
         const result = await pool.request()
             .input("Id", sql.NVarChar, auth.userId)
-            .query("SELECT Id, Name, Email, Phone, AvatarUrl, IsVerified, Role, CreatedAt FROM Users WHERE Id = @Id");
+            .query("SELECT Id, Name, Email, Phone, AvatarUrl, IsVerified, VerificationStatus, Role, CreatedAt FROM Users WHERE Id = @Id");
 
         if (result.recordset.length === 0) {
             return { status: 404, body: JSON.stringify({ message: "کاربر یافت نشد." }) };
@@ -43,6 +43,7 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
         const updates = [];
         if (body.name) updates.push("Name = @Name");
         if (body.email) updates.push("Email = @Email");
+        if (body.avatarUrl !== undefined) updates.push("AvatarUrl = @AvatarUrl");
         // Phone is usually not updateable without verification
         
         if (updates.length === 0) return { status: 400, body: "No fields to update" };
@@ -52,6 +53,7 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
         const req = pool.request().input("Id", sql.NVarChar, auth.userId);
         if (body.name) req.input("Name", sql.NVarChar, body.name);
         if (body.email) req.input("Email", sql.NVarChar, body.email);
+        if (body.avatarUrl !== undefined) req.input("AvatarUrl", sql.NVarChar, body.avatarUrl);
 
         await req.query(query);
 

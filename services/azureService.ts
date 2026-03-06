@@ -40,6 +40,7 @@ interface ProfileRecord {
     Phone: string;
     AvatarUrl: string;
     IsVerified: boolean;
+    VerificationStatus: string;
     Role: string;
     CreatedAt: string;
 }
@@ -302,6 +303,7 @@ export const azureService = {
       phone: data.Phone || '',
       avatarUrl: data.AvatarUrl || '',
       isVerified: data.IsVerified,
+      verificationStatus: (data.VerificationStatus || 'NONE') as User['verificationStatus'],
       role: data.Role as 'USER' | 'ADMIN',
       joinDate: data.CreatedAt
     };
@@ -1275,6 +1277,13 @@ export const azureService = {
           // Simple sort
           return acts.slice(0, 10);
       }
-      return [];
+      // Skip the API call when not authenticated or token is expired
+      if (!authService.getToken() || authService.isTokenExpired()) return [];
+      try {
+          const data = await apiClient.get<Array<{ type: string; id: string; title: string; detail?: string; date: string }>>('/dashboard/activities');
+          return Array.isArray(data) ? data : [];
+      } catch {
+          return [];
+      }
   }
 };

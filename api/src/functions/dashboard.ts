@@ -60,3 +60,99 @@ app.http("getDashboardStats", {
   route: "dashboard/stats",
   handler: getDashboardStats
 });
+
+export async function getRecentActivities(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const auth = validateToken(request);
+  const authErr = authResponse(auth);
+  if (authErr) return authErr;
+
+  try {
+    const pool = await getPool();
+
+    // Recent ads posted by the user
+    const adsResult = await pool
+      .request()
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query(`
+        SELECT TOP 5 Id, Title, CreatedAt
+        FROM Ads
+        WHERE UserId = @UserId AND IsDeleted = 0
+        ORDER BY CreatedAt DESC
+      `);
+
+    // Recent wallet transactions
+    const txResult = await pool
+      .request()
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query(`
+        SELECT TOP 5 Id, Amount, Description, CreatedAt
+        FROM WalletTransactions
+        WHERE UserId = @UserId
+        ORDER BY CreatedAt DESC
+      `);
+
+    // Recent messages received
+    const msgResult = await pool
+      .request()
+      .input("UserId", sql.NVarChar, auth.userId)
+      .query(`
+        SELECT TOP 5 m.Id, u.Name AS FromUserName, m.CreatedAt
+        FROM Messages m
+        JOIN Users u ON m.FromUserId = u.Id
+        WHERE m.ToUserId = @UserId
+        ORDER BY m.CreatedAt DESC
+      `);
+
+    interface AdRow { Id: string; Title: string; CreatedAt: string }
+    interface TxRow { Id: string; Amount: number; Description: string; CreatedAt: string }
+    interface MsgRow { Id: string; FromUserName: string; CreatedAt: string }
+
+    const activities: Array<{ type: string; id: string; title: string; detail?: string; date: string }> = [];
+
+    for (const ad of adsResult.recordset as AdRow[]) {
+      activities.push({
+        type: 'AD',
+        id: ad.Id,
+        title: `ثبت آگهی "${ad.Title}"`,
+        date: ad.CreatedAt
+      });
+    }
+
+    for (const tx of txResult.recordset as TxRow[]) {
+      activities.push({
+        type: 'WALLET',
+        id: tx.Id,
+        title: tx.Description || 'تراکنش کیف پول',
+        detail: `${Math.abs(tx.Amount)} ؋`,
+        date: tx.CreatedAt
+      });
+    }
+
+    for (const msg of msgResult.recordset as MsgRow[]) {
+      activities.push({
+        type: 'MESSAGE',
+        id: msg.Id,
+        title: `پیام از ${msg.FromUserName}`,
+        date: msg.CreatedAt
+      });
+    }
+
+    // Sort by date descending and return top 10
+    activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return {
+      status: 200,
+      jsonBody: activities.slice(0, 10)
+    };
+  } catch (err: unknown) {
+    context.error("getRecentActivities Error", err);
+    return serverError(err);
+  }
+}
+
+app.http("getRecentActivities", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  route: "dashboard/activities",
+  handler: getRecentActivities
+});
