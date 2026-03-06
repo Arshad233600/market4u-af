@@ -94,7 +94,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     const profileResult = await pool
       .request()
       .input("Id", sql.NVarChar, user.Id)
-      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, CreatedAt FROM Users WHERE Id = @Id");
+      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, VerificationStatus, CreatedAt FROM Users WHERE Id = @Id");
 
     const profile = profileResult.recordset[0];
 
@@ -115,6 +115,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
         avatarUrl: profile.AvatarUrl || '',
         role: profile.Role,
         isVerified: profile.IsVerified,
+        verificationStatus: profile.VerificationStatus || 'NONE',
         joinDate: profile.CreatedAt
       }
     });
@@ -200,7 +201,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
 
     return success({
       token,
-      user: { id, name, email, phone: phone || '', avatarUrl: '', role: "USER", isVerified: false, joinDate: new Date().toISOString() }
+      user: { id, name, email, phone: phone || '', avatarUrl: '', role: "USER", isVerified: false, verificationStatus: 'NONE', joinDate: new Date().toISOString() }
     }, 201);
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
@@ -254,7 +255,7 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
     const result = await pool
       .request()
       .input("UserId", sql.NVarChar, auth.userId)
-      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, CreatedAt FROM Users WHERE Id = @UserId");
+      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, VerificationStatus, CreatedAt FROM Users WHERE Id = @UserId");
 
     if (result.recordset.length === 0) {
       telemetry?.trackEvent({ name: "GetMeFailed", properties: { reason: "UserNotFound", userId: auth.userId ?? "" } });
@@ -271,6 +272,7 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
       avatarUrl: user.AvatarUrl,
       role: user.Role,
       isVerified: user.IsVerified,
+      verificationStatus: user.VerificationStatus || 'NONE',
       joinDate: user.CreatedAt
     });
   } catch (err: unknown) {
