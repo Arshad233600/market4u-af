@@ -38,14 +38,18 @@ export function getAuthSecretOrThrow(): string {
 
 /**
  * Known insecure placeholder values that must never be used in production.
- * These are the default values from local.settings.json.example and .env.example.
+ * These are the default values from .env.example and api/.env.example.
  * Tokens signed with a placeholder secret offer no real security and indicate
  * that AUTH_SECRET was never properly configured in Azure Application Settings.
+ * Note: local.settings.json.example uses a different dev-only default that is
+ * intentionally excluded from this list so local development works out of the box.
  */
 const INSECURE_SECRET_PLACEHOLDERS = new Set([
   'change-this-to-a-random-string-min-32-characters-long',
   'CHANGE_ME_IN_AZURE',
   'your-secret-key',
+  'your-secret-key-min-32-chars-long',
+  'dev-local-replace-before-deploying-to-azure-production',
   'changeme',
   'secret',
 ]);
