@@ -31,7 +31,7 @@ vi.mock('applicationinsights', () => ({
 
 vi.mock('../../db', () => ({
   getPool: vi.fn().mockResolvedValue(mocks.mockPool),
-  resetPool: vi.fn(),
+  resetPool: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../utils/authUtils', () => ({
@@ -139,6 +139,13 @@ beforeEach(async () => {
   }));
   mocks.mockCheckRateLimit.mockReset();
   mocks.mockCheckRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: Date.now() + 60000, storeType: 'memory' });
+
+  // Reset db mocks (getPool and resetPool) to their default resolved state.
+  const db = await import('../../db');
+  (db.getPool as ReturnType<typeof vi.fn>).mockReset();
+  (db.getPool as ReturnType<typeof vi.fn>).mockResolvedValue(mocks.mockPool);
+  (db.resetPool as ReturnType<typeof vi.fn>).mockReset();
+  (db.resetPool as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
   // Ensure mocked authUtils.isAuthSecretInsecure is false
   const authUtils = await import('../../utils/authUtils');
@@ -401,5 +408,85 @@ describe('login() rate limiting', () => {
     expect(ids[0]).toContain('user1@example.com');
     expect(ids[1]).toContain('user2@example.com');
     expect(ids[0]).not.toBe(ids[1]);
+  });
+});
+
+// ─── DB error classification (BUG: login returned 500 for all DB errors) ─────
+
+describe('login() DB error handling', () => {
+  it('returns 503 with db_not_configured reason when DB is not configured', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Database not configured. Set SqlConnectionString or AZURE_SQL_CONNECTION_STRING')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_not_configured');
+    expect(body.category).toBe('DB_NOT_CONFIGURED');
+  });
+
+  it('returns 503 with db_unavailable reason and resets pool on transient DB error', async () => {
+    const { getPool, resetPool } = await import('../../db');
+    const transientErr = new Error('ETIMEDOUT: Connection timed out');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(transientErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_unavailable');
+    expect(body.category).toBe('DB_UNAVAILABLE');
+    expect(resetPool).toHaveBeenCalled();
+  });
+
+  it('returns 500 for unexpected errors (not DB-related)', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Something unexpected happened'));
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(500);
+  });
+
+  it('does NOT call resetPool when DB_NOT_CONFIGURED (pool was never created)', async () => {
+    const { getPool, resetPool } = await import('../../db');
+    (resetPool as ReturnType<typeof vi.fn>).mockReset();
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Database not configured. Set SqlConnectionString or AZURE_SQL_CONNECTION_STRING')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    await login(req, makeContext());
+    expect(resetPool).not.toHaveBeenCalled();
+  });
+});
+
+describe('register() DB error handling', () => {
+  it('returns 503 with db_not_configured reason when DB is not configured', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Database not configured. Set SqlConnectionString or AZURE_SQL_CONNECTION_STRING')
+    );
+
+    const req = makeRequest({ body: { name: 'Alice', email: 'alice@example.com', password: 'password123' } });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_not_configured');
+  });
+
+  it('returns 503 and resets pool on transient DB error', async () => {
+    const { getPool, resetPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('ECONNREFUSED: DB server refused connection'));
+
+    const req = makeRequest({ body: { name: 'Alice', email: 'alice@example.com', password: 'password123' } });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_unavailable');
+    expect(resetPool).toHaveBeenCalled();
   });
 });
