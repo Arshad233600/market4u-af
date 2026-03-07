@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { getPool } from "../db";
+import { getPool, resetPool } from "../db";
 import * as sql from "mssql";
 import { timingSafeEqual } from "crypto";
 import jwt from "jsonwebtoken";
@@ -15,6 +15,39 @@ const telemetry = appInsights.defaultClient;
 
 // Secure password hashing with bcrypt
 const SALT_ROUNDS = 10;
+
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * Classifies a caught error from the auth path into a status + category pair.
+ *
+ * - DB_NOT_CONFIGURED (503): SqlConnectionString env var is absent.  Pool was never
+ *   created, so resetPool is a no-op and should NOT be called.
+ * - DB_UNAVAILABLE (503): transient network/server error; resetPool should be called
+ *   so the next request starts with a fresh pool.
+ * - UNEXPECTED (500): anything else — a real code bug or unknown condition.
+ */
+function classifyAuthError(err: unknown): { status: number; category: string } {
+  const msg = errMsg(err);
+
+  if (/Database not configured/i.test(msg)) {
+    return { status: 503, category: "DB_NOT_CONFIGURED" };
+  }
+
+  if (err instanceof sql.ConnectionError) {
+    return { status: 503, category: "DB_UNAVAILABLE" };
+  }
+
+  if (
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed/i.test(msg)
+  ) {
+    return { status: 503, category: "DB_UNAVAILABLE" };
+  }
+
+  return { status: 500, category: "UNEXPECTED" };
+}
 
 const hashPassword = async (password: string): Promise<string> => {
   return await bcrypt.hash(password, SALT_ROUNDS);
@@ -122,6 +155,14 @@ export async function login(request: HttpRequest, context: InvocationContext): P
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
     context.error("Login Error", err);
+    const { status, category } = classifyAuthError(err);
+    if (status === 503) {
+      if (category !== "DB_NOT_CONFIGURED") {
+        resetPool().catch(() => {});
+      }
+      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
+    }
     return serverError(err, "خطای سرور");
   }
 }
@@ -206,6 +247,14 @@ export async function register(request: HttpRequest, context: InvocationContext)
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
     context.error("Register Error", err);
+    const { status, category } = classifyAuthError(err);
+    if (status === 503) {
+      if (category !== "DB_NOT_CONFIGURED") {
+        resetPool().catch(() => {});
+      }
+      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
+    }
     return serverError(err, "خطای سرور");
   }
 }
@@ -278,6 +327,14 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
     context.error("GetMe Error", err);
+    const { status, category } = classifyAuthError(err);
+    if (status === 503) {
+      if (category !== "DB_NOT_CONFIGURED") {
+        resetPool().catch(() => {});
+      }
+      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
+    }
     return serverError(err);
   }
 }
