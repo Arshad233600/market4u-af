@@ -31,7 +31,7 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
 
     if (!accountName || !accountKey) {
         telemetry?.trackException({ exception: new Error("Storage configuration missing") });
-        return { status: 500, body: "Storage configuration missing" };
+        return { status: 500, jsonBody: { error: "Storage configuration missing" } };
     }
 
     try {
@@ -39,9 +39,9 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
         const { fileName, fileType } = body || {};
 
         // 1. Validation
-        if (!fileName) return { status: 400, body: "نام فایل الزامی است." };
+        if (!fileName) return { status: 400, jsonBody: { error: "نام فایل الزامی است." } };
         if (!ALLOWED_MIME_TYPES.includes(fileType)) {
-            return { status: 400, body: "فرمت فایل مجاز نیست. فقط JPG, PNG, WEBP." };
+            return { status: 400, jsonBody: { error: "فرمت فایل مجاز نیست. فقط JPG, PNG, WEBP." } };
         }
 
         // 2. Telemetry Tracking
@@ -81,7 +81,7 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
     } catch (error: unknown) {
         telemetry?.trackException({ exception: error instanceof Error ? error : new Error(String(error)) });
         context.error(error);
-        return { status: 500, body: "خطا در تولید توکن امن آپلود" };
+        return { status: 500, jsonBody: { error: "خطا در تولید توکن امن آپلود" } };
     }
 }
 

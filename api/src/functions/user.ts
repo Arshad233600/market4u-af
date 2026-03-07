@@ -16,7 +16,7 @@ export async function getUserProfile(request: HttpRequest, context: InvocationCo
             .query("SELECT Id, Name, Email, Phone, AvatarUrl, IsVerified, VerificationStatus, Role, CreatedAt FROM Users WHERE Id = @Id");
 
         if (result.recordset.length === 0) {
-            return { status: 404, body: JSON.stringify({ message: "کاربر یافت نشد." }) };
+            return { status: 404, jsonBody: { message: "کاربر یافت نشد." } };
         }
 
         return {
@@ -25,7 +25,7 @@ export async function getUserProfile(request: HttpRequest, context: InvocationCo
         };
     } catch (error) {
         context.error("Get Profile Error", error);
-        return { status: 500, body: JSON.stringify({ message: "خطای سرور" }) };
+        return { status: 500, jsonBody: { message: "خطای سرور" } };
     }
 }
 
@@ -46,7 +46,7 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
         if (body.avatarUrl !== undefined) updates.push("AvatarUrl = @AvatarUrl");
         // Phone is usually not updateable without verification
         
-        if (updates.length === 0) return { status: 400, body: "No fields to update" };
+        if (updates.length === 0) return { status: 400, jsonBody: { error: "No fields to update" } };
         
         query += updates.join(", ") + " WHERE Id = @Id";
 
@@ -57,10 +57,10 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
 
         await req.query(query);
 
-        return { status: 200, body: JSON.stringify({ success: true }) };
+        return { status: 200, jsonBody: { success: true } };
     } catch (error) {
         context.error("Update Profile Error", error);
-        return { status: 500, body: "Server Error" };
+        return { status: 500, jsonBody: { error: "Server Error" } };
     }
 }
 
@@ -103,7 +103,7 @@ export async function deleteAccount(request: HttpRequest, context: InvocationCon
         return { status: 200, jsonBody: { success: true } };
     } catch (error) {
         context.error("Delete Account Error", error);
-        return { status: 500, body: JSON.stringify({ message: "خطای سرور" }) };
+        return { status: 500, jsonBody: { message: "خطای سرور" } };
     }
 }
 
@@ -147,7 +147,7 @@ export async function searchUsers(request: HttpRequest, context: InvocationConte
         return { status: 200, jsonBody: result.recordset };
     } catch (error) {
         context.error('searchUsers Error', error);
-        return { status: 500, body: JSON.stringify({ message: 'خطای سرور' }) };
+        return { status: 500, jsonBody: { message: 'خطای سرور' } };
     }
 }
 

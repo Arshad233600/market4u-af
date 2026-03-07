@@ -20,7 +20,7 @@ export async function generateDescription(request: HttpRequest, context: Invocat
     context.log(`Http function processed request for url "${request.url}"`);
 
     if (!ai) {
-        return { status: 500, body: JSON.stringify({ error: "Server configuration error: AI Key missing." }) };
+        return { status: 500, jsonBody: { error: "Server configuration error: AI Key missing." } };
     }
 
     try {
@@ -28,7 +28,7 @@ export async function generateDescription(request: HttpRequest, context: Invocat
         const { title, category, location } = body;
 
         if (!title || !category) {
-            return { status: 400, body: JSON.stringify({ error: "Title and Category are required." }) };
+            return { status: 400, jsonBody: { error: "Title and Category are required." } };
         }
 
         const modelId = 'gemini-2.0-flash'; 
@@ -52,12 +52,13 @@ export async function generateDescription(request: HttpRequest, context: Invocat
 
     } catch (error) {
         context.error("Gemini API Error:", error);
-        return { status: 500, body: JSON.stringify({ error: "Failed to generate content." }) };
+        return { status: 500, jsonBody: { error: "Failed to generate content." } };
     }
 }
 
 app.http('generateDescription', {
     methods: ['POST'],
     authLevel: 'anonymous',
+    route: 'generateDescription',
     handler: generateDescription
 });
