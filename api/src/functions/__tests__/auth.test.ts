@@ -102,6 +102,27 @@ function makeContext(): InvocationContext {
   } as unknown as InvocationContext;
 }
 
+/** Creates a mock Users recordset row with sensible defaults; override as needed. */
+function makeUserRecord(overrides: Partial<{
+  Id: string; Name: string; Email: string; Phone: string;
+  PasswordHash: string | null; AvatarUrl: string; Role: string;
+  IsVerified: boolean; VerificationStatus: string; CreatedAt: string;
+}> = {}) {
+  return {
+    Id: 'u_1',
+    Name: 'Test User',
+    Email: 'user@example.com',
+    Phone: '0700000000',
+    PasswordHash: '$2b$10$hashedpassword',
+    AvatarUrl: '',
+    Role: 'USER',
+    IsVerified: false,
+    VerificationStatus: 'NONE',
+    CreatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 // ─── tests ────────────────────────────────────────────────────────────────
 
 // Deferred import so mocks are in place before the module is first evaluated
@@ -152,9 +173,9 @@ describe('login()', () => {
   });
 
   it('returns 401 when password is incorrect', async () => {
-    // First query: user lookup
+    // Combined query: user lookup with full profile
     mocks.mockQuery.mockResolvedValueOnce({
-      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+      recordset: [makeUserRecord()],
     });
     // bcrypt.compare returns false for wrong passwords (see mock above)
 
@@ -163,25 +184,33 @@ describe('login()', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 200 with token on valid credentials', async () => {
-    // First query: user lookup
+  it('returns 401 when PasswordHash is null (OAuth-only account)', async () => {
+    // Combined query returns user with null PasswordHash (e.g. registered via Google OAuth)
     mocks.mockQuery.mockResolvedValueOnce({
-      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+      recordset: [makeUserRecord({ Id: 'u_oauth', PasswordHash: null, Email: 'oauth@example.com', IsVerified: true })],
     });
-    // Second query: profile fetch
+
+    const req = makeRequest({ body: { email: 'oauth@example.com', password: 'somepassword' } });
+    const res = await login(req, makeContext());
+    // Must return 401 (not 500) — null hash should be caught before bcrypt.compare
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 when PasswordHash is empty string (legacy data)', async () => {
+    // Combined query returns user with empty PasswordHash
     mocks.mockQuery.mockResolvedValueOnce({
-      recordset: [
-        {
-          Id: 'u_1',
-          Name: 'Test User',
-          Email: 'user@example.com',
-          Phone: '0700000000',
-          AvatarUrl: '',
-          Role: 'USER',
-          IsVerified: false,
-          CreatedAt: new Date().toISOString(),
-        },
-      ],
+      recordset: [makeUserRecord({ Id: 'u_guest', PasswordHash: '', Email: 'guest@example.com', Role: 'GUEST' })],
+    });
+
+    const req = makeRequest({ body: { email: 'guest@example.com', password: 'somepassword' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with token on valid credentials', async () => {
+    // Combined single query: user lookup with full profile
+    mocks.mockQuery.mockResolvedValueOnce({
+      recordset: [makeUserRecord({ Email: 'user@example.com' })],
     });
 
     const req = makeRequest({

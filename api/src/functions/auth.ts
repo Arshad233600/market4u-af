@@ -72,14 +72,25 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     }
 
     const pool = await getPool();
+    // Fetch user + full profile in a single query to reduce DB round-trips and avoid
+    // a second query that could fail on databases missing the VerificationStatus column.
     const result = await pool
       .request()
       .input("Email", sql.NVarChar, email)
-      .query("SELECT TOP 1 Id, PasswordHash FROM Users WHERE Email = @Email AND IsDeleted = 0");
+      .query(`SELECT TOP 1 Id, Name, Email, Phone, PasswordHash, AvatarUrl, Role,
+                IsVerified, VerificationStatus, CreatedAt
+              FROM Users WHERE Email = @Email AND IsDeleted = 0`);
 
     const user = result.recordset?.[0];
     if (!user) {
       telemetry?.trackEvent({ name: "LoginFailed", properties: { reason: "UserNotFound" } });
+      return unauthorized("نام کاربری یا رمز عبور اشتباه است.");
+    }
+
+    // Guard: if PasswordHash is null or empty (e.g. OAuth-only account or legacy data),
+    // bcrypt.compare would throw "Illegal arguments" → treat as invalid credentials.
+    if (!user.PasswordHash) {
+      telemetry?.trackEvent({ name: "LoginFailed", properties: { reason: "NoPasswordSet" } });
       return unauthorized("نام کاربری یا رمز عبور اشتباه است.");
     }
 
@@ -89,14 +100,6 @@ export async function login(request: HttpRequest, context: InvocationContext): P
       telemetry?.trackEvent({ name: "LoginFailed", properties: { reason: "InvalidPassword" } });
       return unauthorized("نام کاربری یا رمز عبور اشتباه است.");
     }
-
-    // Fetch full profile (without PasswordHash) for the response
-    const profileResult = await pool
-      .request()
-      .input("Id", sql.NVarChar, user.Id)
-      .query("SELECT Id, Name, Email, Phone, AvatarUrl, Role, IsVerified, VerificationStatus, CreatedAt FROM Users WHERE Id = @Id");
-
-    const profile = profileResult.recordset[0];
 
     const token = signToken({
       uid: user.Id
@@ -108,15 +111,15 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     return success({
       token,
       user: {
-        id: profile.Id,
-        name: profile.Name,
-        email: profile.Email,
-        phone: profile.Phone || '',
-        avatarUrl: profile.AvatarUrl || '',
-        role: profile.Role,
-        isVerified: profile.IsVerified,
-        verificationStatus: profile.VerificationStatus || 'NONE',
-        joinDate: profile.CreatedAt
+        id: user.Id,
+        name: user.Name,
+        email: user.Email,
+        phone: user.Phone || '',
+        avatarUrl: user.AvatarUrl || '',
+        role: user.Role,
+        isVerified: user.IsVerified,
+        verificationStatus: user.VerificationStatus || 'NONE',
+        joinDate: user.CreatedAt
       }
     });
   } catch (err: unknown) {

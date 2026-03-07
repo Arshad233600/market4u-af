@@ -146,6 +146,12 @@ export const authService = {
 
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}));
+          // 503 means the server is misconfigured (AUTH_SECRET missing/insecure or DB not
+          // configured). Show a generic server-unavailable message rather than the technical
+          // "misconfigured_auth" or "db_not_configured" reason codes from the backend.
+          if (response.status === 503) {
+            throw new Error('سرور در دسترس نیست. لطفاً بعداً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+          }
           throw new Error(errBody.error || errBody.message || 'نام کاربری یا رمز عبور اشتباه است');
         }
 
@@ -190,6 +196,9 @@ export const authService = {
 
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}));
+          if (response.status === 503) {
+            throw new Error('سرور در دسترس نیست. لطفاً بعداً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+          }
           throw new Error(errBody.error || errBody.message || 'خطا در ثبت‌نام');
         }
 
