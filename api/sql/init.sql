@@ -42,6 +42,16 @@ BEGIN
     BEGIN
         ALTER TABLE Users ADD VerificationStatus NVARCHAR(50) NOT NULL DEFAULT 'NONE';
     END
+    -- Add AvatarUrl column if it doesn't exist (for databases created before this column was added)
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'AvatarUrl')
+    BEGIN
+        ALTER TABLE Users ADD AvatarUrl NVARCHAR(1000) NULL;
+    END
+    -- Add UpdatedAt column if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Users') AND name = 'UpdatedAt')
+    BEGIN
+        ALTER TABLE Users ADD UpdatedAt DATETIME2 NULL DEFAULT GETUTCDATE();
+    END
     -- Add UNIQUE constraint on Email if it doesn't exist (prevents duplicate profiles)
     IF NOT EXISTS (
         SELECT 1 FROM sys.indexes i

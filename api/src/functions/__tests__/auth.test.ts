@@ -152,9 +152,9 @@ describe('login()', () => {
   });
 
   it('returns 401 when password is incorrect', async () => {
-    // First query: user lookup
+    // Combined query: user lookup with full profile
     mocks.mockQuery.mockResolvedValueOnce({
-      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword', Name: 'Test User', Email: 'user@example.com', Phone: '', AvatarUrl: '', Role: 'USER', IsVerified: false, VerificationStatus: 'NONE', CreatedAt: new Date().toISOString() }],
     });
     // bcrypt.compare returns false for wrong passwords (see mock above)
 
@@ -163,12 +163,31 @@ describe('login()', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 200 with token on valid credentials', async () => {
-    // First query: user lookup
+  it('returns 401 when PasswordHash is null (OAuth-only account)', async () => {
+    // Combined query returns user with null PasswordHash (e.g. registered via Google OAuth)
     mocks.mockQuery.mockResolvedValueOnce({
-      recordset: [{ Id: 'u_1', PasswordHash: '$2b$10$hashedpassword' }],
+      recordset: [{ Id: 'u_oauth', PasswordHash: null, Name: 'OAuth User', Email: 'oauth@example.com', Phone: '', AvatarUrl: '', Role: 'USER', IsVerified: true, VerificationStatus: 'NONE', CreatedAt: new Date().toISOString() }],
     });
-    // Second query: profile fetch
+
+    const req = makeRequest({ body: { email: 'oauth@example.com', password: 'somepassword' } });
+    const res = await login(req, makeContext());
+    // Must return 401 (not 500) — null hash should be caught before bcrypt.compare
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 when PasswordHash is empty string (legacy data)', async () => {
+    // Combined query returns user with empty PasswordHash
+    mocks.mockQuery.mockResolvedValueOnce({
+      recordset: [{ Id: 'u_guest', PasswordHash: '', Name: 'Guest', Email: 'guest@example.com', Phone: '', AvatarUrl: '', Role: 'GUEST', IsVerified: false, VerificationStatus: 'NONE', CreatedAt: new Date().toISOString() }],
+    });
+
+    const req = makeRequest({ body: { email: 'guest@example.com', password: 'somepassword' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with token on valid credentials', async () => {
+    // Combined single query: user lookup with full profile
     mocks.mockQuery.mockResolvedValueOnce({
       recordset: [
         {
@@ -176,9 +195,11 @@ describe('login()', () => {
           Name: 'Test User',
           Email: 'user@example.com',
           Phone: '0700000000',
+          PasswordHash: '$2b$10$hashedpassword',
           AvatarUrl: '',
           Role: 'USER',
           IsVerified: false,
+          VerificationStatus: 'NONE',
           CreatedAt: new Date().toISOString(),
         },
       ],
