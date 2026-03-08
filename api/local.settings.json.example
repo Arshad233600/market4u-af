@@ -9,7 +9,8 @@
     "SQLCONNECTIONSTRING": "Server=tcp:market4u-sql-server.database.windows.net,1433;Initial Catalog=market4u-db;Persist Security Info=False;User ID=YOUR_USER;Password=YOUR_PASSWORD;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;ApplicationName=market4u-api;",
     "_note_SQLCONNECTIONSTRING": "All-caps alias for SqlConnectionString; set whichever name matches your GitHub Secret name. db.ts accepts either.",
 
-    "AUTH_SECRET": "change-this-to-a-random-string-min-32-characters-long",
+    "AUTH_SECRET": "local-dev-only-must-be-replaced-for-any-azure-deploy",
+    "_note_AUTH_SECRET": "IMPORTANT: Replace with a real random secret before deploying. Generate one with: openssl rand -hex 32",
 
     "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net",
     "AZURE_STORAGE_CONTAINER": "product-images",

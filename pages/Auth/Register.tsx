@@ -15,12 +15,12 @@ const Register: React.FC<RegisterProps> = ({ onNavigate, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const MIN_PASSWORD_LENGTH = 6;
+  const MIN_PASSWORD_LENGTH = 8;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < MIN_PASSWORD_LENGTH) {
-      toastService.error('رمز عبور باید حداقل ۶ کاراکتر باشد.');
+      toastService.error('رمز عبور باید حداقل ۸ کاراکتر باشد.');
       return;
     }
     setIsLoading(true);
