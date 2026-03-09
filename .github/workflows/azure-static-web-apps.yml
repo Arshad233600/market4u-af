@@ -165,6 +165,7 @@ jobs:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          RATE_LIMIT_REDIS_URL: ${{ secrets.RATE_LIMIT_REDIS_URL }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
