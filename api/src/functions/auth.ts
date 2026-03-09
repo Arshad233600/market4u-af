@@ -27,6 +27,8 @@ function errMsg(err: unknown): string {
  *   created, so resetPool is a no-op and should NOT be called.
  * - DB_UNAVAILABLE (503): transient network/server error; resetPool should be called
  *   so the next request starts with a fresh pool.
+ * - AUTH_NOT_CONFIGURED (503): AUTH_SECRET env var is absent or too short; treat as
+ *   server misconfiguration rather than a code bug.
  * - UNEXPECTED (500): anything else — a real code bug or unknown condition.
  */
 function classifyAuthError(err: unknown): { status: number; category: string } {
@@ -46,6 +48,11 @@ function classifyAuthError(err: unknown): { status: number; category: string } {
     return { status: 503, category: "DB_UNAVAILABLE" };
   }
 
+  // AUTH_SECRET missing or too short — server misconfiguration, not a code bug.
+  if (/\[authSecret\]/i.test(msg)) {
+    return { status: 503, category: "AUTH_NOT_CONFIGURED" };
+  }
+
   return { status: 500, category: "UNEXPECTED" };
 }
 
@@ -63,7 +70,6 @@ function signToken(payload: object): string {
     throw new Error('[signToken] AUTH_SECRET is set to an insecure placeholder value. Configure a real secret in Azure Application Settings.');
   }
   const secret = getAuthSecretStrict();
-  console.log("Signing with secret length:", secret.length);
   return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
 }
 
@@ -76,7 +82,12 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     return serviceUnavailable('insecure_default_secret');
   }
   try {
-    const body = (await request.json()) as { email?: string; password?: string };
+    let body: { email?: string; password?: string };
+    try {
+      body = (await request.json()) as { email?: string; password?: string };
+    } catch {
+      return badRequest("درخواست نامعتبر است.");
+    }
     const email = String(body?.email ?? "").trim();
     const password = String(body?.password ?? "");
 
@@ -160,10 +171,14 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     context.error("Login Error", err);
     const { status, category } = classifyAuthError(err);
     if (status === 503) {
-      if (category !== "DB_NOT_CONFIGURED") {
+      const isDbTransient = category === "DB_UNAVAILABLE";
+      if (isDbTransient) {
         resetPool().catch(() => {});
       }
-      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      const reason =
+        category === "DB_NOT_CONFIGURED" ? "db_not_configured" :
+        category === "AUTH_NOT_CONFIGURED" ? "auth_not_configured" :
+        "db_unavailable";
       return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
     return serverError(err, "خطای سرور");
@@ -177,7 +192,12 @@ export async function register(request: HttpRequest, context: InvocationContext)
     return serviceUnavailable('insecure_default_secret');
   }
   try {
-    const body = (await request.json()) as { name?: string; email?: string; password?: string; phone?: string };
+    let body: { name?: string; email?: string; password?: string; phone?: string };
+    try {
+      body = (await request.json()) as { name?: string; email?: string; password?: string; phone?: string };
+    } catch {
+      return badRequest("درخواست نامعتبر است.");
+    }
     const name = String(body?.name ?? "").trim();
     const email = String(body?.email ?? "").trim().toLowerCase();
     const password = String(body?.password ?? "");
@@ -252,10 +272,14 @@ export async function register(request: HttpRequest, context: InvocationContext)
     context.error("Register Error", err);
     const { status, category } = classifyAuthError(err);
     if (status === 503) {
-      if (category !== "DB_NOT_CONFIGURED") {
+      const isDbTransient = category === "DB_UNAVAILABLE";
+      if (isDbTransient) {
         resetPool().catch(() => {});
       }
-      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      const reason =
+        category === "DB_NOT_CONFIGURED" ? "db_not_configured" :
+        category === "AUTH_NOT_CONFIGURED" ? "auth_not_configured" :
+        "db_unavailable";
       return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
     return serverError(err, "خطای سرور");

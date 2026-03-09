@@ -490,3 +490,82 @@ describe('register() DB error handling', () => {
     expect(resetPool).toHaveBeenCalled();
   });
 });
+
+// ─── malformed request body (JSON parse errors) ───────────────────────────
+
+describe('login() malformed request body', () => {
+  it('returns 400 when request body is not valid JSON', async () => {
+    const req = {
+      json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected end of JSON input')),
+      headers: { get: (_name: string) => null },
+      params: {},
+      method: 'POST',
+      url: 'http://localhost/api/test',
+      query: new URLSearchParams(),
+    } as unknown as import('@azure/functions').HttpRequest;
+
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 (not 500) for any request.json() failure', async () => {
+    const req = {
+      json: vi.fn().mockRejectedValue(new TypeError('Failed to parse body')),
+      headers: { get: (_name: string) => null },
+      params: {},
+      method: 'POST',
+      url: 'http://localhost/api/test',
+      query: new URLSearchParams(),
+    } as unknown as import('@azure/functions').HttpRequest;
+
+    const res = await login(req, makeContext());
+    // Must not be 500 — parse failures are client errors, not server errors
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('register() malformed request body', () => {
+  it('returns 400 when request body is not valid JSON', async () => {
+    const req = {
+      json: vi.fn().mockRejectedValue(new SyntaxError('Unexpected end of JSON input')),
+      headers: { get: (_name: string) => null },
+      params: {},
+      method: 'POST',
+      url: 'http://localhost/api/test',
+      query: new URLSearchParams(),
+    } as unknown as import('@azure/functions').HttpRequest;
+
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(400);
+  });
+});
+
+// ─── AUTH_NOT_CONFIGURED error classification ─────────────────────────────
+
+describe('login() AUTH_SECRET error classification', () => {
+  it('returns 503 with auth_not_configured reason when AUTH_SECRET throws [authSecret] error', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('[authSecret] AUTH_SECRET is not set. Configure it in Azure Application Settings: openssl rand -hex 32')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('auth_not_configured');
+    expect(body.category).toBe('AUTH_NOT_CONFIGURED');
+  });
+
+  it('does NOT call resetPool for AUTH_NOT_CONFIGURED (pool unrelated to secret issue)', async () => {
+    const { getPool, resetPool } = await import('../../db');
+    (resetPool as ReturnType<typeof vi.fn>).mockReset();
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('[authSecret] AUTH_SECRET is too short (10 chars). Minimum 32 characters required.')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    await login(req, makeContext());
+    expect(resetPool).not.toHaveBeenCalled();
+  });
+});
