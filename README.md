@@ -104,17 +104,20 @@ Once deployed, go to the Azure Portal -> Static Web App -> **Configuration** -> 
 
 ### ⚙️ Required Environment Variables (Azure Application Settings)
 
-The following variables **must** be set in **Azure Static Web App → Configuration → Application settings** for the backend to work correctly. Missing or incorrect values will cause 401/503 errors.
+The following variables **must** be set in both **GitHub Secrets** and **Azure Static Web App → Configuration → Application settings** for the backend to work correctly. Missing or incorrect values will cause 401/503 errors.
 
-| Variable | Required | Description |
-|---|---|---|
-| `AUTH_SECRET` | ✅ **Critical** | Random secret used to sign/verify auth tokens. Generate with `openssl rand -hex 32`. **Must be at least 32 characters.** Never set this to a variable name like `VITE_API_BASE_URL`. |
-| `AZURE_SQL_CONNECTION_STRING` | ✅ **Critical** | Azure SQL connection string for the database. |
-| `AZURE_STORAGE_CONNECTION_STRING` | ✅ **Critical** | Azure Blob Storage connection string for image uploads. |
-| `AZURE_STORAGE_CONTAINER` | ✅ **Critical** | Storage container name (e.g. `product-images`). |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` | ⚠️ Recommended | Application Insights connection string for observability. |
-| `GEMINI_API_KEY` | Optional | Gemini API key for AI description generation. |
-| `VITE_API_BASE_URL` | ✅ Set to `/api` | Must be the literal value `/api` for SWA built-in API routing. Do **not** change this to an absolute URL. |
+👉 **[Full GitHub Secrets Setup Guide (راهنمای کامل)](./GITHUB_SECRETS_SETUP.md)**
+
+| Variable | GitHub Secret Name | Required | Description |
+|---|---|---|---|
+| `AUTH_SECRET` | `AUTH_SECRET` | ✅ **Critical** | Random secret used to sign/verify auth tokens. Generate with `openssl rand -hex 32`. **Must be at least 32 characters.** Never set this to a variable name like `VITE_API_BASE_URL`. |
+| `SqlConnectionString` | `SqlConnectionString` | ✅ **Critical** | Azure SQL connection string (exact casing matters). |
+| `AZURE_SQL_CONNECTION_STRING` | `AZURE_SQL_CONNECTION_STRING` | ✅ **Critical** | Azure SQL connection string (alternative name, also accepted). |
+| `AZURE_STORAGE_CONNECTION_STRING` | `AZURE_STORAGE_CONNECTION_STRING` | ✅ **Critical** | Azure Blob Storage connection string for image uploads. |
+| `AZURE_STORAGE_CONTAINER` | `AZURE_STORAGE_CONTAINER` | ✅ **Critical** | Storage container name (e.g. `product-images`). |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | `APPLICATIONINSIGHTS_CONNECTION_STRING` | ⚠️ Recommended | Application Insights connection string for observability. |
+| `GEMINI_API_KEY` | `GEMINI_API_KEY` | Optional | Gemini API key for AI description generation. |
+| `VITE_API_BASE_URL` | `VITE_API_BASE_URL` | ✅ Set to `/api` | Must be the literal value `/api` for SWA built-in API routing. Do **not** change this to an absolute URL. |
 
 > ⚠️ **Common misconfiguration:** If `AUTH_SECRET` is set to the wrong value (e.g. the literal string `VITE_API_BASE_URL` instead of a random secret), **all authenticated API calls will return 401 `invalid_token`**. Always verify the value is a real random string by checking GET `/api/health` → `authSecret` field which reports `ok`, `missing`, `insecure_default`, or `weak`.
 
