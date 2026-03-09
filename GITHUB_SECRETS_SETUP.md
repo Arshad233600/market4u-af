@@ -35,6 +35,7 @@
 | `AZURE_STORAGE_CONTAINER` | `product-images` | ✅ **بسیار ضروری** | نام Container در Azure Blob Storage. |
 | `GEMINI_API_KEY` | کلید API از Google AI Studio | ⚠️ توصیه شده | برای قابلیت تولید توضیح آگهی با هوش مصنوعی. |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | `InstrumentationKey=...;IngestionEndpoint=...` | ⚠️ توصیه شده | برای مانیتورینگ و لاگ‌گیری در Azure Application Insights. |
+| `RATE_LIMIT_REDIS_URL` | `rediss://:<key>@<host>.redis.cache.windows.net:6380` | ⚠️ توصیه شده | Azure Cache for Redis برای محدودیت نرخ درخواست توزیع‌شده (BUG-001). اگر تنظیم نشود، از حافظه داخلی استفاده می‌شود. |
 | `VITE_API_BASE_URL` | `/api` | ✅ **ضروری** | باید دقیقاً `/api` باشد (نه یک URL کامل). |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | توکن خودکار از Azure | 🔄 **خودکار** | به‌صورت خودکار هنگام اتصال مخزن به Azure Static Web Apps ساخته می‌شود — نیازی به ساختن دستی ندارد. |
 
@@ -73,6 +74,11 @@ product-images
 ### `APPLICATIONINSIGHTS_CONNECTION_STRING`
 ```
 InstrumentationKey=YOUR_KEY;IngestionEndpoint=https://YOUR_REGION.in.applicationinsights.azure.com/;LiveEndpoint=https://YOUR_REGION.livediagnostics.monitor.azure.com/
+```
+
+### `RATE_LIMIT_REDIS_URL`
+```
+rediss://:<YOUR_ACCESS_KEY>@<YOUR_HOST>.redis.cache.windows.net:6380
 ```
 
 ---
@@ -114,7 +120,7 @@ Azure Static Web Apps Deploy Action
 
 ## English Summary
 
-All eight keys listed in the table above must be added to **GitHub → Settings → Secrets and variables → Actions** as repository secrets.
+All nine keys listed in the table above must be added to **GitHub → Settings → Secrets and variables → Actions** as repository secrets.
 
 The CI/CD workflow (`.github/workflows/azure-static-web-apps.yml`) reads these secrets and:
 - **Validates** that the critical ones (`AUTH_SECRET`, `SqlConnectionString`/`AZURE_SQL_CONNECTION_STRING`, `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER`) are present before deploying.
