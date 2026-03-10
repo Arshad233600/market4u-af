@@ -145,12 +145,16 @@ export const authService = {
         });
 
         if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
+          const errBody = await response.json().catch(() => ({})) as { error?: string; message?: string; reason?: string };
           // 503 means the server is misconfigured (AUTH_SECRET missing/insecure or DB not
-          // configured). Show a generic server-unavailable message rather than the technical
-          // "misconfigured_auth" or "db_not_configured" reason codes from the backend.
+          // configured) or the DB is temporarily unavailable.
+          // Distinguish transient (db_unavailable → retry) from permanent (misconfiguration)
+          // so users know whether to wait or contact support.
           if (response.status === 503) {
-            throw new Error('سرور در دسترس نیست. لطفاً بعداً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+            if (errBody.reason === 'db_unavailable') {
+              throw new Error('سرور موقتاً در دسترس نیست. لطفاً چند لحظه صبر کنید و دوباره تلاش کنید.');
+            }
+            throw new Error('سرویس در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
           }
           throw new Error(errBody.error || errBody.message || 'نام کاربری یا رمز عبور اشتباه است');
         }
@@ -195,9 +199,12 @@ export const authService = {
         });
 
         if (!response.ok) {
-          const errBody = await response.json().catch(() => ({}));
+          const errBody = await response.json().catch(() => ({})) as { error?: string; message?: string; reason?: string };
           if (response.status === 503) {
-            throw new Error('سرور در دسترس نیست. لطفاً بعداً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+            if (errBody.reason === 'db_unavailable') {
+              throw new Error('سرور موقتاً در دسترس نیست. لطفاً چند لحظه صبر کنید و دوباره تلاش کنید.');
+            }
+            throw new Error('سرویس در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
           }
           throw new Error(errBody.error || errBody.message || 'خطا در ثبت‌نام');
         }
