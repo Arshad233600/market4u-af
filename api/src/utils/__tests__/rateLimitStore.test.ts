@@ -234,6 +234,21 @@ describe('RedisRateLimitStore', () => {
     const other = await store.hit('other-redis-key', 60_000, 1);
     expect(other.allowed).toBe(true);
   });
+
+  it('hit() fails open (allowed=true) when Redis throws', async () => {
+    // Simulate Redis being unavailable mid-request
+    vi.spyOn(fakeRedisInstance, 'eval').mockRejectedValueOnce(new Error('Stream isn\'t writeable'));
+    const result = await store.hit(KEY, 60_000, 5);
+    // Must allow the request rather than throwing and cascading to a 500
+    expect(result.allowed).toBe(true);
+    expect(result.remaining).toBe(5);
+  });
+
+  it('reset() silently swallows Redis errors', async () => {
+    vi.spyOn(fakeRedisInstance, 'del').mockRejectedValueOnce(new Error('Connection is closed'));
+    // Should not throw
+    await expect(store.reset(KEY)).resolves.toBeUndefined();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

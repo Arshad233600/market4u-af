@@ -6,6 +6,7 @@
  */
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import * as sql from 'mssql';
 
 // ─── hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -567,5 +568,99 @@ describe('login() AUTH_SECRET error classification', () => {
     const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
     await login(req, makeContext());
     expect(resetPool).not.toHaveBeenCalled();
+  });
+});
+
+// ─── DB_SCHEMA_ERROR classification (missing columns → 503, not 500) ─────────
+
+describe('login() DB schema error classification', () => {
+  it('returns 503 with db_schema_error reason when a SQL column is missing', async () => {
+    // Simulates a production DB where VerificationStatus column was never migrated.
+    const schemaErr = new sql.RequestError(
+      "Invalid column name 'VerificationStatus'.",
+      'EREQUEST'
+    );
+    mocks.mockQuery.mockRejectedValueOnce(schemaErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_schema_error');
+    expect(body.category).toBe('DB_SCHEMA_ERROR');
+  });
+
+  it('returns 503 with db_schema_error for Invalid object name (missing table)', async () => {
+    const schemaErr = new sql.RequestError("Invalid object name 'Users'.", 'EREQUEST');
+    mocks.mockQuery.mockRejectedValueOnce(schemaErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_schema_error');
+  });
+
+  it('does NOT call resetPool for DB_SCHEMA_ERROR (pool is healthy)', async () => {
+    const { resetPool } = await import('../../db');
+    (resetPool as ReturnType<typeof vi.fn>).mockReset();
+    const schemaErr = new sql.RequestError("Invalid column name 'IsDeleted'.", 'EREQUEST');
+    mocks.mockQuery.mockRejectedValueOnce(schemaErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    await login(req, makeContext());
+    expect(resetPool).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 (UNEXPECTED) for a non-schema sql.RequestError', async () => {
+    // A RequestError whose message does NOT match the schema-error pattern
+    const otherErr = new sql.RequestError('Some unexpected SQL error occurred.', 'EREQUEST');
+    mocks.mockQuery.mockRejectedValueOnce(otherErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(500);
+  });
+});
+
+// ─── additional network error patterns → 503 ─────────────────────────────────
+
+describe('login() extended network error classification', () => {
+  it('returns 503 for "network-related" Azure SQL error', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('A network-related or instance-specific error occurred while establishing a connection to SQL Server.')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.category).toBe('DB_UNAVAILABLE');
+  });
+
+  it('returns 503 for "not allowed to access the server" Azure SQL firewall error', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Client with IP address '1.2.3.4' is not allowed to access the server. To enable access, use the Azure Portal.")
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.category).toBe('DB_UNAVAILABLE');
+    expect(body.reason).toBe('db_unavailable');
+  });
+
+  it('returns 503 for "server was not found" Azure SQL error', async () => {
+    const { getPool } = await import('../../db');
+    (getPool as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('The server was not found or was not accessible.')
+    );
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
   });
 });

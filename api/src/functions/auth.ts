@@ -27,6 +27,9 @@ function errMsg(err: unknown): string {
  *   created, so resetPool is a no-op and should NOT be called.
  * - DB_UNAVAILABLE (503): transient network/server error; resetPool should be called
  *   so the next request starts with a fresh pool.
+ * - DB_SCHEMA_ERROR (503): SQL query referenced a column or table that does not exist
+ *   in the current schema — indicates the database migration has not been applied.
+ *   resetPool should NOT be called (the pool itself is healthy).
  * - AUTH_NOT_CONFIGURED (503): AUTH_SECRET env var is absent or too short; treat as
  *   server misconfiguration rather than a code bug.
  * - UNEXPECTED (500): anything else — a real code bug or unknown condition.
@@ -43,9 +46,19 @@ function classifyAuthError(err: unknown): { status: number; category: string } {
   }
 
   if (
-    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed/i.test(msg)
+    /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|login.*failed|Cannot open database|temporarily unavailable|connection.*closed|network-related|instance-specific|server was not found|not allowed to access the server|SSL routines|handshake failure/i.test(msg)
   ) {
     return { status: 503, category: "DB_UNAVAILABLE" };
+  }
+
+  // SQL RequestError for missing columns/tables (503) — the DB schema is out of date.
+  // These are server misconfiguration errors (migration not applied), not code bugs.
+  // Patterns are specific to SQL Server / Azure SQL (mssql driver).
+  if (
+    err instanceof sql.RequestError &&
+    /Invalid column name|Invalid object name/i.test(msg)
+  ) {
+    return { status: 503, category: "DB_SCHEMA_ERROR" };
   }
 
   // AUTH_SECRET missing or too short — server misconfiguration, not a code bug.
@@ -178,6 +191,7 @@ export async function login(request: HttpRequest, context: InvocationContext): P
       const reason =
         category === "DB_NOT_CONFIGURED" ? "db_not_configured" :
         category === "AUTH_NOT_CONFIGURED" ? "auth_not_configured" :
+        category === "DB_SCHEMA_ERROR" ? "db_schema_error" :
         "db_unavailable";
       return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
@@ -279,6 +293,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
       const reason =
         category === "DB_NOT_CONFIGURED" ? "db_not_configured" :
         category === "AUTH_NOT_CONFIGURED" ? "auth_not_configured" :
+        category === "DB_SCHEMA_ERROR" ? "db_schema_error" :
         "db_unavailable";
       return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
@@ -356,10 +371,12 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
     context.error("GetMe Error", err);
     const { status, category } = classifyAuthError(err);
     if (status === 503) {
-      if (category !== "DB_NOT_CONFIGURED") {
+      if (category !== "DB_NOT_CONFIGURED" && category !== "DB_SCHEMA_ERROR") {
         resetPool().catch(() => {});
       }
-      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" :
+        category === "DB_SCHEMA_ERROR" ? "db_schema_error" :
+        "db_unavailable";
       return { status: 503, jsonBody: { success: false, error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
     }
     return serverError(err);
