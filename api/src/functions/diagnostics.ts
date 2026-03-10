@@ -5,6 +5,7 @@ import { getAuthSecretStrict, getSecretDiagnostics } from "../utils/authSecret";
 import { getBlobContainerClient } from "../blob";
 import { checkRateLimit } from "../utils/rateLimit";
 import { checkAdsSchema, AdsSchemaResult } from "../utils/schemaCheck";
+import { checkUsersSchema, UsersSchemaResult } from "../utils/usersSchemaCheck";
 import jwt from "jsonwebtoken";
 
 /**
@@ -218,6 +219,7 @@ export async function diagnostics(
   let dbDetails: Record<string, unknown> = {};
   let dbError: string | null = null;
   let adsSchema: AdsSchemaResult = { schemaOk: false, missingColumns: [] };
+  let usersSchema: UsersSchemaResult = { schemaOk: false, missingColumns: [] };
 
   if (sqlConnAvailable) {
     try {
@@ -247,6 +249,9 @@ export async function diagnostics(
       // Check Ads required columns (used by POST /api/ads)
       adsSchema = await checkAdsSchema();
 
+      // Check Users migration columns (used by login / register / getMe)
+      usersSchema = await checkUsersSchema();
+
       dbDetails = {
         dbName: meta.dbName,
         sysUser: meta.sysUser,
@@ -254,6 +259,8 @@ export async function diagnostics(
         missingTables,
         adsSchemaOk: adsSchema.schemaOk,
         adsMissingColumns: adsSchema.missingColumns,
+        usersSchemaOk: usersSchema.schemaOk,
+        usersMissingColumns: usersSchema.missingColumns,
       };
 
       if (missingTables.length > 0) {
@@ -275,6 +282,17 @@ export async function diagnostics(
           rootCause: "Schema migrations have not been applied to this database",
           severity: "Critical",
           fix: "Run migrations/2026_02_27_add_missing_ads_columns.sql against the Azure SQL database",
+        });
+      }
+
+      if (!usersSchema.schemaOk) {
+        issues.push({
+          phase: "Phase 3",
+          issue: "Users table missing required columns",
+          evidence: `Missing columns: ${usersSchema.missingColumns.join(", ")}`,
+          rootCause: "Schema migrations have not been applied to this database — login and register will fail with 503",
+          severity: "Critical",
+          fix: "Run migrations/2026_03_10_add_users_columns.sql against the Azure SQL database, or let the API auto-migrate on the next login/register request",
         });
       }
     } catch (err: unknown) {

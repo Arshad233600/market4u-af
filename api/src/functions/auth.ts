@@ -9,6 +9,7 @@ import { validateToken, isAuthSecretInsecure, TOKEN_EXPIRATION_MS, authResponse 
 import { getAuthSecretStrict, getSecretDiagnostics } from "../utils/authSecret";
 import { success, error, unauthorized, badRequest, serverError, serviceUnavailable } from "../utils/responses";
 import { checkRateLimit } from "../utils/rateLimit";
+import { checkUsersSchema, applyMissingUsersColumns } from "../utils/usersSchemaCheck";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
@@ -129,6 +130,22 @@ export async function login(request: HttpRequest, context: InvocationContext): P
     }
 
     const pool = await getPool();
+
+    // Guard: auto-apply any missing Users columns (e.g. VerificationStatus, IsDeleted)
+    // so that a database provisioned from an older schema still works without a manual
+    // migration step.  Mirrors the pattern used in postAd() for the Ads table.
+    const usersSchema = await checkUsersSchema();
+    if (!usersSchema.schemaOk) {
+      context.warn(`[login] db_schema_outdated missingColumns=${usersSchema.missingColumns.join(",")} — applying auto-migration`);
+      const applied = await applyMissingUsersColumns(usersSchema.missingColumns, (msg) => context.warn(msg));
+      const notMigrated = usersSchema.missingColumns.filter(c => !applied.includes(c));
+      if (notMigrated.length > 0) {
+        context.warn(`[login] auto_migration_partial applied=${applied.join(",")} notMigrated=${notMigrated.join(",")}`);
+      } else {
+        context.log(`[login] auto_migration_ok applied=${applied.join(",")}`);
+      }
+    }
+
     // Fetch user + full profile in a single query to reduce DB round-trips and avoid
     // a second query that could fail on databases missing the VerificationStatus column.
     const result = await pool
@@ -239,6 +256,20 @@ export async function register(request: HttpRequest, context: InvocationContext)
     }
 
     const pool = await getPool();
+
+    // Guard: auto-apply any missing Users columns before INSERT / SELECT
+    const usersSchema = await checkUsersSchema();
+    if (!usersSchema.schemaOk) {
+      context.warn(`[register] db_schema_outdated missingColumns=${usersSchema.missingColumns.join(",")} — applying auto-migration`);
+      const applied = await applyMissingUsersColumns(usersSchema.missingColumns, (msg) => context.warn(msg));
+      const notMigrated = usersSchema.missingColumns.filter(c => !applied.includes(c));
+      if (notMigrated.length > 0) {
+        context.warn(`[register] auto_migration_partial applied=${applied.join(",")} notMigrated=${notMigrated.join(",")}`);
+      } else {
+        context.log(`[register] auto_migration_ok applied=${applied.join(",")}`);
+      }
+    }
+
     const emailDomain = email.split('@')[1] ?? 'unknown';
     context.log(`Register attempt for domain: ${emailDomain}`);
     telemetry?.trackEvent({ name: "RegisterAttempted", properties: { emailDomain } });
@@ -343,6 +374,14 @@ export async function getMe(request: HttpRequest, context: InvocationContext): P
 
   try {
     const pool = await getPool();
+
+    // Guard: auto-apply any missing Users columns before SELECT
+    const usersSchema = await checkUsersSchema();
+    if (!usersSchema.schemaOk) {
+      context.warn(`[getMe] db_schema_outdated missingColumns=${usersSchema.missingColumns.join(",")} — applying auto-migration`);
+      await applyMissingUsersColumns(usersSchema.missingColumns, (msg) => context.warn(msg));
+    }
+
     const result = await pool
       .request()
       .input("UserId", sql.NVarChar, auth.userId)

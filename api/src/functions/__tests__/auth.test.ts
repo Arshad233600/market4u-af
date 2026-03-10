@@ -64,6 +64,11 @@ vi.mock('../../utils/authSecret', () => ({
     .mockReturnValue({ secretLength: 48, secretFingerprint: 'abcdef123456' }),
 }));
 
+vi.mock('../../utils/usersSchemaCheck', () => ({
+  checkUsersSchema: vi.fn().mockResolvedValue({ schemaOk: true, missingColumns: [] }),
+  applyMissingUsersColumns: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('bcryptjs', () => ({
   default: {
     hash: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
@@ -147,6 +152,13 @@ beforeEach(async () => {
   (db.getPool as ReturnType<typeof vi.fn>).mockResolvedValue(mocks.mockPool);
   (db.resetPool as ReturnType<typeof vi.fn>).mockReset();
   (db.resetPool as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+
+  // Reset usersSchemaCheck to default healthy state.
+  const usersSchemaCheckMod = await import('../../utils/usersSchemaCheck');
+  (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockReset();
+  (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockResolvedValue({ schemaOk: true, missingColumns: [] });
+  (usersSchemaCheckMod.applyMissingUsersColumns as ReturnType<typeof vi.fn>).mockReset();
+  (usersSchemaCheckMod.applyMissingUsersColumns as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
   // Ensure mocked authUtils.isAuthSecretInsecure is false
   const authUtils = await import('../../utils/authUtils');
@@ -662,5 +674,94 @@ describe('login() extended network error classification', () => {
     const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
     const res = await login(req, makeContext());
     expect(res.status).toBe(503);
+  });
+});
+
+// ─── Users schema auto-migration (login / register) ───────────────────────
+
+describe('login() Users schema auto-migration', () => {
+  it('auto-migrates missing Users columns and proceeds to 401 (user not found)', async () => {
+    const usersSchemaCheckMod = await import('../../utils/usersSchemaCheck');
+    // Simulate outdated schema: VerificationStatus and IsDeleted are missing
+    (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      schemaOk: false,
+      missingColumns: ['VerificationStatus', 'IsDeleted'],
+    });
+    (usersSchemaCheckMod.applyMissingUsersColumns as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      ['VerificationStatus', 'IsDeleted']
+    );
+
+    // DB query returns no user (email not found)
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+
+    // Login should NOT return 503 — auto-migration ran, then query executed, user not found → 401
+    expect(res.status).toBe(401);
+    expect(usersSchemaCheckMod.applyMissingUsersColumns).toHaveBeenCalledWith(
+      ['VerificationStatus', 'IsDeleted'],
+      expect.any(Function)
+    );
+  });
+
+  it('proceeds normally when Users schema is already up-to-date (no migration called)', async () => {
+    const usersSchemaCheckMod = await import('../../utils/usersSchemaCheck');
+    // Schema is healthy — applyMissingUsersColumns should NOT be called
+    (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      schemaOk: true,
+      missingColumns: [],
+    });
+
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] });
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    await login(req, makeContext());
+
+    expect(usersSchemaCheckMod.applyMissingUsersColumns).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 (DB_SCHEMA_ERROR) when auto-migration itself fails', async () => {
+    const { sql: sqlModule } = await vi.importActual<{ sql: typeof import('mssql') }>('mssql');
+    const usersSchemaCheckMod = await import('../../utils/usersSchemaCheck');
+    (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      schemaOk: false,
+      missingColumns: ['VerificationStatus'],
+    });
+    // applyMissingUsersColumns throws a schema error
+    const schemaErr = new sql.RequestError("Invalid object name 'Users'.", 'EREQUEST');
+    (usersSchemaCheckMod.applyMissingUsersColumns as ReturnType<typeof vi.fn>).mockRejectedValueOnce(schemaErr);
+
+    const req = makeRequest({ body: { email: 'user@example.com', password: 'pass' } });
+    const res = await login(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('db_schema_error');
+  });
+});
+
+describe('register() Users schema auto-migration', () => {
+  it('auto-migrates missing Users columns and proceeds to 201 on successful registration', async () => {
+    const usersSchemaCheckMod = await import('../../utils/usersSchemaCheck');
+    (usersSchemaCheckMod.checkUsersSchema as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      schemaOk: false,
+      missingColumns: ['IsDeleted'],
+    });
+    (usersSchemaCheckMod.applyMissingUsersColumns as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['IsDeleted']);
+
+    // Email check: no existing user
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    // INSERT: success
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { name: 'Alice', email: 'alice@example.com', password: 'password123' },
+    });
+    const res = await register(req, makeContext());
+    expect(res.status).toBe(201);
+    expect(usersSchemaCheckMod.applyMissingUsersColumns).toHaveBeenCalledWith(
+      ['IsDeleted'],
+      expect.any(Function)
+    );
   });
 });
