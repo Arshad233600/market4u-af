@@ -7,20 +7,29 @@ import { validateToken, authResponse } from "../utils/authUtils";
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
 
-const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-let accountName = process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
-let accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-
-if (connectionString && (!accountName || !accountKey)) {
-    const nameMatch = connectionString.match(/AccountName=([^;]+)/);
-    const keyMatch = connectionString.match(/AccountKey=([^;]+)/);
-    if (nameMatch && !accountName) accountName = nameMatch[1];
-    if (keyMatch && !accountKey) accountKey = keyMatch[1];
-}
-
-const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
-
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+/**
+ * Resolves Azure Storage account credentials at request time (not module load
+ * time) so that missing env vars are detected per-request and return 503.
+ */
+function resolveStorageCredentials(): { accountName: string; accountKey: string; containerName: string } | null {
+    const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    let accountName = process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    let accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+
+    if (connectionString && (!accountName || !accountKey)) {
+        const nameMatch = connectionString.match(/AccountName=([^;]+)/);
+        const keyMatch = connectionString.match(/AccountKey=([^;]+)/);
+        if (nameMatch && !accountName) accountName = nameMatch[1];
+        if (keyMatch && !accountKey) accountKey = keyMatch[1];
+    }
+
+    if (!accountName || !accountKey) return null;
+
+    const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
+    return { accountName, accountKey, containerName };
+}
 
 export async function uploadSas(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const startTime = Date.now();
@@ -29,10 +38,24 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
     const authErr = authResponse(auth);
     if (authErr) return authErr;
 
-    if (!accountName || !accountKey) {
+    // Guard: fail fast with 503 when storage credentials are not configured, so
+    // the client can distinguish a permanent server configuration error from a
+    // transient internal error and avoid pointless retries.
+    const credentials = resolveStorageCredentials();
+    if (!credentials) {
+        context.warn('[uploadSas] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME / AZURE_STORAGE_ACCOUNT_KEY) is not set');
         telemetry?.trackException({ exception: new Error("Storage configuration missing") });
-        return { status: 500, jsonBody: { error: "Storage configuration missing" } };
+        return {
+            status: 503,
+            jsonBody: {
+                error: 'Service unavailable',
+                reason: 'storage_not_configured',
+                category: 'STORAGE_NOT_CONFIGURED',
+            },
+        };
     }
+
+    const { accountName, accountKey, containerName } = credentials;
 
     try {
         const body = await request.json() as any;
