@@ -1,5 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { getPool } from "../db";
+import { isAuthSecretInsecure } from "../utils/authUtils";
+import { getAuthSecretStrict } from "../utils/authSecret";
 
 const processStartTime = Date.now();
 
@@ -11,17 +13,17 @@ const processStartTime = Date.now();
 export async function healthCheck(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
 
-  // Auth secret aggregate status (no secret values exposed)
-  const authSecretValue = process.env.AUTH_SECRET;
+  // Auth secret aggregate status (no secret values exposed).
+  // Uses getAuthSecretStrict() for missing/weak classification (same logic as auth endpoints)
+  // and isAuthSecretInsecure for placeholder detection, so this status accurately reflects
+  // whether login/register will succeed.
   let authSecret: 'ok' | 'missing' | 'insecure_default' | 'weak';
-  if (!authSecretValue || authSecretValue.trim() === '') {
-    authSecret = 'missing';
-  } else if (authSecretValue === 'CHANGE_ME_IN_AZURE') {
-    authSecret = 'insecure_default';
-  } else if (authSecretValue.length < 32) {
-    authSecret = 'weak';
-  } else {
-    authSecret = 'ok';
+  try {
+    getAuthSecretStrict(); // throws if missing or shorter than 32 chars (after trim)
+    authSecret = isAuthSecretInsecure ? 'insecure_default' : 'ok';
+  } catch (err) {
+    const msg = (err as Error).message;
+    authSecret = /AUTH_SECRET is not set/i.test(msg) ? 'missing' : 'weak';
   }
 
   // Count configured critical env vars without exposing their names
