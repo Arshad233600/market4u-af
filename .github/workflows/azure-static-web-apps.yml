@@ -110,14 +110,12 @@ jobs:
 
           # Validate AZURE_STORAGE_CONNECTION_STRING: if not set, the deploy action
           # syncs an empty string to Azure Application Settings, overwriting any
-          # previously-configured value and causing POST /api/upload to return 500
-          # (storage not configured) on every subsequent deployment.
-          # The upload feature requires both AZURE_STORAGE_CONNECTION_STRING and
-          # AZURE_STORAGE_CONTAINER to be configured.
+          # previously-configured value and causing POST /api/upload to return 503
+          # (storage_not_configured) on every subsequent deployment.
           if [ -z "$STORAGE_CONN_STRING" ]; then
             echo "::error::AZURE_STORAGE_CONNECTION_STRING is not set in GitHub Secrets."
             echo "::error::Without it, the deploy action will overwrite the Azure Application Setting with an empty string,"
-            echo "::error::causing POST /api/upload to return 500 (storage not configured)."
+            echo "::error::causing POST /api/upload to return 503 (storage_not_configured)."
             echo "::error::Add AZURE_STORAGE_CONNECTION_STRING to GitHub Secrets (Settings→Secrets→Actions)."
             echo "::error::Format: DefaultEndpointsProtocol=https;AccountName=<name>;AccountKey=<key>;EndpointSuffix=core.windows.net"
             exit 1
@@ -125,14 +123,12 @@ jobs:
           echo "AZURE_STORAGE_CONNECTION_STRING is configured. OK."
 
           if [ -z "$STORAGE_CONTAINER" ]; then
-            echo "::error::AZURE_STORAGE_CONTAINER is not set in GitHub Secrets."
-            echo "::error::Without it, the deploy action will overwrite the Azure Application Setting with an empty string,"
-            echo "::error::causing POST /api/upload to return 500 (storage container not configured)."
-            echo "::error::Add AZURE_STORAGE_CONTAINER to GitHub Secrets (Settings→Secrets→Actions)."
-            echo "::error::Example value: product-images"
-            exit 1
+            echo "::warning::AZURE_STORAGE_CONTAINER is not set in GitHub Secrets."
+            echo "::warning::The upload API will fall back to the default container name 'product-images'."
+            echo "::warning::To use a different container, add AZURE_STORAGE_CONTAINER to GitHub Secrets (Settings→Secrets→Actions)."
+          else
+            echo "AZURE_STORAGE_CONTAINER is configured. OK."
           fi
-          echo "AZURE_STORAGE_CONTAINER is configured. OK."
         env:
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           SQL_CONN_STRING: ${{ secrets.SqlConnectionString }}

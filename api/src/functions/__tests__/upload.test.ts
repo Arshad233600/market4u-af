@@ -261,7 +261,7 @@ describe('upload() storage_not_configured', () => {
     expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
   });
 
-  it('returns 503 with storage_not_configured when container name env vars are both unset', async () => {
+  it('returns 200 and uses default container "product-images" when container name env vars are both unset', async () => {
     process.env.AZURE_STORAGE_CONNECTION_STRING = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
     delete process.env.AZURE_STORAGE_CONTAINER;
     delete process.env.STORAGE_CONTAINER_NAME;
@@ -269,9 +269,9 @@ describe('upload() storage_not_configured', () => {
     const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
     const res = await upload(req, makeContext());
 
-    expect(res.status).toBe(503);
+    // Container name falls back to the "product-images" default; upload should succeed.
+    expect(res.status).toBe(200);
     const body = res.jsonBody as Record<string, unknown>;
-    expect(body.reason).toBe('storage_not_configured');
-    expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
+    expect(body.ok).toBe(true);
   });
 });

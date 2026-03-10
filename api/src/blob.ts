@@ -7,13 +7,13 @@ import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
 export function getBlobContainerClient(): ContainerClient {
   const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-  // Prefer AZURE_STORAGE_CONTAINER, fallback to STORAGE_CONTAINER_NAME
+  // Prefer AZURE_STORAGE_CONTAINER, fallback to STORAGE_CONTAINER_NAME, then "product-images"
   const container =
-    process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME;
+    process.env.AZURE_STORAGE_CONTAINER ||
+    process.env.STORAGE_CONTAINER_NAME ||
+    "product-images";
 
   if (!conn) throw new Error("Missing AZURE_STORAGE_CONNECTION_STRING");
-  if (!container)
-    throw new Error("Missing AZURE_STORAGE_CONTAINER or STORAGE_CONTAINER_NAME");
 
   const service = BlobServiceClient.fromConnectionString(conn);
   return service.getContainerClient(container);
