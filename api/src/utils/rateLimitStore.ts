@@ -123,18 +123,29 @@ export class RedisRateLimitStore implements RateLimitStore {
   }
 
   async hit(key: string, windowMs: number, max: number): Promise<RateLimitHitResult> {
-    const result = await this.client.eval(INCR_SCRIPT, 1, key, String(windowMs)) as [number, number];
+    try {
+      const result = await this.client.eval(INCR_SCRIPT, 1, key, String(windowMs)) as [number, number];
 
-    const count = result[0];
-    const pttl = result[1];
-    // pttl is -1 if the key has no TTL (should not happen) or -2 if missing; treat as full window.
-    const resetAt = Date.now() + (pttl > 0 ? pttl : windowMs);
-    const remaining = Math.max(0, max - count);
-    return { allowed: count <= max, remaining, resetAt };
+      const count = result[0];
+      const pttl = result[1];
+      // pttl is -1 if the key has no TTL (should not happen) or -2 if missing; treat as full window.
+      const resetAt = Date.now() + (pttl > 0 ? pttl : windowMs);
+      const remaining = Math.max(0, max - count);
+      return { allowed: count <= max, remaining, resetAt };
+    } catch (err) {
+      // Redis is unavailable — fail open so transient Redis errors do not block
+      // login/register requests and cascade into 500 responses.
+      console.error('[RedisRateLimitStore] hit() failed, allowing request due to Redis unavailability:', (err as Error).message);
+      return { allowed: true, remaining: max, resetAt: Date.now() + windowMs };
+    }
   }
 
   async reset(key: string): Promise<void> {
-    await this.client.del(key);
+    try {
+      await this.client.del(key);
+    } catch (err) {
+      console.error('[RedisRateLimitStore] reset() failed:', (err as Error).message);
+    }
   }
 }
 
