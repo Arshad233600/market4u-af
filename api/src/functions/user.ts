@@ -133,7 +133,7 @@ export async function searchUsers(request: HttpRequest, context: InvocationConte
             .input('Q', sql.NVarChar, `%${q}%`)
             .input('CurrentUserId', sql.NVarChar, auth.userId)
             .query(`
-                SELECT TOP 10 u.Id, u.Name, latest_ad.Location AS Province
+                SELECT TOP 10 u.Id, u.Name, u.AvatarUrl, latest_ad.Location AS Province
                 FROM Users u
                 LEFT JOIN (
                     SELECT UserId, Location,
