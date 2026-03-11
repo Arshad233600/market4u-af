@@ -561,6 +561,10 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
   if (!id) return { status: 400, jsonBody: { error: "ID required" } };
 
   try {
+    const adsSchema = await checkAdsSchema();
+    if (!adsSchema.schemaOk) {
+      await applyMissingAdsColumns(adsSchema.missingColumns, (msg) => context.warn(msg));
+    }
     const pool = await getPool();
 
     const result = await pool
@@ -648,6 +652,10 @@ export async function promoteAd(request: HttpRequest, context: InvocationContext
       return { status: 400, jsonBody: { error: `Invalid plan. Must be one of: ${Object.keys(PROMO_COSTS).join(", ")}` } };
     }
 
+    const adsSchema = await checkAdsSchema();
+    if (!adsSchema.schemaOk) {
+      await applyMissingAdsColumns(adsSchema.missingColumns, (msg) => context.warn(msg));
+    }
     const pool = await getPool();
 
     // Check ownership

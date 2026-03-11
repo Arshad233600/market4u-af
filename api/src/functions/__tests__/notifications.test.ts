@@ -30,6 +30,10 @@ vi.mock('../../utils/authUtils', () => ({
   lastAuthFailureSample: null,
 }));
 
+vi.mock('../../utils/tableSchemaCheck', () => ({
+  ensureNotificationsTable: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../utils/responses', () => ({
   serverError: vi.fn().mockImplementation((err?: unknown) => ({
     status: 500,

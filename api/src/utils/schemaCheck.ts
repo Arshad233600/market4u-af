@@ -1,8 +1,8 @@
 import { getPool } from "../db";
 
 /**
- * Required columns for the Ads INSERT statement in postAd.
- * Any column absent from the live database will cause postAd to fail.
+ * Required columns for the Ads table.
+ * Any column absent from the live database will cause related operations to fail.
  */
 export const ADS_REQUIRED_COLUMNS = [
   "Id",
@@ -21,7 +21,12 @@ export const ADS_REQUIRED_COLUMNS = [
   "DeliveryAvailable",
   "DynamicFields",
   "Status",
+  "IsDeleted",
+  "DeletedAt",
+  "IsPromoted",
+  "Views",
   "CreatedAt",
+  "UpdatedAt",
 ] as const;
 
 export interface AdsSchemaResult {
@@ -45,7 +50,12 @@ const COLUMN_DDL: Record<string, string> = {
   DeliveryAvailable: "ALTER TABLE Ads ADD DeliveryAvailable BIT NOT NULL DEFAULT 0",
   DynamicFields:     "ALTER TABLE Ads ADD DynamicFields NVARCHAR(MAX) NULL",
   Status:            "ALTER TABLE Ads ADD Status NVARCHAR(50) NOT NULL DEFAULT 'ACTIVE'",
+  IsDeleted:         "ALTER TABLE Ads ADD IsDeleted BIT NOT NULL DEFAULT 0",
+  DeletedAt:         "ALTER TABLE Ads ADD DeletedAt DATETIME2 NULL",
+  IsPromoted:        "ALTER TABLE Ads ADD IsPromoted BIT NOT NULL DEFAULT 0",
+  Views:             "ALTER TABLE Ads ADD Views INT NOT NULL DEFAULT 0",
   CreatedAt:         "ALTER TABLE Ads ADD CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()",
+  UpdatedAt:         "ALTER TABLE Ads ADD UpdatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()",
   Location:          "ALTER TABLE Ads ADD Location NVARCHAR(255) NULL",
   Category:          "ALTER TABLE Ads ADD Category NVARCHAR(100) NULL",
   Description:       "ALTER TABLE Ads ADD Description NVARCHAR(MAX) NULL",

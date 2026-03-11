@@ -3,6 +3,7 @@ import * as sql from "mssql";
 import { randomUUID } from "crypto";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
+import { ensureChatRequestsTable } from "../utils/tableSchemaCheck";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -15,6 +16,7 @@ export async function getChatRequests(request: HttpRequest, context: InvocationC
   if (authErr) return authErr;
 
   try {
+    await ensureChatRequestsTable();
     const pool = await getPool();
     const result = await pool
       .request()
@@ -52,6 +54,7 @@ export async function sendChatRequest(request: HttpRequest, context: InvocationC
       return { status: 400, jsonBody: { error: "Cannot send a chat request to yourself" } };
     }
 
+    await ensureChatRequestsTable();
     const pool = await getPool();
 
     // Verify the target user exists
@@ -109,6 +112,7 @@ export async function acceptChatRequest(request: HttpRequest, context: Invocatio
   }
 
   try {
+    await ensureChatRequestsTable();
     const pool = await getPool();
 
     // Verify the request exists and belongs to the current user as the recipient
@@ -171,6 +175,7 @@ export async function rejectChatRequest(request: HttpRequest, context: Invocatio
   }
 
   try {
+    await ensureChatRequestsTable();
     const pool = await getPool();
 
     const reqResult = await pool
