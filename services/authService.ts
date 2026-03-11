@@ -7,6 +7,10 @@ const STORAGE_KEY_USER = 'bazar_af_user';
 const STORAGE_KEY_TOKEN = 'bazar_af_token';
 const STORAGE_KEY_REFRESH_TOKEN = 'bazar_af_refresh_token';
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (matches server TOKEN_EXPIRATION_SECONDS)
+// Proactively treat tokens expiring within this window as already expired so the
+// client refreshes before the server rejects them. This prevents DevTools 401 errors
+// caused by minor clock skew between the browser and the server.
+const TOKEN_EXPIRY_BUFFER_SECONDS = 30;
 
 // Mock Data for Offline/Demo Mode
 const MOCK_USER: User = {
@@ -101,8 +105,12 @@ export const authService = {
       // Decode the payload (middle part) of the standard JWT
       const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
-      // Use standard JWT `exp` claim (seconds since epoch) if available
-      if (payload.exp) return Date.now() / 1000 > payload.exp;
+      // Use standard JWT `exp` claim (seconds since epoch) if available.
+      // Subtract TOKEN_EXPIRY_BUFFER_SECONDS so tokens expiring within the buffer
+      // window are treated as already expired, triggering a proactive refresh before
+      // the server rejects them. This prevents DevTools 401 errors caused by minor
+      // clock skew between the browser and the server.
+      if (payload.exp) return Date.now() / 1000 > payload.exp - TOKEN_EXPIRY_BUFFER_SECONDS;
       // Fall back to `iat` (seconds since epoch) + TOKEN_EXPIRY_MS window
       const tokenAge = Date.now() - (payload.iat || 0) * 1000;
       return tokenAge > TOKEN_EXPIRY_MS;
@@ -156,6 +164,9 @@ export const authService = {
             }
             throw new Error('سرویس در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
           }
+          if (response.status === 500) {
+            throw new Error('خطای داخلی سرور. لطفاً دوباره تلاش کنید.');
+          }
           throw new Error(errBody.error || errBody.message || 'نام کاربری یا رمز عبور اشتباه است');
         }
 
@@ -205,6 +216,9 @@ export const authService = {
               throw new Error('سرور موقتاً در دسترس نیست. لطفاً چند لحظه صبر کنید و دوباره تلاش کنید.');
             }
             throw new Error('سرویس در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
+          }
+          if (response.status === 500) {
+            throw new Error('خطای داخلی سرور. لطفاً دوباره تلاش کنید.');
           }
           throw new Error(errBody.error || errBody.message || 'خطا در ثبت‌نام');
         }
