@@ -9,6 +9,23 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const [version, setVersion] = useState<string>('loading...');
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleShareApp = () => {
+    const appUrl = window.location.origin;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Market4U - بازار افغان',
+        text: 'بازارچه آنلاین خرید و فروش در افغانستان',
+        url: appUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(appUrl).then(() => {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+      }).catch(() => {});
+    }
+  };
 
   useEffect(() => {
     fetch('/version.json')
@@ -35,6 +52,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               <a href="#" className="p-2 bg-ui-border rounded-full hover:bg-brand-500 hover:text-white transition-colors text-ui-muted"><Icon name="Instagram" size={20} strokeWidth={1.8} /></a>
               <a href="#" className="p-2 bg-ui-border rounded-full hover:bg-brand-500 hover:text-white transition-colors text-ui-muted"><Icon name="Twitter" size={20} strokeWidth={1.8} /></a>
             </div>
+            <button
+              onClick={handleShareApp}
+              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-white text-sm font-bold px-4 py-2 rounded-full transition-colors"
+            >
+              <Icon name={linkCopied ? 'Check' : 'Share2'} size={16} strokeWidth={1.8} />
+              {linkCopied ? 'لینک کپی شد!' : 'اشتراک‌گذاری اپ'}
+            </button>
           </div>
 
           {/* Quick Links */}
