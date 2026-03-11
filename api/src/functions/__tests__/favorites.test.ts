@@ -143,6 +143,16 @@ describe('addFavorite()', () => {
     // Should not error — already favorited is not an error condition
     expect([200, 409]).toContain(res.status);
   });
+
+  it('returns 409 when concurrent INSERT hits unique constraint (race condition)', async () => {
+    const dupError = Object.assign(new Error('Violation of UNIQUE KEY constraint. Duplicate key. (2627)'), { number: 2627 });
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ Id: 'ad_1' }] }); // ad exists
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });               // not yet favorited (race)
+    mocks.mockQuery.mockRejectedValueOnce(dupError);                        // INSERT fails with unique violation
+
+    const res = await addFavorite(makeRequest({ params: { adId: 'ad_1' } }), makeContext());
+    expect(res.status).toBe(409);
+  });
 });
 
 // ─── removeFavorite ───────────────────────────────────────────────────────
