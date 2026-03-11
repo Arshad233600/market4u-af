@@ -660,6 +660,7 @@ export const azureService = {
                   id: u.id,
                   name: u.name,
                   province: u.province || userProvinceMap.get(u.id) || '',
+                  avatarUrl: u.avatarUrl || '',
               }));
 
           // Also match unique sellers from products (by sellerName)
@@ -668,17 +669,17 @@ export const azureService = {
           for (const p of products) {
               if (p.sellerName.includes(q) && !seenNames.has(p.sellerName)) {
                   seenNames.add(p.sellerName);
-                  sellerResults.push({ id: p.userId, name: p.sellerName, province: extractProvinceFromLocation(p.location) });
+                  sellerResults.push({ id: p.userId, name: p.sellerName, province: extractProvinceFromLocation(p.location), avatarUrl: '' });
               }
           }
 
           return [...userResults, ...sellerResults].slice(0, 5);
       }
       try {
-          interface UserSearchRow { Id: string; Name: string; Province?: string; }
+          interface UserSearchRow { Id: string; Name: string; Province?: string; AvatarUrl?: string; }
           const data = await apiClient.get<UserSearchRow[]>(`/users/search?q=${encodeURIComponent(q)}`);
           if (!Array.isArray(data)) return [];
-          return data.map(u => ({ id: u.Id, name: u.Name, province: u.Province || '' })).slice(0, 5);
+          return data.map(u => ({ id: u.Id, name: u.Name, province: u.Province || '', avatarUrl: u.AvatarUrl || '' })).slice(0, 5);
       } catch { return []; }
   },
   

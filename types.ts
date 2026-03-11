@@ -32,6 +32,7 @@ export interface UserSuggestion {
   id: string;
   name: string;
   province: string;
+  avatarUrl?: string;
 }
 
 export interface Review {

@@ -358,8 +358,11 @@ const Messages: React.FC = () => {
                     {userResults.map(user => (
                         <div key={user.id} className="flex items-center justify-between p-3 hover:bg-ui-surface2 border-b border-gray-50 last:border-0">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 font-bold text-sm">
-                                    {user.name.charAt(0)}
+                                <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-sm">
+                                    {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl)
+                                        ? <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                                        : user.name.charAt(0)
+                                    }
                                 </div>
                                 <div>
                                     <p className="text-sm font-bold text-ui-text">{user.name}</p>
