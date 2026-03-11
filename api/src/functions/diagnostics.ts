@@ -338,6 +338,33 @@ export async function diagnostics(
             "or run: az storage container create --name product-images",
         });
       } else {
+        // Check that the container has blob-level public read access so that
+        // image URLs served to browsers are reachable without authentication.
+        // Azure returns HTTP 404 (not 403) for blobs in private containers when
+        // accessed without credentials, which causes "blob not found" errors in
+        // the browser even though the upload succeeded.
+        try {
+          const props = await container.getProperties();
+          if (props.blobPublicAccess !== "blob") {
+            issues.push({
+              phase: "Phase 4",
+              issue: "Storage container is not publicly accessible",
+              evidence: `Container public access is '${props.blobPublicAccess ?? "none (private)"}' instead of 'blob'`,
+              rootCause:
+                "Container was created without blob-level public read access. " +
+                "Azure returns HTTP 404 for unauthenticated blob GET requests on private containers, " +
+                "causing all ad images to fail to load in the browser.",
+              severity: "High",
+              fix:
+                "Set container public access to 'Blob' in Azure Portal → Storage Account → Containers, " +
+                "or run: az storage container set-permission --name <container> --public-access blob. " +
+                "Also ensure 'Allow Blob public access' is enabled on the storage account.",
+            });
+          }
+        } catch {
+          // getProperties may fail if read-metadata permissions are missing; skip the check.
+        }
+
         // List at most 1 blob to confirm read access (do not dump names)
         let blobCount = 0;
         for await (const _blob of container.listBlobsFlat()) {
