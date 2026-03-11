@@ -35,6 +35,10 @@ vi.mock('../../utils/authUtils', () => ({
   lastAuthFailureSample: null,
 }));
 
+vi.mock('../../utils/tableSchemaCheck', () => ({
+  ensureChatRequestsTable: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock mssql so that Transaction/Request work without a real connection pool.
 vi.mock('mssql', () => ({
   NVarChar: 'NVarChar',

@@ -3,6 +3,7 @@ import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { serverError } from "../utils/responses";
+import { ensureNotificationsTable } from "../utils/tableSchemaCheck";
 
 export async function getNotifications(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
@@ -15,6 +16,7 @@ export async function getNotifications(request: HttpRequest, context: Invocation
   }
 
   try {
+    await ensureNotificationsTable();
     const pool = await getPool();
     const result = await pool
       .request()
@@ -42,6 +44,7 @@ export async function markNotificationsRead(request: HttpRequest, context: Invoc
     const body = (await request.json().catch(() => ({}))) as { id?: string };
     const { id } = body;
 
+    await ensureNotificationsTable();
     const pool = await getPool();
     const req = pool.request().input("UserId", sql.NVarChar, auth.userId);
 
