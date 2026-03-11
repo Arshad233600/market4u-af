@@ -10,10 +10,15 @@ import type { HttpRequest, InvocationContext } from '@azure/functions';
 const mocks = vi.hoisted(() => {
   const mockQuery = vi.fn().mockResolvedValue({ recordset: [], rowsAffected: [0] });
   const mockInput = vi.fn().mockReturnThis();
+  const mockTransaction = {
+    begin: vi.fn().mockResolvedValue(undefined),
+    commit: vi.fn().mockResolvedValue(undefined),
+    rollback: vi.fn().mockResolvedValue(undefined),
+  };
   const mockPool = {
     request: vi.fn().mockImplementation(() => ({ input: mockInput, query: mockQuery })),
   };
-  return { mockQuery, mockInput, mockPool };
+  return { mockQuery, mockInput, mockTransaction, mockPool };
 });
 
 vi.mock('../../db', () => ({
@@ -28,6 +33,23 @@ vi.mock('../../utils/authUtils', () => ({
   TOKEN_EXPIRATION_MS: 604800000,
   MISCONFIGURED_REASONS: new Set(['missing_auth_secret', 'insecure_default_secret']),
   lastAuthFailureSample: null,
+}));
+
+// Mock mssql so that Transaction/Request work without a real connection pool.
+vi.mock('mssql', () => ({
+  NVarChar: 'NVarChar',
+  Int: 'Int',
+  Decimal: vi.fn().mockReturnValue('Decimal'),
+  Float: 'Float',
+  Bit: 'Bit',
+  DateTime: 'DateTime',
+  DateTime2: 'DateTime2',
+  ConnectionError: class ConnectionError extends Error {},
+  RequestError: class RequestError extends Error {},
+  Transaction: vi.fn().mockImplementation(function () { return mocks.mockTransaction; }),
+  Request: vi.fn().mockImplementation(function () {
+    return { input: vi.fn().mockReturnThis(), query: mocks.mockQuery };
+  }),
 }));
 
 // ─── helpers ─────────────────────────────────────────────────────────────
@@ -60,6 +82,12 @@ let rejectChatRequest: typeof import('../chat').rejectChatRequest;
 beforeEach(async () => {
   mocks.mockQuery.mockReset();
   mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [0] });
+  mocks.mockTransaction.begin.mockReset();
+  mocks.mockTransaction.begin.mockResolvedValue(undefined);
+  mocks.mockTransaction.commit.mockReset();
+  mocks.mockTransaction.commit.mockResolvedValue(undefined);
+  mocks.mockTransaction.rollback.mockReset();
+  mocks.mockTransaction.rollback.mockResolvedValue(undefined);
   mocks.mockPool.request.mockImplementation(() => ({
     input: mocks.mockInput,
     query: mocks.mockQuery,

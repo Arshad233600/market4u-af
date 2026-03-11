@@ -105,6 +105,9 @@ BEGIN
     CREATE INDEX IX_Ads_Category ON Ads(Category);
     CREATE INDEX IX_Ads_Status ON Ads(Status);
     CREATE INDEX IX_Ads_CreatedAt ON Ads(CreatedAt DESC);
+    -- Composite index covering the most common listing query:
+    --   WHERE Status = 'ACTIVE' AND IsDeleted = 0 ORDER BY CreatedAt DESC
+    CREATE INDEX IX_Ads_Status_IsDeleted_CreatedAt ON Ads(Status, IsDeleted, CreatedAt DESC);
 END
 ELSE
 BEGIN
@@ -112,6 +115,11 @@ BEGIN
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'Condition')
     BEGIN
         ALTER TABLE Ads ADD Condition NVARCHAR(50) DEFAULT 'used';
+    END
+    -- Add composite index if it doesn't exist (for databases created before this index was added)
+    IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID('Ads') AND name = 'IX_Ads_Status_IsDeleted_CreatedAt')
+    BEGIN
+        CREATE INDEX IX_Ads_Status_IsDeleted_CreatedAt ON Ads(Status, IsDeleted, CreatedAt DESC);
     END
     -- Add IsNegotiable column if it doesn't exist
     IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Ads') AND name = 'IsNegotiable')

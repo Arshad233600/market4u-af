@@ -47,10 +47,13 @@ export async function updateUserProfile(request: HttpRequest, context: Invocatio
         // Phone is usually not updateable without verification
         
         if (updates.length === 0) return { status: 400, jsonBody: { error: "No fields to update" } };
-        
+
+        updates.push("UpdatedAt = @UpdatedAt");
         query += updates.join(", ") + " WHERE Id = @Id";
 
-        const req = pool.request().input("Id", sql.NVarChar, auth.userId);
+        const req = pool.request()
+            .input("Id", sql.NVarChar, auth.userId)
+            .input("UpdatedAt", sql.DateTime2, new Date());
         if (body.name) req.input("Name", sql.NVarChar, body.name);
         if (body.email) req.input("Email", sql.NVarChar, body.email);
         if (body.avatarUrl !== undefined) req.input("AvatarUrl", sql.NVarChar, body.avatarUrl);

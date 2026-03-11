@@ -81,6 +81,10 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
 
     return { status: 201, jsonBody: { success: true, id } };
   } catch (err: unknown) {
+    // SQL Server error 2627 = unique constraint violation (concurrent duplicate insert)
+    if (err instanceof Error && /2627|duplicate key/i.test(err.message)) {
+      return { status: 409, jsonBody: { error: "Already favorited" } };
+    }
     context.error("addFavorite Error", err);
     return { status: 500, jsonBody: { error: "Internal server error" } };
   }

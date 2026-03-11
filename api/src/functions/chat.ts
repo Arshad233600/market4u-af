@@ -124,25 +124,33 @@ export async function acceptChatRequest(request: HttpRequest, context: Invocatio
 
     const fromUserId = reqResult.recordset[0].FromUserId as string;
 
-    // Mark request as ACCEPTED
-    await pool
-      .request()
-      .input("Id", sql.NVarChar, requestId)
-      .query("UPDATE ChatRequests SET Status = 'ACCEPTED' WHERE Id = @Id");
+    // Use a transaction so both the status update and the initial message are atomic
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    try {
+      // Mark request as ACCEPTED
+      await new sql.Request(transaction)
+        .input("Id", sql.NVarChar, requestId)
+        .query("UPDATE ChatRequests SET Status = 'ACCEPTED' WHERE Id = @Id");
 
-    // Create an initial message to establish the conversation thread
-    const msgId = randomUUID();
-    await pool
-      .request()
-      .input("Id", sql.NVarChar, msgId)
-      .input("FromUserId", sql.NVarChar, auth.userId)
-      .input("ToUserId", sql.NVarChar, fromUserId)
-      .input("Content", sql.NVarChar, "👋")
-      .input("CreatedAt", sql.DateTime, new Date())
-      .query(`
-        INSERT INTO Messages (Id, FromUserId, ToUserId, AdId, Content, IsRead, CreatedAt)
-        VALUES (@Id, @FromUserId, @ToUserId, NULL, @Content, 0, @CreatedAt)
-      `);
+      // Create an initial message to establish the conversation thread
+      const msgId = randomUUID();
+      await new sql.Request(transaction)
+        .input("Id", sql.NVarChar, msgId)
+        .input("FromUserId", sql.NVarChar, auth.userId)
+        .input("ToUserId", sql.NVarChar, fromUserId)
+        .input("Content", sql.NVarChar, "👋")
+        .input("CreatedAt", sql.DateTime, new Date())
+        .query(`
+          INSERT INTO Messages (Id, FromUserId, ToUserId, AdId, Content, IsRead, CreatedAt)
+          VALUES (@Id, @FromUserId, @ToUserId, NULL, @Content, 0, @CreatedAt)
+        `);
+
+      await transaction.commit();
+    } catch (txErr: unknown) {
+      try { await transaction.rollback(); } catch (_) { /* ignore rollback error */ }
+      throw txErr;
+    }
 
     return { status: 200, jsonBody: { success: true, conversationId: fromUserId } };
   } catch (err: unknown) {
