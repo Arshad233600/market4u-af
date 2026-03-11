@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
+        outDir: 'bulid',
         rollupOptions: {
           output: {
             manualChunks: {
