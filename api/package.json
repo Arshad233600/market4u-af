@@ -32,7 +32,6 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mssql": "^9.1.5",
     "@types/node": "^20.17.30",
-    "azure-functions-core-tools": "^4.8.0",
     "typescript": "^5.8.2",
     "vitest": "^4.0.18"
   },
@@ -40,9 +39,6 @@
     "glob": "^13.0.0",
     "minimatch": ">=8.0.6",
     "fast-xml-parser": "^5.5.3",
-    "node-domexception": "^2.0.2",
-    "azure-functions-core-tools": {
-      "minimatch": "8.0.7"
-    }
+    "node-domexception": "^2.0.2"
   }
 }
