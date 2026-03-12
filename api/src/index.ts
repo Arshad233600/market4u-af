@@ -2,8 +2,14 @@ import * as appInsights from "applicationinsights";
 
 // Initialize Application Insights once at startup so all function modules
 // that reference appInsights.defaultClient get a properly configured client.
+// Wrapped in try-catch so that an invalid connection string cannot prevent all
+// functions from loading (which would cause 502 for every API request).
 if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
-  appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
+  try {
+    appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING).start();
+  } catch (err) {
+    console.error('[STARTUP] Failed to initialize Application Insights:', (err as Error).message);
+  }
 }
 
 import "./functions/ads";
