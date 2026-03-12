@@ -4,6 +4,7 @@ import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { generateUUID } from "../utils/uuidUtils";
+import { ensureNotificationsTable } from "../utils/tableSchemaCheck";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -76,9 +77,11 @@ export async function adminApproveAd(request: HttpRequest, context: InvocationCo
 
     // Notify the ad owner that their ad was approved (non-critical).
     setImmediate(() => {
-      pool.request()
-        .input("AdId", sql.NVarChar, id)
-        .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+      ensureNotificationsTable()
+        .then(() => pool.request()
+          .input("AdId", sql.NVarChar, id)
+          .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+        )
         .then(async (adRow) => {
           if (adRow.recordset.length > 0) {
             const { UserId: adUserId, Title: adTitle } = adRow.recordset[0] as { UserId: string; Title: string };
@@ -126,9 +129,11 @@ export async function adminRejectAd(request: HttpRequest, context: InvocationCon
 
     // Notify the ad owner that their ad was rejected (non-critical).
     setImmediate(() => {
-      pool.request()
-        .input("AdId", sql.NVarChar, id)
-        .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+      ensureNotificationsTable()
+        .then(() => pool.request()
+          .input("AdId", sql.NVarChar, id)
+          .query("SELECT UserId, Title FROM Ads WHERE Id = @AdId AND IsDeleted = 0")
+        )
         .then(async (adRow) => {
           if (adRow.recordset.length > 0) {
             const { UserId: adUserId, Title: adTitle } = adRow.recordset[0] as { UserId: string; Title: string };

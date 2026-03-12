@@ -31,6 +31,33 @@ export async function ensureNotificationsTable(): Promise<void> {
 }
 
 /**
+ * Ensures the AdImages table exists in the database.
+ * Creates it (with all required columns and indexes) if it is absent.
+ * Uses OBJECT_ID as an idempotent guard, matching the pattern in
+ * migrations/2026_03_11_add_missing_tables_and_columns.sql.
+ *
+ * NOTE: All DDL identifiers are compile-time constants — no user input is
+ * interpolated.
+ */
+export async function ensureAdImagesTable(): Promise<void> {
+  const pool = await getPool();
+  await pool.request().query(`
+    IF OBJECT_ID('AdImages', 'U') IS NULL
+    BEGIN
+      CREATE TABLE AdImages (
+        Id NVARCHAR(100) PRIMARY KEY,
+        AdId NVARCHAR(100) NOT NULL,
+        Url NVARCHAR(1000) NOT NULL,
+        SortOrder INT DEFAULT 0,
+        CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
+        FOREIGN KEY (AdId) REFERENCES Ads(Id) ON DELETE CASCADE
+      );
+      CREATE INDEX IX_AdImages_AdId ON AdImages(AdId);
+    END
+  `);
+}
+
+/**
  * Ensures the ChatRequests table exists in the database.
  * Creates it (with all required columns and indexes) if it is absent.
  * Uses OBJECT_ID as an idempotent guard, matching the pattern in

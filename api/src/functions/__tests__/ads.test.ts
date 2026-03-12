@@ -64,6 +64,12 @@ vi.mock('../../utils/schemaCheck', () => ({
   applyMissingAdsColumns: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('../../utils/tableSchemaCheck', () => ({
+  ensureAdImagesTable: vi.fn().mockResolvedValue(undefined),
+  ensureNotificationsTable: vi.fn().mockResolvedValue(undefined),
+  ensureChatRequestsTable: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ─── helpers ─────────────────────────────────────────────────────────────
 
 function makeRequest(opts: {
