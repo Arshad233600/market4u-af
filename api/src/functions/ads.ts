@@ -5,6 +5,7 @@ import { getPool, resetPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 import { checkAdsSchema, applyMissingAdsColumns } from "../utils/schemaCheck";
+import { ensureAdImagesTable, ensureNotificationsTable } from "../utils/tableSchemaCheck";
 
 /** Interface for database image record */
 interface ImageRecord {
@@ -168,7 +169,9 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
 
     const ad: AdRecord = result.recordset[0];
 
-    // Get all images
+    // Get all images — ensure table exists first so a missing AdImages table
+    // does not turn a valid ad detail request into a 500 error.
+    await ensureAdImagesTable();
     const imagesResult = await pool
       .request()
       .input("AdId", sql.NVarChar, id)
@@ -320,6 +323,10 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       }
     }
 
+    // Ensure AdImages table exists (created at init but may be missing in
+    // environments that were provisioned before the table was added).
+    await ensureAdImagesTable();
+
     // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
     // so only previously committed ads count — failed attempts never trigger it).
     const recentAd = await pool
@@ -426,14 +433,16 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       // Deferred via setImmediate so the notification insert runs after the response
       // is returned, keeping it fully out of the main request-response path.
       setImmediate(() => {
-        pool.request()
-          .input("Id", sql.NVarChar, generateUUID())
-          .input("UserId", sql.NVarChar, userId)
-          .input("Title", sql.NVarChar, "آگهی شما ثبت شد")
-          .input("Message", sql.NVarChar, `آگهی "${title}" با موفقیت ثبت شد.`)
-          .input("Type", sql.NVarChar, "success")
-          .input("CreatedAt", sql.DateTime, new Date())
-          .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)")
+        ensureNotificationsTable()
+          .then(() => pool.request()
+            .input("Id", sql.NVarChar, generateUUID())
+            .input("UserId", sql.NVarChar, userId)
+            .input("Title", sql.NVarChar, "آگهی شما ثبت شد")
+            .input("Message", sql.NVarChar, `آگهی "${title}" با موفقیت ثبت شد.`)
+            .input("Type", sql.NVarChar, "success")
+            .input("CreatedAt", sql.DateTime, new Date())
+            .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)")
+          )
           .catch((notifErr: unknown) => {
             context.warn(`[postAd] notification_create_failed requestId=${requestId} adId=${id}`, notifErr);
           });
@@ -472,6 +481,10 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
     const { title, price, location, category, subCategory, description, imageUrls, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
 
     const pool = await getPool();
+
+    // Ensure AdImages table exists before the transaction touches it.
+    await ensureAdImagesTable();
+
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
