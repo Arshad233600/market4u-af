@@ -303,6 +303,53 @@ describe('postAd()', () => {
     // even if the notification query would resolve or reject later.
     expect((res.jsonBody as Record<string, unknown>)?.success).toBe(true);
   });
+
+  it('returns 429 when regular user has reached the 5-ads-per-month limit', async () => {
+    // Rate limit query: no recent ad in the last 60 s
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    // Monthly limit query: user has already posted 5 ads this month
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ Role: 'USER', MonthlyAdCount: 5 }] });
+
+    const req = makeRequest({
+      body: { title: 'Sixth Ad', price: 100, location: 'Kabul' },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(429);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('MONTHLY_LIMIT');
+  });
+
+  it('returns 201 when admin user has more than 5 ads this month (no monthly limit)', async () => {
+    // Rate limit query: no recent ad
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    // Monthly limit query: admin with 10 ads this month — limit does not apply
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ Role: 'ADMIN', MonthlyAdCount: 10 }] });
+    // INSERT and notification queries succeed
+    mocks.mockQuery.mockResolvedValue({ recordset: [], rowsAffected: [1] });
+
+    const req = makeRequest({
+      body: { title: 'Admin Ad', price: 500, location: 'Kabul' },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(201);
+  });
+
+  it('returns 400 when more than 4 images are submitted', async () => {
+    // Rate limit and monthly limit checks pass
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [] });
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [{ Role: 'USER', MonthlyAdCount: 0 }] });
+
+    const req = makeRequest({
+      body: {
+        title: 'Ad with too many images',
+        price: 1000,
+        imageUrls: ['url1', 'url2', 'url3', 'url4', 'url5'],
+      },
+    });
+    const res = await postAd(req, makeContext());
+    expect(res.status).toBe(400);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('VALIDATION');
+    expect((res.jsonBody as Record<string, unknown>)?.reason).toBe('too_many_images');
+  });
 });
 
 // ─── updateAd ─────────────────────────────────────────────────────────────
