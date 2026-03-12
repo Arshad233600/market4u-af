@@ -89,13 +89,13 @@ function signToken(payload: object): string {
 
 export async function login(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
-  // Fail fast if AUTH_SECRET is not securely configured; a token signed with a placeholder
-  // secret is as insecure as having no auth at all.
-  if (isAuthSecretInsecure) {
-    context.error("[login] AUTH_SECRET is insecure — rejecting login to prevent signing tokens with placeholder secret");
-    return serviceUnavailable('insecure_default_secret');
-  }
   try {
+    // Fail fast if AUTH_SECRET is not securely configured; a token signed with a placeholder
+    // secret is as insecure as having no auth at all.
+    if (isAuthSecretInsecure) {
+      context.error("[login] AUTH_SECRET is insecure — rejecting login to prevent signing tokens with placeholder secret");
+      return serviceUnavailable('insecure_default_secret');
+    }
     let body: { email?: string; password?: string };
     try {
       body = (await request.json()) as { email?: string; password?: string };
@@ -218,11 +218,11 @@ export async function login(request: HttpRequest, context: InvocationContext): P
 
 export async function register(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const startTime = Date.now();
-  if (isAuthSecretInsecure) {
-    context.error("[register] AUTH_SECRET is insecure — rejecting register to prevent signing tokens with placeholder secret");
-    return serviceUnavailable('insecure_default_secret');
-  }
   try {
+    if (isAuthSecretInsecure) {
+      context.error("[register] AUTH_SECRET is insecure — rejecting register to prevent signing tokens with placeholder secret");
+      return serviceUnavailable('insecure_default_secret');
+    }
     let body: { name?: string; email?: string; password?: string; phone?: string };
     try {
       body = (await request.json()) as { name?: string; email?: string; password?: string; phone?: string };
@@ -439,34 +439,34 @@ const TOKEN_REFRESH_GRACE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
  * TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS are rejected with reason "token_too_old".
  */
 export async function refreshTokenHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  // Insecure secret: refreshing would produce a new token signed with a placeholder —
-  // return 503 so the client knows the server is misconfigured.
-  if (isAuthSecretInsecure) {
-    context.error("[refreshToken] AUTH_SECRET is insecure — rejecting refresh");
-    return serviceUnavailable('insecure_default_secret');
-  }
-
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
-  }
-
-  // Use slice('Bearer '.length) + trim to robustly extract the token; split(" ")[1] would
-  // silently return "" for "Bearer " (empty value) and fall through to invalid_token.
-  const token = authHeader.slice('Bearer '.length).trim();
-  if (!token) {
-    return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
-  }
-
-  let secret: string;
   try {
-    secret = getAuthSecretStrict();
-  } catch (err) {
-    context.error("RefreshToken Config Error", err);
-    return serverError(err, "خطای پیکربندی سرور");
-  }
+    // Insecure secret: refreshing would produce a new token signed with a placeholder —
+    // return 503 so the client knows the server is misconfigured.
+    if (isAuthSecretInsecure) {
+      context.error("[refreshToken] AUTH_SECRET is insecure — rejecting refresh");
+      return serviceUnavailable('insecure_default_secret');
+    }
 
-  try {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
+    }
+
+    // Use slice('Bearer '.length) + trim to robustly extract the token; split(" ")[1] would
+    // silently return "" for "Bearer " (empty value) and fall through to invalid_token.
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
+      return unauthorized("توکن احراز هویت الزامی است.", "missing_token");
+    }
+
+    let secret: string;
+    try {
+      secret = getAuthSecretStrict();
+    } catch (err) {
+      context.error("RefreshToken Config Error", err);
+      return serverError(err, "خطای پیکربندی سرور");
+    }
+
     // Verify using jwt.verify; ignoreExpiration allows refreshing recently-expired tokens
     // within the grace window. Signature and algorithm are always verified.
     let payload: jwt.JwtPayload;
