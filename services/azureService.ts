@@ -379,6 +379,11 @@ export const azureService = {
         return null;
     } catch (error) {
         if (error instanceof AuthError) throw error;
+        // Re-throw server-side errors (5xx) so the caller can distinguish a permanent
+        // configuration failure (e.g. AZURE_STORAGE_CONNECTION_STRING not set → 503
+        // STORAGE_NOT_CONFIGURED) from a transient network error. Without this, callers
+        // receive null and show a misleading "retry" message even when retrying won't help.
+        if (error instanceof ApiError && error.status >= 500) throw error;
         console.error('Upload process error:', error);
         return null;
     }
