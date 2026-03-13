@@ -13,7 +13,7 @@ export async function getUserProfile(request: HttpRequest, context: InvocationCo
         const pool = await getPool();
         const result = await pool.request()
             .input("Id", sql.NVarChar, auth.userId)
-            .query("SELECT Id, Name, Email, Phone, AvatarUrl, IsVerified, VerificationStatus, Role, CreatedAt FROM Users WHERE Id = @Id");
+            .query("SELECT Id, Name, Email, Phone, AvatarUrl, IsVerified, VerificationStatus, Role, CreatedAt FROM Users WHERE Id = @Id AND IsDeleted = 0");
 
         if (result.recordset.length === 0) {
             return { status: 404, jsonBody: { message: "کاربر یافت نشد." } };

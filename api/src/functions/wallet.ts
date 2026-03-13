@@ -3,6 +3,7 @@ import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { serverError } from "../utils/responses";
+import { generateUUID } from "../utils/uuidUtils";
 
 export async function getWalletTransactions(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const auth = validateToken(request);
@@ -49,14 +50,14 @@ export async function topUpWallet(request: HttpRequest, context: InvocationConte
     }
 
     const pool = await getPool();
-    const id = `tx_${Date.now()}`;
+    const id = generateUUID();
 
     await pool
       .request()
       .input("Id", sql.NVarChar, id)
       .input("UserId", sql.NVarChar, auth.userId)
       .input("Amount", sql.Decimal(18, 2), amount)
-      .input("Type", sql.NVarChar, "DEPOSIT")
+      .input("Type", sql.NVarChar, "CREDIT")
       .input("Status", sql.NVarChar, "SUCCESS")
       .input("Description", sql.NVarChar, description || "شارژ کیف پول")
       .input("ReferenceId", sql.NVarChar, referenceId || null)
