@@ -43,7 +43,7 @@ var sqlServerName    = '${prefix}-sql-${uniqueString(resourceGroup().id)}'
 var sqlDbName        = 'market4u-db'
 var storageAccName   = '${prefix}stor${uniqueString(resourceGroup().id)}'
 var staticWebAppName = '${prefix}-app'
-var containerName    = 'product-images'
+var containerName    = 'ads-images'
 var authSecret       = uniqueString(resourceGroup().id, prefix, 'auth-secret-salt-2024')
 
 // =============================================================================

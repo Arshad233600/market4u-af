@@ -130,6 +130,42 @@ jobs:
             echo "::error::Format: DefaultEndpointsProtocol=https;AccountName=<name>;AccountKey=<key>;EndpointSuffix=core.windows.net"
             exit 1
           fi
+          # Reject well-known placeholder values that ship in example config files.
+          # A placeholder value would pass the non-empty check above, be deployed to
+          # Azure Application Settings, and cause POST /api/upload to return 503 on
+          # every request because the SDK cannot authenticate to a fictional account.
+          for placeholder in \
+            "YOUR_KEY" \
+            "your_account_key" \
+            "ACCOUNT_KEY_HERE" \
+            "YOUR_STORAGE_KEY"; do
+            if echo "$STORAGE_CONN_STRING" | grep -qi "$placeholder"; then
+              echo "::error::AZURE_STORAGE_CONNECTION_STRING contains a known placeholder value ('${placeholder}')."
+              echo "::error::Deploying with a placeholder causes POST /api/upload to return 503 (storage_not_configured)."
+              echo "::error::Replace it with a real connection string from your Azure Storage Account."
+              echo "::error::Azure Portal → Storage Account → Access keys → Connection string"
+              exit 1
+            fi
+          done
+          # Validate AccountName format (Azure storage account names: 3-24 lowercase letters and numbers).
+          # An invalid account name indicates the connection string was never updated from the example.
+          ACCT_NAME=$(echo "$STORAGE_CONN_STRING" | grep -oP '(?i)(?<=AccountName=)[^;]+' | head -1)
+          if [ -n "$ACCT_NAME" ] && ! echo "$ACCT_NAME" | grep -qE '^[a-z0-9]{3,24}$'; then
+            echo "::error::AZURE_STORAGE_CONNECTION_STRING has an invalid AccountName: '${ACCT_NAME}'."
+            echo "::error::Azure Storage Account names must be 3-24 lowercase letters and numbers only."
+            echo "::error::Uppercase letters, underscores, hyphens, and angle brackets are not allowed."
+            exit 1
+          fi
+          # Validate AccountKey length — real Azure Storage keys are 88-char base64 strings.
+          # A significantly shorter value is a placeholder or truncation error that will
+          # cause AuthenticationFailed errors and 503 responses on every upload attempt.
+          ACCT_KEY=$(echo "$STORAGE_CONN_STRING" | grep -oP '(?i)(?<=AccountKey=)[^;]+' | head -1)
+          if [ -n "$ACCT_KEY" ] && [ "${#ACCT_KEY}" -lt 40 ]; then
+            echo "::error::AZURE_STORAGE_CONNECTION_STRING has a suspiciously short AccountKey (${#ACCT_KEY} chars; expected ~88)."
+            echo "::error::A short key indicates a placeholder or truncated value that will cause 503 errors on every upload."
+            echo "::error::Copy the full connection string from Azure Portal → Storage Account → Access keys."
+            exit 1
+          fi
           echo "AZURE_STORAGE_CONNECTION_STRING is configured. OK."
 
           if [ -z "$STORAGE_CONTAINER" ]; then

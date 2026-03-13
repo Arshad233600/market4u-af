@@ -1,6 +1,39 @@
 import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
 
 /**
+ * Detects well-known placeholder patterns that ship in example config files
+ * (local.settings.json.example, .env.example).  A connection string that
+ * matches any of these patterns is unusable even though it is non-empty, so
+ * resolveStorageConnectionString() returns null to surface the clearer
+ * "storage_not_configured" reason instead of letting the SDK attempt a
+ * network connection that will always fail with a misleading
+ * "storage_unavailable" 503.
+ *
+ * Patterns are intentionally conservative — we only reject strings that
+ * obviously come from example files (uppercase placeholders, angle-bracket
+ * templates, or suspiciously short AccountKey values).
+ */
+export function isPlaceholderConnectionString(connStr: string): boolean {
+  // Reject exact placeholder AccountKey values used in example files
+  if (/AccountKey=YOUR_KEY\b/i.test(connStr)) return true;
+  if (/AccountKey=your_account_key\b/i.test(connStr)) return true;
+  if (/AccountKey=<[^>]+>/i.test(connStr)) return true;
+
+  // Reject placeholder AccountName values (angle-bracket or uppercase YOUR_)
+  if (/AccountName=<[^>]+>/i.test(connStr)) return true;
+  if (/AccountName=YOUR_/i.test(connStr)) return true;
+
+  // Reject an AccountKey that is suspiciously short.
+  // Real Azure Storage Account keys are 512-bit values encoded as base64,
+  // producing an 88-character string.  Anything shorter than 20 characters
+  // is certainly a placeholder or a typo.
+  const keyMatch = connStr.match(/AccountKey=([^;]+)/i);
+  if (keyMatch && keyMatch[1].trim().length < 20) return true;
+
+  return false;
+}
+
+/**
  * Resolves an Azure Storage connection string from env vars.
  *
  * Priority order:
@@ -9,16 +42,17 @@ import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
  *     — synthesised into a connection string so the service works even when only
  *       the individual credential env vars are configured in Azure.
  *
- * Returns null when no usable credentials are found.
+ * Returns null when no usable credentials are found OR when the connection
+ * string is a known placeholder value from an example config file.
  */
 export function resolveStorageConnectionString(): string | null {
   const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
-  if (connStr) return connStr;
+  if (connStr && !isPlaceholderConnectionString(connStr)) return connStr;
 
   const accountName =
     process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
   const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-  if (accountName && accountKey) {
+  if (accountName && accountKey && !isPlaceholderConnectionString(`AccountKey=${accountKey}`)) {
     return `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`;
   }
 

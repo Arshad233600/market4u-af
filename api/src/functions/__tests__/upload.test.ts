@@ -21,8 +21,11 @@ const mocks = vi.hoisted(() => {
 vi.mock('../../blob', () => ({
   getOrCreateBlobContainerClient: vi.fn().mockResolvedValue(mocks.mockContainerClient),
   resolveStorageConnectionString: vi.fn().mockImplementation(() => {
-    // Mirror the real logic: return the connection string if set, or synthesise one
-    // from individual credential env vars (STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY).
+    // Simplified mirror of the real logic for upload test purposes.
+    // Returns the connection string when set (non-empty), synthesises from individual
+    // credential env vars when AZURE_STORAGE_CONNECTION_STRING is unset, or returns null.
+    // NOTE: placeholder detection (isPlaceholderConnectionString) is intentionally omitted
+    // here — it is covered separately in api/src/__tests__/blob.test.ts.
     const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
     if (connStr) return connStr;
     const accountName = process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;

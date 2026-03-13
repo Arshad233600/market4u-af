@@ -47,14 +47,18 @@ vi.mock('@azure/storage-blob', () => ({
 let getOrCreateBlobContainerClient: typeof import('../blob').getOrCreateBlobContainerClient;
 let getBlobContainerClient: typeof import('../blob').getBlobContainerClient;
 let resolveStorageConnectionString: typeof import('../blob').resolveStorageConnectionString;
+let isPlaceholderConnectionString: typeof import('../blob').isPlaceholderConnectionString;
+
+// A valid-looking real connection string (AccountKey is 88 chars base64)
+const REAL_CONN_STRING =
+  'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXQ=;EndpointSuffix=core.windows.net';
 
 beforeEach(async () => {
   mocks.mockCreateIfNotExists.mockReset();
   mocks.mockGetProperties.mockReset();
   mocks.mockSetAccessPolicy.mockReset();
 
-  process.env.AZURE_STORAGE_CONNECTION_STRING =
-    'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
+  process.env.AZURE_STORAGE_CONNECTION_STRING = REAL_CONN_STRING;
   process.env.AZURE_STORAGE_CONTAINER = 'test-container';
 
   // Re-import module after mocks are set up
@@ -63,24 +67,100 @@ beforeEach(async () => {
   getOrCreateBlobContainerClient = mod.getOrCreateBlobContainerClient;
   getBlobContainerClient = mod.getBlobContainerClient;
   resolveStorageConnectionString = mod.resolveStorageConnectionString;
+  isPlaceholderConnectionString = mod.isPlaceholderConnectionString;
+});
+
+// ─── isPlaceholderConnectionString ───────────────────────────────────────
+
+describe('isPlaceholderConnectionString()', () => {
+  it('returns false for a valid-looking real connection string', () => {
+    expect(isPlaceholderConnectionString(REAL_CONN_STRING)).toBe(false);
+  });
+
+  it('detects YOUR_KEY placeholder (from local.settings.json.example)', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('detects your_account_key placeholder (from .env.example) case-insensitively', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=your_account_key;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('detects angle-bracket AccountKey placeholder', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=<your-storage-key>;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('detects angle-bracket AccountName placeholder', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=<account-name>;AccountKey=somevalidlongkeyvalue1234567890123456789012345678;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('detects YOUR_ prefix in AccountName', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=YOUR_ACCOUNT;AccountKey=somevalidlongkeyvalue1234567890123456789012345678;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('detects suspiciously short AccountKey (< 20 chars)', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=shortkey;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(true);
+  });
+
+  it('accepts AccountKey that is exactly 20 chars (minimum non-placeholder threshold)', () => {
+    expect(
+      isPlaceholderConnectionString(
+        'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=12345678901234567890;EndpointSuffix=core.windows.net',
+      ),
+    ).toBe(false);
+  });
 });
 
 // ─── resolveStorageConnectionString ──────────────────────────────────────
 
 describe('resolveStorageConnectionString()', () => {
-  it('returns connection string when AZURE_STORAGE_CONNECTION_STRING is set', () => {
-    const conn = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
-    process.env.AZURE_STORAGE_CONNECTION_STRING = conn;
-    expect(resolveStorageConnectionString()).toBe(conn);
+  it('returns connection string when AZURE_STORAGE_CONNECTION_STRING is a real value', () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING = REAL_CONN_STRING;
+    expect(resolveStorageConnectionString()).toBe(REAL_CONN_STRING);
+  });
+
+  it('returns null when AZURE_STORAGE_CONNECTION_STRING is the YOUR_KEY placeholder', () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING =
+      'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net';
+    expect(resolveStorageConnectionString()).toBeNull();
+  });
+
+  it('returns null when AZURE_STORAGE_CONNECTION_STRING is the your_account_key placeholder', () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING =
+      'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=your_account_key;EndpointSuffix=core.windows.net';
+    expect(resolveStorageConnectionString()).toBeNull();
   });
 
   it('synthesises a connection string from STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY when AZURE_STORAGE_CONNECTION_STRING is unset', () => {
     delete process.env.AZURE_STORAGE_CONNECTION_STRING;
     process.env.STORAGE_ACCOUNT_NAME = 'myaccount';
-    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'mykey123';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'avalidlongkeyvaluefortesting1234567890123456789012345678';
     const result = resolveStorageConnectionString();
     expect(result).toContain('AccountName=myaccount');
-    expect(result).toContain('AccountKey=mykey123');
+    expect(result).toContain('AccountKey=avalidlongkeyvaluefortesting1234567890123456789012345678');
     delete process.env.STORAGE_ACCOUNT_NAME;
     delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
   });
@@ -88,10 +168,20 @@ describe('resolveStorageConnectionString()', () => {
   it('synthesises a connection string from AZURE_STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY', () => {
     delete process.env.AZURE_STORAGE_CONNECTION_STRING;
     process.env.AZURE_STORAGE_ACCOUNT_NAME = 'myaccount2';
-    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'mykey456';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'avalidlongkeyvaluefortesting1234567890123456789012345678';
     const result = resolveStorageConnectionString();
     expect(result).toContain('AccountName=myaccount2');
+    expect(result).toContain('AccountKey=avalidlongkeyvaluefortesting1234567890123456789012345678');
     delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+  });
+
+  it('returns null when individual AZURE_STORAGE_ACCOUNT_KEY is a short placeholder', () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    process.env.STORAGE_ACCOUNT_NAME = 'myaccount';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'shortkey';
+    expect(resolveStorageConnectionString()).toBeNull();
+    delete process.env.STORAGE_ACCOUNT_NAME;
     delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
   });
 
