@@ -267,6 +267,10 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   // and redirects to LOGIN; after login the user returns to this page.
                   onNavigate(Page.POST_AD);
               }
+          } else if (err instanceof ApiError && err.status === 503) {
+              // Permanent server configuration error (e.g. AZURE_STORAGE_CONNECTION_STRING
+              // not set). Retrying will not help — instruct the user to contact support.
+              toastService.error('خطای پیکربندی سرور. لطفاً با پشتیبانی تماس بگیرید.');
           } else {
               toastService.error('خطا در آپلود عکس. لطفاً دوباره تلاش کنید.');
           }
