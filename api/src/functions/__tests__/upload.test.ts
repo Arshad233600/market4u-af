@@ -221,6 +221,51 @@ describe('upload() error handling', () => {
     expect(JSON.stringify(res.jsonBody)).not.toContain('AccountKey');
     expect(JSON.stringify(res.jsonBody)).not.toContain('secret123');
   });
+
+  it('returns 503 with STORAGE_UNAVAILABLE when uploadData throws a network error (ENOTFOUND)', async () => {
+    const networkErr = new Error('getaddrinfo ENOTFOUND myaccount.blob.core.windows.net');
+    mocks.mockUploadData.mockRejectedValueOnce(networkErr);
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_unavailable');
+    expect(body.category).toBe('STORAGE_UNAVAILABLE');
+    // Must not expose raw error message
+    expect(JSON.stringify(body)).not.toContain('ENOTFOUND');
+  });
+
+  it('returns 503 with STORAGE_UNAVAILABLE when uploadData throws an Azure 401 RestError', async () => {
+    const restErr = Object.assign(new Error('AuthenticationFailed: Server failed to authenticate the request.'), { statusCode: 401 });
+    mocks.mockUploadData.mockRejectedValueOnce(restErr);
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_unavailable');
+    expect(body.category).toBe('STORAGE_UNAVAILABLE');
+    expect(JSON.stringify(body)).not.toContain('AuthenticationFailed');
+    expect(JSON.stringify(body)).not.toContain('authenticate');
+  });
+
+  it('returns 503 with STORAGE_UNAVAILABLE when uploadData throws an Azure 403 RestError', async () => {
+    const restErr = Object.assign(new Error('AuthorizationFailure: This request is not authorized.'), { statusCode: 403 });
+    mocks.mockUploadData.mockRejectedValueOnce(restErr);
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
+    const res = await upload(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_unavailable');
+    expect(body.category).toBe('STORAGE_UNAVAILABLE');
+    expect(JSON.stringify(body)).not.toContain('AuthorizationFailure');
+    expect(JSON.stringify(body)).not.toContain('authorized');
+  });
 });
 
 // ─── storage configuration guard ──────────────────────────────────────────

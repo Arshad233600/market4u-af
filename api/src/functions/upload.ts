@@ -3,6 +3,46 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { getOrCreateBlobContainerClient } from "../blob";
 import { validateToken, authResponse } from "../utils/authUtils";
 
+/**
+ * Classifies a caught error from the blob storage upload path.
+ *
+ * - STORAGE_UNAVAILABLE (503): Azure authentication failure, network unreachable,
+ *   or the storage service returned a 5xx — a transient or credential problem that
+ *   the user cannot resolve by retrying.
+ * - UNEXPECTED (500): anything else — a real code bug or unknown condition.
+ *
+ * The connection-string-missing case is caught earlier (before this function is
+ * reached) and returns 503 with reason='storage_not_configured'.
+ */
+function classifyBlobError(err: unknown): { status: number; reason: string; category: string } {
+  const msg = err instanceof Error ? err.message : String(err);
+
+  // Network / DNS errors: storage account unreachable
+  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network.*error|getaddrinfo/i.test(msg)) {
+    return { status: 503, reason: 'storage_unavailable', category: 'STORAGE_UNAVAILABLE' };
+  }
+
+  // Azure SDK RestError: check statusCode property for auth / service failures
+  const restErr = err as { statusCode?: number; code?: string };
+  if (typeof restErr.statusCode === 'number') {
+    if (restErr.statusCode === 401 || restErr.statusCode === 403) {
+      return { status: 503, reason: 'storage_unavailable', category: 'STORAGE_UNAVAILABLE' };
+    }
+    if (restErr.statusCode === 503) {
+      return { status: 503, reason: 'storage_unavailable', category: 'STORAGE_UNAVAILABLE' };
+    }
+  }
+
+  // Azure error codes that indicate authentication / authorisation failure
+  if (
+    /AuthenticationFailed|AuthorizationFailure|AccountIsDisabled|InvalidAuthenticationInfo/i.test(msg)
+  ) {
+    return { status: 503, reason: 'storage_unavailable', category: 'STORAGE_UNAVAILABLE' };
+  }
+
+  return { status: 500, reason: 'unexpected', category: 'UNEXPECTED' };
+}
+
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -85,6 +125,20 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
             }
         };
     } catch (e: unknown) {
+        const { status, reason, category } = classifyBlobError(e);
+        if (status === 503) {
+            // Log only the sanitized reason/category — never the raw error message
+            // which could contain credentials (e.g. account key fragments from the SDK).
+            context.warn(`[upload] storage_error reason=${reason} category=${category}`);
+            return {
+                status: 503,
+                jsonBody: {
+                    error: 'Service unavailable',
+                    reason,
+                    category,
+                },
+            };
+        }
         context.error("Upload Error:", e);
         return { status: 500, jsonBody: { error: "Internal server error" } };
     }
