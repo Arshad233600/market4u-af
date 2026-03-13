@@ -42,3 +42,21 @@ if (isAuthSecretInsecure) {
     console.error('[STARTUP] getSecretDiagnostics failed:', (err as Error).message);
   }
 }
+
+// Startup sanity check: AZURE_STORAGE_CONNECTION_STRING must be set for image uploads.
+// When missing, POST /api/upload returns 503 (storage_not_configured) for every request.
+// Fix: add AZURE_STORAGE_CONNECTION_STRING in Azure Static Web App →
+//      Configuration → Application settings, then redeploy.
+if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
+  console.error(
+    '[STARTUP] AZURE_STORAGE_CONNECTION_STRING is not configured. ' +
+    'Image uploads will return 503 (storage_not_configured) until this is fixed. ' +
+    'Add this setting in Azure Static Web App → Configuration → Application settings.'
+  );
+} else {
+  const container =
+    process.env.AZURE_STORAGE_CONTAINER ||
+    process.env.STORAGE_CONTAINER_NAME ||
+    'product-images (default)';
+  console.log(`[STARTUP] AZURE_STORAGE_CONNECTION_STRING configured container=${container}`);
+}

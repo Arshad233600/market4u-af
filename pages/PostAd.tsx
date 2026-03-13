@@ -268,9 +268,15 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   onNavigate(Page.POST_AD);
               }
           } else if (err instanceof ApiError && err.status === 503) {
-              // Permanent server configuration error (e.g. AZURE_STORAGE_CONNECTION_STRING
-              // not set). Retrying will not help — instruct the user to contact support.
-              toastService.error('خطای پیکربندی سرور. لطفاً با پشتیبانی تماس بگیرید.');
+              // Server configuration error — distinguish between "not configured" and "unavailable".
+              // STORAGE_NOT_CONFIGURED: AZURE_STORAGE_CONNECTION_STRING is missing in Azure settings.
+              // STORAGE_UNAVAILABLE: connection string is set but the storage service is unreachable.
+              // In both cases retrying will not help — instruct the user to contact support.
+              if (err.category === 'STORAGE_UNAVAILABLE') {
+                  toastService.error('سرویس ذخیره‌سازی تصویر در دسترس نیست. لطفاً دقایقی دیگر دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+              } else {
+                  toastService.error('آپلود تصویر پیکربندی نشده است. لطفاً با پشتیبانی تماس بگیرید.');
+              }
           } else {
               toastService.error('خطا در آپلود عکس. لطفاً دوباره تلاش کنید.');
           }
