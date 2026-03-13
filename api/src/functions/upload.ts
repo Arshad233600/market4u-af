@@ -88,7 +88,7 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         // Container name falls back to "ads-images" when neither
         // AZURE_STORAGE_CONTAINER nor STORAGE_CONTAINER_NAME is set.
         if (!resolveStorageConnectionString()) {
-            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY) is not set');
+            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY) is not set or contains a placeholder value');
             return {
                 status: 503,
                 jsonBody: {
