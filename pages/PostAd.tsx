@@ -357,14 +357,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
       };
 
       try {
-          // Limit unverified users to 5 ads — inside try so AuthError is caught below.
+          // Monthly ad limit: regular (non-admin) users may post at most 5 ads per calendar month.
           if (!existingAd) {
               const currentUser = authService.getCurrentUser();
-              if (currentUser && !currentUser.isVerified) {
+              if (currentUser && currentUser.role !== 'ADMIN') {
                   const myAds = await azureService.getMyAds();
-                  if (myAds.length >= 5) {
-                      toastService.warning('شما به حداکثر ۵ آگهی رسیده‌اید. برای ثبت آگهی بیشتر، لطفاً احراز هویت کنید.');
-                      onNavigate(Page.DASHBOARD_SETTINGS);
+                  const now = new Date();
+                  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                  const monthlyAds = myAds.filter((ad) => new Date(ad.postedDate) >= startOfMonth);
+                  if (monthlyAds.length >= 5) {
+                      toastService.warning('شما به حداکثر ۵ آگهی در ماه رسیده‌اید.');
                       return;
                   }
               }

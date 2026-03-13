@@ -344,6 +344,28 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
       }
     }
 
+    // Monthly limit: regular (non-admin) users may post at most 5 ads per calendar month.
+    // Fetch user role and current-month ad count in a single round-trip.
+    const monthlyInfo = await pool
+      .request()
+      .input("UserId", sql.NVarChar, userId)
+      .query(`
+        SELECT u.Role,
+          (SELECT COUNT(*) FROM Ads
+           WHERE UserId = @UserId
+             AND IsDeleted = 0
+             AND CreatedAt >= DATEADD(month, DATEDIFF(month, 0, GETUTCDATE()), 0)) AS MonthlyAdCount
+        FROM Users u WHERE u.Id = @UserId
+      `);
+    if (monthlyInfo.recordset.length > 0) {
+      const { Role, MonthlyAdCount } = monthlyInfo.recordset[0] as { Role: string; MonthlyAdCount: number };
+      if (Role !== "ADMIN" && MonthlyAdCount >= 5) {
+        context.warn(`[postAd] monthly_limit userId=${userId} MonthlyAdCount=${MonthlyAdCount} requestId=${requestId}`);
+        return { status: 429, jsonBody: { error: "شما به حداکثر ۵ آگهی در ماه رسیده‌اید.", category: "MONTHLY_LIMIT", requestId } };
+      }
+    }
+    lastStep = "monthly_limit_ok";
+
     // Parse the request body separately so that a malformed / missing JSON body
     // returns HTTP 400 (VALIDATION) instead of falling through to the generic
     // HTTP 500 catch block and misleading both the caller and the logs.
@@ -364,6 +386,10 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
 
     if (!title || price === undefined || price === null) {
       return { status: 400, jsonBody: { error: "Missing required fields", required: ["title", "price"], category: "VALIDATION", reason: "missing_title_or_price", requestId } };
+    }
+    // Image count limit: each ad may have at most 4 images.
+    if (Array.isArray(imageUrls) && imageUrls.length > 4) {
+      return { status: 400, jsonBody: { error: "هر آگهی می‌تواند حداکثر ۴ عکس داشته باشد.", category: "VALIDATION", reason: "too_many_images", requestId } };
     }
     lastStep = "auth_ok";
     context.log(`[postAd] auth_ok requestId=${requestId} authenticated=${auth.isAuthenticated}`);
@@ -479,6 +505,11 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
   try {
     const body = (await request.json()) as AdRequestBody;
     const { title, price, location, category, subCategory, description, imageUrls, condition, isNegotiable, deliveryAvailable, dynamicFields } = body;
+
+    // Image count limit: each ad may have at most 4 images.
+    if (Array.isArray(imageUrls) && imageUrls.length > 4) {
+      return { status: 400, jsonBody: { error: "هر آگهی می‌تواند حداکثر ۴ عکس داشته باشد.", category: "VALIDATION", reason: "too_many_images" } };
+    }
 
     const pool = await getPool();
 
