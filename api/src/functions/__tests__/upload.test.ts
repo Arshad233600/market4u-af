@@ -20,6 +20,18 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('../../blob', () => ({
   getOrCreateBlobContainerClient: vi.fn().mockResolvedValue(mocks.mockContainerClient),
+  resolveStorageConnectionString: vi.fn().mockImplementation(() => {
+    // Mirror the real logic: return the connection string if set, or synthesise one
+    // from individual credential env vars (STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY).
+    const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    if (connStr) return connStr;
+    const accountName = process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+    if (accountName && accountKey) {
+      return `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`;
+    }
+    return null;
+  }),
 }));
 
 vi.mock('../../utils/authUtils', () => ({
@@ -274,6 +286,9 @@ describe('upload() storage_not_configured', () => {
   const originalConnString = process.env.AZURE_STORAGE_CONNECTION_STRING;
   const originalContainer = process.env.AZURE_STORAGE_CONTAINER;
   const originalContainerName = process.env.STORAGE_CONTAINER_NAME;
+  const originalAccountName = process.env.STORAGE_ACCOUNT_NAME;
+  const originalAzureAccountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
+  const originalAccountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 
   afterEach(() => {
     // Restore env vars after each test in this suite
@@ -292,10 +307,28 @@ describe('upload() storage_not_configured', () => {
     } else {
       delete process.env.STORAGE_CONTAINER_NAME;
     }
+    if (originalAccountName !== undefined) {
+      process.env.STORAGE_ACCOUNT_NAME = originalAccountName;
+    } else {
+      delete process.env.STORAGE_ACCOUNT_NAME;
+    }
+    if (originalAzureAccountName !== undefined) {
+      process.env.AZURE_STORAGE_ACCOUNT_NAME = originalAzureAccountName;
+    } else {
+      delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    }
+    if (originalAccountKey !== undefined) {
+      process.env.AZURE_STORAGE_ACCOUNT_KEY = originalAccountKey;
+    } else {
+      delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+    }
   });
 
-  it('returns 503 with storage_not_configured when AZURE_STORAGE_CONNECTION_STRING is not set', async () => {
+  it('returns 503 with storage_not_configured when AZURE_STORAGE_CONNECTION_STRING is not set and no individual credentials are set', async () => {
     delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
 
     const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
     const res = await upload(req, makeContext());
@@ -306,7 +339,7 @@ describe('upload() storage_not_configured', () => {
     expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
   });
 
-  it('returns 200 and uses default container "product-images" when container name env vars are both unset', async () => {
+  it('returns 200 and uses default container "ads-images" when container name env vars are both unset', async () => {
     process.env.AZURE_STORAGE_CONNECTION_STRING = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
     delete process.env.AZURE_STORAGE_CONTAINER;
     delete process.env.STORAGE_CONTAINER_NAME;
@@ -314,7 +347,7 @@ describe('upload() storage_not_configured', () => {
     const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
     const res = await upload(req, makeContext());
 
-    // Container name falls back to the "product-images" default; upload should succeed.
+    // Container name falls back to the "ads-images" default; upload should succeed.
     expect(res.status).toBe(200);
     const body = res.jsonBody as Record<string, unknown>;
     expect(body.ok).toBe(true);

@@ -1,6 +1,6 @@
 
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
-import { getOrCreateBlobContainerClient } from "../blob";
+import { getOrCreateBlobContainerClient, resolveStorageConnectionString } from "../blob";
 import { validateToken, authResponse } from "../utils/authUtils";
 
 /**
@@ -80,13 +80,15 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
             return { status: 413, jsonBody: { error: "File too large. Maximum size is 10 MB" } };
         }
 
-        // Guard: fail fast with 503 (not 500) when blob storage connection string
-        // is not configured, so the client can distinguish a permanent server
-        // configuration error from a transient internal error and avoid pointless
-        // retries. Container name falls back to "product-images" when neither
+        // Guard: fail fast with 503 (not 500) when blob storage credentials are not
+        // configured, so the client can distinguish a permanent server configuration
+        // error from a transient internal error and avoid pointless retries.
+        // Accepts either AZURE_STORAGE_CONNECTION_STRING (full connection string) or
+        // STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY (individual credentials).
+        // Container name falls back to "ads-images" when neither
         // AZURE_STORAGE_CONTAINER nor STORAGE_CONTAINER_NAME is set.
-        if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
-            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING is not set');
+        if (!resolveStorageConnectionString()) {
+            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY) is not set');
             return {
                 status: 503,
                 jsonBody: {
@@ -98,7 +100,7 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         }
 
         if (!process.env.AZURE_STORAGE_CONTAINER && !process.env.STORAGE_CONTAINER_NAME) {
-            context.warn('[upload] container_name_not_configured: using default container "product-images"');
+            context.warn('[upload] container_name_not_configured: using default container "ads-images"');
         }
 
         const containerClient = await getOrCreateBlobContainerClient();

@@ -99,7 +99,12 @@ export async function diagnostics(
   // Also check aliased names
   const sqlConnAvailable =
     !!process.env.SqlConnectionString || !!process.env.AZURE_SQL_CONNECTION_STRING;
-  const storageConnAvailable = !!process.env.AZURE_STORAGE_CONNECTION_STRING;
+  const storageConnAvailable =
+    !!process.env.AZURE_STORAGE_CONNECTION_STRING ||
+    !!(
+      (process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME) &&
+      process.env.AZURE_STORAGE_ACCOUNT_KEY
+    );
   const storageContainerAvailable =
     !!process.env.AZURE_STORAGE_CONTAINER || !!process.env.STORAGE_CONTAINER_NAME;
   // authSecretAvailable: true only when AUTH_SECRET is set AND is not a known placeholder.
@@ -136,7 +141,7 @@ export async function diagnostics(
     issues.push({
       phase: "Phase 1",
       issue: "Storage connection string missing",
-      evidence: "AZURE_STORAGE_CONNECTION_STRING is not set",
+      evidence: "AZURE_STORAGE_CONNECTION_STRING is not set and STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY are not both set",
       rootCause: "Azure Application Setting not configured",
       severity: "High",
       fix: "Add AZURE_STORAGE_CONNECTION_STRING in Azure Application settings",
@@ -150,7 +155,7 @@ export async function diagnostics(
       evidence: "AZURE_STORAGE_CONTAINER and STORAGE_CONTAINER_NAME are both unset",
       rootCause: "Azure Application Setting not configured",
       severity: "High",
-      fix: "Add AZURE_STORAGE_CONTAINER=product-images in Azure Application settings",
+      fix: "Add AZURE_STORAGE_CONTAINER=ads-images in Azure Application settings",
     });
   }
 
@@ -335,7 +340,7 @@ export async function diagnostics(
           severity: "High",
           fix:
             "Create the container in Azure Portal → Storage Account → Containers, " +
-            "or run: az storage container create --name product-images",
+            "or run: az storage container create --name ads-images",
         });
       } else {
         // Check that the container has blob-level public read access so that

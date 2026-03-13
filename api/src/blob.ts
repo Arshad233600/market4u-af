@@ -1,19 +1,44 @@
 import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
 
 /**
+ * Resolves an Azure Storage connection string from env vars.
+ *
+ * Priority order:
+ *  1. AZURE_STORAGE_CONNECTION_STRING  (full connection string — preferred)
+ *  2. STORAGE_ACCOUNT_NAME (or AZURE_STORAGE_ACCOUNT_NAME) + AZURE_STORAGE_ACCOUNT_KEY
+ *     — synthesised into a connection string so the service works even when only
+ *       the individual credential env vars are configured in Azure.
+ *
+ * Returns null when no usable credentials are found.
+ */
+export function resolveStorageConnectionString(): string | null {
+  const connStr = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (connStr) return connStr;
+
+  const accountName =
+    process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
+  const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
+  if (accountName && accountKey) {
+    return `DefaultEndpointsProtocol=https;AccountName=${accountName};AccountKey=${accountKey};EndpointSuffix=core.windows.net`;
+  }
+
+  return null;
+}
+
+/**
  * Returns a ContainerClient configured from env vars.
  * NOTE: does NOT create the container.
  */
 export function getBlobContainerClient(): ContainerClient {
-  const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  const conn = resolveStorageConnectionString();
 
-  // Prefer AZURE_STORAGE_CONTAINER, fallback to STORAGE_CONTAINER_NAME, then "product-images"
+  // Prefer AZURE_STORAGE_CONTAINER, fallback to STORAGE_CONTAINER_NAME, then "ads-images"
   const container =
     process.env.AZURE_STORAGE_CONTAINER ||
     process.env.STORAGE_CONTAINER_NAME ||
-    "product-images";
+    "ads-images";
 
-  if (!conn) throw new Error("Missing AZURE_STORAGE_CONNECTION_STRING");
+  if (!conn) throw new Error("Missing AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY)");
 
   const service = BlobServiceClient.fromConnectionString(conn);
   return service.getContainerClient(container);
