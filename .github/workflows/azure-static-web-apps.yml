@@ -134,7 +134,7 @@ jobs:
 
           if [ -z "$STORAGE_CONTAINER" ]; then
             echo "::warning::AZURE_STORAGE_CONTAINER is not set in GitHub Secrets."
-            echo "::warning::The upload API will fall back to the default container name 'product-images'."
+            echo "::warning::The upload API will fall back to the default container name 'ads-images'."
             echo "::warning::To use a different container, add AZURE_STORAGE_CONTAINER to GitHub Secrets (Settings→Secrets→Actions)."
           else
             echo "AZURE_STORAGE_CONTAINER is configured. OK."

@@ -13,7 +13,7 @@
     "_note_AUTH_SECRET": "IMPORTANT: Replace with a real random secret before deploying. Generate one with: openssl rand -hex 32",
 
     "AZURE_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net",
-    "AZURE_STORAGE_CONTAINER": "product-images",
+    "AZURE_STORAGE_CONTAINER": "ads-images",
 
     "GEMINI_API_KEY": "",
 

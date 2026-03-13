@@ -43,20 +43,25 @@ if (isAuthSecretInsecure) {
   }
 }
 
-// Startup sanity check: AZURE_STORAGE_CONNECTION_STRING must be set for image uploads.
+// Startup sanity check: Azure Storage credentials must be set for image uploads.
 // When missing, POST /api/upload returns 503 (storage_not_configured) for every request.
-// Fix: add AZURE_STORAGE_CONNECTION_STRING in Azure Static Web App →
+// Accepted credential forms:
+//   1. AZURE_STORAGE_CONNECTION_STRING  (full connection string — preferred)
+//   2. STORAGE_ACCOUNT_NAME (or AZURE_STORAGE_ACCOUNT_NAME) + AZURE_STORAGE_ACCOUNT_KEY
+// Fix: add one of the above in Azure Static Web App →
 //      Configuration → Application settings, then redeploy.
-if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
+import { resolveStorageConnectionString } from "./blob";
+if (!resolveStorageConnectionString()) {
   console.error(
-    '[STARTUP] AZURE_STORAGE_CONNECTION_STRING is not configured. ' +
+    '[STARTUP] Azure Storage credentials are not configured. ' +
     'Image uploads will return 503 (storage_not_configured) until this is fixed. ' +
-    'Add this setting in Azure Static Web App → Configuration → Application settings.'
+    'Set AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY) ' +
+    'in Azure Static Web App → Configuration → Application settings.'
   );
 } else {
   const container =
     process.env.AZURE_STORAGE_CONTAINER ||
     process.env.STORAGE_CONTAINER_NAME ||
-    'product-images (default)';
-  console.log(`[STARTUP] AZURE_STORAGE_CONNECTION_STRING configured container=${container}`);
+    'ads-images (default)';
+  console.log(`[STARTUP] Azure Storage credentials configured container=${container}`);
 }

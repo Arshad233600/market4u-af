@@ -27,7 +27,7 @@ function resolveStorageCredentials(): { accountName: string; accountKey: string;
 
     if (!accountName || !accountKey) return null;
 
-    const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "product-images";
+    const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "ads-images";
     return { accountName, accountKey, containerName };
 }
 

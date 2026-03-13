@@ -46,6 +46,7 @@ vi.mock('@azure/storage-blob', () => ({
 
 let getOrCreateBlobContainerClient: typeof import('../blob').getOrCreateBlobContainerClient;
 let getBlobContainerClient: typeof import('../blob').getBlobContainerClient;
+let resolveStorageConnectionString: typeof import('../blob').resolveStorageConnectionString;
 
 beforeEach(async () => {
   mocks.mockCreateIfNotExists.mockReset();
@@ -61,13 +62,56 @@ beforeEach(async () => {
   const mod = await import('../blob');
   getOrCreateBlobContainerClient = mod.getOrCreateBlobContainerClient;
   getBlobContainerClient = mod.getBlobContainerClient;
+  resolveStorageConnectionString = mod.resolveStorageConnectionString;
+});
+
+// ─── resolveStorageConnectionString ──────────────────────────────────────
+
+describe('resolveStorageConnectionString()', () => {
+  it('returns connection string when AZURE_STORAGE_CONNECTION_STRING is set', () => {
+    const conn = 'DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net';
+    process.env.AZURE_STORAGE_CONNECTION_STRING = conn;
+    expect(resolveStorageConnectionString()).toBe(conn);
+  });
+
+  it('synthesises a connection string from STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY when AZURE_STORAGE_CONNECTION_STRING is unset', () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    process.env.STORAGE_ACCOUNT_NAME = 'myaccount';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'mykey123';
+    const result = resolveStorageConnectionString();
+    expect(result).toContain('AccountName=myaccount');
+    expect(result).toContain('AccountKey=mykey123');
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+  });
+
+  it('synthesises a connection string from AZURE_STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY', () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    process.env.AZURE_STORAGE_ACCOUNT_NAME = 'myaccount2';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'mykey456';
+    const result = resolveStorageConnectionString();
+    expect(result).toContain('AccountName=myaccount2');
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+  });
+
+  it('returns null when no credentials are configured', () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+    expect(resolveStorageConnectionString()).toBeNull();
+  });
 });
 
 // ─── getBlobContainerClient ───────────────────────────────────────────────
 
 describe('getBlobContainerClient()', () => {
-  it('throws when AZURE_STORAGE_CONNECTION_STRING is missing', () => {
+  it('throws when no storage credentials are configured', () => {
     delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
     expect(() => getBlobContainerClient()).toThrow(
       'Missing AZURE_STORAGE_CONNECTION_STRING',
     );
@@ -87,11 +131,11 @@ describe('getBlobContainerClient()', () => {
     delete process.env.STORAGE_CONTAINER_NAME;
   });
 
-  it('falls back to "product-images" when both container env vars are unset', () => {
+  it('falls back to "ads-images" when both container env vars are unset', () => {
     delete process.env.AZURE_STORAGE_CONTAINER;
     delete process.env.STORAGE_CONTAINER_NAME;
     getBlobContainerClient();
-    expect(mocks.mockGetContainerClient).toHaveBeenCalledWith('product-images');
+    expect(mocks.mockGetContainerClient).toHaveBeenCalledWith('ads-images');
   });
 });
 
