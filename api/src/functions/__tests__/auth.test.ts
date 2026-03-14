@@ -7,6 +7,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as sql from 'mssql';
+import jwt from 'jsonwebtoken';
 
 // ─── hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -134,6 +135,7 @@ function makeUserRecord(overrides: Partial<{
 // Deferred import so mocks are in place before the module is first evaluated
 let login: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
 let register: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
+let refreshTokenHandler: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
 
 beforeEach(async () => {
   // mockReset clears call history AND the once-queue to prevent mock state leaking.
@@ -167,6 +169,7 @@ beforeEach(async () => {
   const mod = await import('../auth');
   login = mod.login;
   register = mod.register;
+  refreshTokenHandler = mod.refreshTokenHandler;
 });
 
 // ─── login ────────────────────────────────────────────────────────────────
@@ -763,5 +766,146 @@ describe('register() Users schema auto-migration', () => {
       ['IsDeleted'],
       expect.any(Function)
     );
+  });
+});
+
+// ─── refreshTokenHandler ──────────────────────────────────────────────────
+
+/**
+ * The mocked AUTH_SECRET used to sign/verify test tokens.
+ * Must match the value returned by the mocked getAuthSecretStrict().
+ */
+const TEST_AUTH_SECRET = 'test-auth-secret-value-that-is-at-least-32-chars-long';
+
+/** Signs a test JWT with the test secret and optional custom payload/options. */
+function signTestToken(payload: Record<string, unknown> = { uid: 'u_test_123' }, options: jwt.SignOptions = {}): string {
+  return jwt.sign(payload, TEST_AUTH_SECRET, { algorithm: 'HS256', expiresIn: '7d', ...options });
+}
+
+describe('refreshTokenHandler()', () => {
+  it('returns 401 when Authorization header is missing', async () => {
+    const req = makeRequest({ headers: {} });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('missing_token');
+  });
+
+  it('returns 401 when Authorization header does not start with Bearer', async () => {
+    const req = makeRequest({ headers: { authorization: 'Basic sometoken' } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('missing_token');
+  });
+
+  it('returns 401 when Bearer token is empty', async () => {
+    const req = makeRequest({ headers: { authorization: 'Bearer ' } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('missing_token');
+  });
+
+  it('returns 503 when AUTH_SECRET is insecure', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = true;
+
+    const token = signTestToken();
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('insecure_default_secret');
+  });
+
+  it('returns 401 when token has an invalid signature (wrong secret)', async () => {
+    const badToken = jwt.sign({ uid: 'u_test_123' }, 'a-completely-different-secret-that-is-long-enough', {
+      algorithm: 'HS256',
+      expiresIn: '7d',
+    });
+    const req = makeRequest({ headers: { authorization: `Bearer ${badToken}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('invalid_token');
+  });
+
+  it('returns 401 when token is malformed (not a valid JWT)', async () => {
+    const req = makeRequest({ headers: { authorization: 'Bearer notavalidjwt' } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('invalid_token');
+  });
+
+  it('returns 401 when token is missing the uid claim', async () => {
+    const tokenWithoutUid = jwt.sign({ sub: 'someuser' }, TEST_AUTH_SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '7d',
+    });
+    const req = makeRequest({ headers: { authorization: `Bearer ${tokenWithoutUid}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('invalid_token');
+  });
+
+  it('returns 200 and a new token for a valid, non-expired token', async () => {
+    const token = signTestToken({ uid: 'u_test_123' });
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(200);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.success).toBe(true);
+    const data = body.data as Record<string, unknown>;
+    expect(typeof data?.token).toBe('string');
+    expect((data.token as string).split('.').length).toBe(3);
+  });
+
+  it('returns 200 and a new token for a recently-expired token (within grace window)', async () => {
+    // Issue a token that expired 1 hour ago but is well within the 30-day grace window
+    const issuedAt = Math.floor(Date.now() / 1000) - 8 * 24 * 60 * 60; // 8 days ago
+    const expiredToken = jwt.sign(
+      { uid: 'u_grace_user', iat: issuedAt, exp: issuedAt + 7 * 24 * 60 * 60 }, // expired 1 day ago
+      TEST_AUTH_SECRET,
+      { algorithm: 'HS256' }
+    );
+    const req = makeRequest({ headers: { authorization: `Bearer ${expiredToken}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(200);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.success).toBe(true);
+    const data = body.data as Record<string, unknown>;
+    expect(typeof data?.token).toBe('string');
+  });
+
+  it('returns 401 with token_too_old when token is older than 37 days', async () => {
+    // Issue a token 38 days ago (beyond TOKEN_EXPIRATION_MS + TOKEN_REFRESH_GRACE_MS = 37 days)
+    const issuedAt = Math.floor(Date.now() / 1000) - 38 * 24 * 60 * 60;
+    const oldToken = jwt.sign(
+      { uid: 'u_old_user', iat: issuedAt, exp: issuedAt + 7 * 24 * 60 * 60 },
+      TEST_AUTH_SECRET,
+      { algorithm: 'HS256' }
+    );
+    const req = makeRequest({ headers: { authorization: `Bearer ${oldToken}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('token_too_old');
+  });
+
+  it('returns a new token with uid claim matching the original', async () => {
+    const userId = 'u_specific_user';
+    const token = signTestToken({ uid: userId });
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(200);
+    const body = res.jsonBody as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    const newToken = data.token as string;
+    // Decode the new token and verify the uid is preserved
+    const decoded = jwt.decode(newToken) as Record<string, unknown>;
+    expect(decoded.uid).toBe(userId);
   });
 });
