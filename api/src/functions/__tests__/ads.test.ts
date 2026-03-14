@@ -29,7 +29,7 @@ vi.mock('applicationinsights', () => ({
 
 vi.mock('../../db', () => ({
   getPool: vi.fn().mockResolvedValue(mocks.mockPool),
-  resetPool: vi.fn(),
+  resetPool: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../utils/authUtils', () => ({
@@ -169,11 +169,28 @@ describe('getAds()', () => {
     expect(res.status).toBe(200);
   });
 
-  it('returns 500 on database error', async () => {
+  it('returns 500 on unexpected database error', async () => {
     mocks.mockQuery.mockRejectedValueOnce(new Error('DB connection refused'));
     const req = makeRequest({});
     const res = await getAds(req, makeContext());
     expect(res.status).toBe(500);
+  });
+
+  it('returns 503 when database is unavailable (ConnectionError)', async () => {
+    const { ConnectionError } = await import('mssql');
+    mocks.mockQuery.mockRejectedValueOnce(new ConnectionError('ECONNREFUSED'));
+    const req = makeRequest({});
+    const res = await getAds(req, makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('DB_UNAVAILABLE');
+  });
+
+  it('returns 503 when database is not configured', async () => {
+    mocks.mockQuery.mockRejectedValueOnce(new Error('Database not configured. Set SqlConnectionString'));
+    const req = makeRequest({});
+    const res = await getAds(req, makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('DB_NOT_CONFIGURED');
   });
 });
 
@@ -205,6 +222,17 @@ describe('getAdDetail()', () => {
     const res = await getAdDetail(req, makeContext());
     expect(res.status).toBe(200);
     expect((res.jsonBody as Record<string, unknown>)?.Id).toBe('ad_1');
+  });
+
+  it('returns 503 when database is unavailable (ConnectionError)', async () => {
+    const { ConnectionError } = await import('mssql');
+    // First call: views update (caught silently); second call: SELECT ad (throws → 503)
+    mocks.mockQuery.mockResolvedValueOnce({ recordset: [], rowsAffected: [0] }); // views update
+    mocks.mockQuery.mockRejectedValueOnce(new ConnectionError('ECONNREFUSED')); // SELECT ad
+    const req = makeRequest({ params: { id: 'ad_1' } });
+    const res = await getAdDetail(req, makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('DB_UNAVAILABLE');
   });
 });
 
@@ -369,6 +397,15 @@ describe('updateAd()', () => {
     const res = await updateAd(req, makeContext());
     expect(res.status).toBe(400);
   });
+
+  it('returns 503 when database is unavailable (ConnectionError)', async () => {
+    const { ConnectionError } = await import('mssql');
+    mocks.mockQuery.mockRejectedValueOnce(new ConnectionError('ECONNREFUSED'));
+    const req = makeRequest({ params: { id: 'ad_1' }, body: { title: 'Updated', price: 100 } });
+    const res = await updateAd(req, makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('DB_UNAVAILABLE');
+  });
 });
 
 // ─── deleteAd ─────────────────────────────────────────────────────────────
@@ -398,5 +435,14 @@ describe('deleteAd()', () => {
     const req = makeRequest({ params: { id: 'ad_1' } });
     const res = await deleteAd(req, makeContext());
     expect(res.status).toBe(200);
+  });
+
+  it('returns 503 when database is unavailable (ConnectionError)', async () => {
+    const { ConnectionError } = await import('mssql');
+    mocks.mockQuery.mockRejectedValueOnce(new ConnectionError('ECONNREFUSED'));
+    const req = makeRequest({ params: { id: 'ad_1' } });
+    const res = await deleteAd(req, makeContext());
+    expect(res.status).toBe(503);
+    expect((res.jsonBody as Record<string, unknown>)?.category).toBe('DB_UNAVAILABLE');
   });
 });

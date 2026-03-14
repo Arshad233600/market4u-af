@@ -113,7 +113,7 @@ export async function getAds(request: HttpRequest, context: InvocationContext): 
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getAds SQL Error", err);
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
@@ -131,7 +131,7 @@ export async function getSellerAds(request: HttpRequest, context: InvocationCont
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getSellerAds Error", err);
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
@@ -187,7 +187,7 @@ export async function getAdDetail(request: HttpRequest, context: InvocationConte
     return { status: 200, jsonBody: ad };
   } catch (err: unknown) {
     context.error("getAdDetail Error", err);
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
@@ -209,18 +209,7 @@ export async function getMyAds(request: HttpRequest, context: InvocationContext)
     return { status: 200, jsonBody: result.recordset };
   } catch (err: unknown) {
     context.error("getMyAds Error", err);
-    const { status, category } = classifyPostAdError(err);
-    if (status === 503) {
-      // For transient DB errors, reset the pool so the next request gets a fresh
-      // connection. For permanent misconfiguration (DB_NOT_CONFIGURED) there is
-      // nothing to reset — poolPromise was never set — so skip the reset.
-      if (category !== "DB_NOT_CONFIGURED") {
-        resetPool().catch(() => {});
-      }
-      const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
-      return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
-    }
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
@@ -261,6 +250,26 @@ function classifyPostAdError(err: unknown): { status: number; category: string }
   }
 
   return { status: 500, category: "UNEXPECTED" };
+}
+
+/**
+ * Builds an HTTP error response for database errors, reusing the same logic
+ * across all endpoints.  Resets the connection pool for transient failures so
+ * the next request starts with a fresh pool.
+ */
+function dbErrorResponse(err: unknown): HttpResponseInit {
+  const { status, category } = classifyPostAdError(err);
+  if (status === 503) {
+    // For transient DB errors, reset the pool so the next request gets a fresh
+    // connection.  For permanent misconfiguration (DB_NOT_CONFIGURED) there is
+    // nothing to reset — poolPromise was never set — so skip the reset.
+    if (category !== "DB_NOT_CONFIGURED") {
+      resetPool().catch(() => {});
+    }
+    const reason = category === "DB_NOT_CONFIGURED" ? "db_not_configured" : "db_unavailable";
+    return { status: 503, jsonBody: { error: "سرویس موقتاً در دسترس نیست. لطفاً دوباره تلاش کنید.", category, reason } };
+  }
+  return { status: 500, jsonBody: { error: "Internal server error" } };
 }
 
 export async function postAd(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -592,7 +601,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
     }
   } catch (err: unknown) {
     context.error("updateAd Error", err);
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
@@ -625,7 +634,7 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
     return { status: 200, jsonBody: { success: true } };
   } catch (err: unknown) {
     context.error("deleteAd Error", err);
-    return { status: 500, jsonBody: { error: "Internal server error" } };
+    return dbErrorResponse(err);
   }
 }
 
