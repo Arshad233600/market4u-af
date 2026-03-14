@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
+import { generateUUID } from "../utils/uuidUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -167,7 +168,7 @@ export async function sendMessage(request: HttpRequest, context: InvocationConte
       return { status: 404, jsonBody: { error: "Recipient not found" } };
     }
 
-    const id = `msg_${Date.now()}`;
+    const id = generateUUID();
     await pool
       .request()
       .input("Id", sql.NVarChar, id)

@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import * as sql from "mssql";
 import { getPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
+import { generateUUID } from "../utils/uuidUtils";
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : "unknown";
@@ -70,7 +71,7 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
       return { status: 409, jsonBody: { error: "Already favorited" } };
     }
 
-    const id = `fav_${Date.now()}`;
+    const id = generateUUID();
     await pool
       .request()
       .input("Id", sql.NVarChar, id)

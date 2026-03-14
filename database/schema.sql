@@ -52,6 +52,9 @@ CREATE INDEX IX_Ads_UserId ON Ads(UserId);
 CREATE INDEX IX_Ads_Category ON Ads(Category);
 CREATE INDEX IX_Ads_Status ON Ads(Status);
 CREATE INDEX IX_Ads_CreatedAt ON Ads(CreatedAt DESC);
+-- Composite index covering the most common listing query:
+--   WHERE Status = 'ACTIVE' AND IsDeleted = 0 ORDER BY CreatedAt DESC
+CREATE INDEX IX_Ads_Status_IsDeleted_CreatedAt ON Ads(Status, IsDeleted, CreatedAt DESC);
 
 CREATE TABLE AdImages (
     Id NVARCHAR(100) PRIMARY KEY,
