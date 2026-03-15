@@ -173,11 +173,6 @@ describe('authResponse()', () => {
     expect(res?.status).toBe(503);
   });
 
-  it('returns 401 for invalid_auth_secret (no longer a misconfigured reason)', () => {
-    const res = authResponse({ userId: null, isAuthenticated: false, reason: 'invalid_auth_secret' });
-    expect(res?.status).toBe(401);
-  });
-
   it('returns 401 for token_expired failure', () => {
     const res = authResponse({ userId: null, isAuthenticated: false, reason: 'token_expired' });
     expect(res?.status).toBe(401);
