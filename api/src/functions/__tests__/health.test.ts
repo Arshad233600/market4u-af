@@ -215,7 +215,9 @@ describe('healthCheck() blobStorage detection', () => {
     process.env.AZURE_STORAGE_CONTAINER = 'test-container';
     const { healthCheck } = await import('../health');
     const res = await healthCheck(makeRequest(), makeContext());
+    expect(res.status).toBe(200);
     const body = res.jsonBody as Record<string, unknown>;
+    expect(body.success).toBe(true);
     const data = body.data as Record<string, unknown>;
     expect(data.blobStorage).toBe('ok');
   });
@@ -242,7 +244,9 @@ describe('healthCheck() blobStorage detection', () => {
     delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
     const { healthCheck } = await import('../health');
     const res = await healthCheck(makeRequest(), makeContext());
+    expect(res.status).toBe(503);
     const body = res.jsonBody as Record<string, unknown>;
+    expect(body.success).toBe(false);
     const data = body.data as Record<string, unknown>;
     expect(data.blobStorage).toBe('placeholder');
   });
