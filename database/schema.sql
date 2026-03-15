@@ -33,7 +33,7 @@ CREATE TABLE Ads (
     Location NVARCHAR(255),
     Latitude FLOAT,
     Longitude FLOAT,
-    MainImageUrl NVARCHAR(1000),
+    MainImageUrl NVARCHAR(MAX),
     Condition NVARCHAR(50) DEFAULT 'used',
     IsNegotiable BIT DEFAULT 0,
     DeliveryAvailable BIT DEFAULT 0,
@@ -56,7 +56,7 @@ CREATE INDEX IX_Ads_CreatedAt ON Ads(CreatedAt DESC);
 CREATE TABLE AdImages (
     Id NVARCHAR(100) PRIMARY KEY,
     AdId NVARCHAR(100) NOT NULL,
-    Url NVARCHAR(1000) NOT NULL,
+    Url NVARCHAR(MAX) NOT NULL,
     SortOrder INT DEFAULT 0,
     CreatedAt DATETIME2 DEFAULT GETUTCDATE(),
     FOREIGN KEY (AdId) REFERENCES Ads(Id) ON DELETE CASCADE

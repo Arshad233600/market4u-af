@@ -5,7 +5,7 @@ import { getPool, resetPool } from "../db";
 import { validateToken, authResponse } from "../utils/authUtils";
 import { resolveRequestId, generateUUID } from "../utils/uuidUtils";
 import { checkAdsSchema, applyMissingAdsColumns } from "../utils/schemaCheck";
-import { ensureAdImagesTable, ensureNotificationsTable } from "../utils/tableSchemaCheck";
+import { ensureAdImagesTable, ensureNotificationsTable, ensureImageUrlColumnsExpanded } from "../utils/tableSchemaCheck";
 
 /** Interface for database image record */
 interface ImageRecord {
@@ -335,6 +335,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
     // Ensure AdImages table exists (created at init but may be missing in
     // environments that were provisioned before the table was added).
     await ensureAdImagesTable();
+    await ensureImageUrlColumnsExpanded();
 
     // Rate limiting: max 1 ad per 60 seconds per authenticated user (DB-backed,
     // so only previously committed ads count — failed attempts never trigger it).
@@ -524,6 +525,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
 
     // Ensure AdImages table exists before the transaction touches it.
     await ensureAdImagesTable();
+    await ensureImageUrlColumnsExpanded();
 
     const transaction = new sql.Transaction(pool);
     await transaction.begin();

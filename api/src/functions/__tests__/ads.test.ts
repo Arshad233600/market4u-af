@@ -68,6 +68,7 @@ vi.mock('../../utils/tableSchemaCheck', () => ({
   ensureAdImagesTable: vi.fn().mockResolvedValue(undefined),
   ensureNotificationsTable: vi.fn().mockResolvedValue(undefined),
   ensureChatRequestsTable: vi.fn().mockResolvedValue(undefined),
+  ensureImageUrlColumnsExpanded: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ─── helpers ─────────────────────────────────────────────────────────────

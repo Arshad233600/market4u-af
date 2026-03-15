@@ -42,7 +42,7 @@ export interface AdsSchemaResult {
  */
 const COLUMN_DDL: Record<string, string> = {
   SubCategory:       "ALTER TABLE Ads ADD SubCategory NVARCHAR(100) NULL",
-  MainImageUrl:      "ALTER TABLE Ads ADD MainImageUrl NVARCHAR(1000) NULL",
+  MainImageUrl:      "ALTER TABLE Ads ADD MainImageUrl NVARCHAR(MAX) NULL",
   Latitude:          "ALTER TABLE Ads ADD Latitude FLOAT NULL",
   Longitude:         "ALTER TABLE Ads ADD Longitude FLOAT NULL",
   Condition:         "ALTER TABLE Ads ADD Condition NVARCHAR(50) NOT NULL DEFAULT 'used'",

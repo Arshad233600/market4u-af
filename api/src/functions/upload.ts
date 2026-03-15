@@ -80,21 +80,27 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
             return { status: 413, jsonBody: { error: "File too large. Maximum size is 10 MB" } };
         }
 
-        // Guard: fail fast with 503 (not 500) when blob storage credentials are not
-        // configured, so the client can distinguish a permanent server configuration
-        // error from a transient internal error and avoid pointless retries.
-        // Accepts either AZURE_STORAGE_CONNECTION_STRING (full connection string) or
-        // STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY (individual credentials).
-        // Container name falls back to "ads-images" when neither
-        // AZURE_STORAGE_CONTAINER nor STORAGE_CONTAINER_NAME is set.
+        // When blob storage credentials are not configured, fall back to returning
+        // the image as a data URL instead of failing with 503.  This ensures the
+        // upload flow works even when AZURE_STORAGE_CONNECTION_STRING (or the
+        // individual STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY credentials)
+        // is not set or contains a placeholder value.
+        //
+        // The data URL is storable in the database (MainImageUrl / AdImages.Url
+        // columns are NVARCHAR(MAX)) and renderable directly in <img> tags.
         if (!resolveStorageConnectionString()) {
-            context.warn('[upload] storage_not_configured: AZURE_STORAGE_CONNECTION_STRING (or STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY) is not set or contains a placeholder value');
+            context.warn('[upload] storage_not_configured: using data URL fallback');
+            const dataUrl = `data:${contentType};base64,${base64}`;
+            if (dataUrl.length > 1_000_000) {
+                context.warn(`[upload] data URL fallback is large (${Math.round(dataUrl.length / 1024)} KB). Consider configuring Azure Blob Storage.`);
+            }
             return {
-                status: 503,
+                status: 200,
                 jsonBody: {
-                    error: 'Service unavailable',
-                    reason: 'storage_not_configured',
-                    category: 'STORAGE_NOT_CONFIGURED',
+                    ok: true,
+                    url: dataUrl,
+                    name: fileName,
+                    fallback: true,
                 },
             };
         }
