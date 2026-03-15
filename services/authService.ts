@@ -290,7 +290,10 @@ export const authService = {
    * Silently exchange the current (possibly expired) token for a fresh one.
    * Returns the new token string on success, or null if the server rejects it
    * (e.g. token_too_old, signature_mismatch, server mis-configuration).
-   * Does NOT clear the session — callers decide what to do on failure.
+   *
+   * When the server explicitly rejects the token (401), the stale token and
+   * user data are cleared from storage so the user is not stuck in a loop
+   * where every subsequent page load retries with the same invalid token.
    */
   refreshToken: async (): Promise<string | null> => {
     const token = safeStorage.getItem(STORAGE_KEY_TOKEN);
@@ -301,8 +304,8 @@ export const authService = {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (!response.ok) {
-        // 503 from refresh = server misconfiguration (e.g. AUTH_SECRET mismatch,
-        // storage not configured). Parse the reason and throw so callers can
+        // 503 from refresh = server misconfiguration (e.g. AUTH_SECRET not set,
+        // insecure placeholder). Parse the reason and throw so callers can
         // distinguish a config error from a simple token rejection (401).
         if (response.status === 503) {
           let reason = 'server_unavailable';
@@ -311,6 +314,17 @@ export const authService = {
             if (errBody.reason) reason = errBody.reason;
           } catch { /* ignore parse failure */ }
           throw new Error(`refresh_server_error:${reason}`);
+        }
+        // 401 = server definitively rejected the token (e.g. signed with a
+        // different secret after server rebuild, or token is too old).
+        // Clear the stale credentials so the user is prompted to log in
+        // fresh instead of being stuck retrying the same invalid token.
+        if (response.status === 401) {
+          console.warn('[auth] refresh_token_rejected — clearing stale session');
+          safeStorage.removeItem(STORAGE_KEY_TOKEN);
+          safeStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
+          safeStorage.removeItem(STORAGE_KEY_USER);
+          window.dispatchEvent(new Event('auth-change'));
         }
         return null;
       }

@@ -475,12 +475,14 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
     } catch (verifyErr) {
       const verifyMsg = (verifyErr as Error).message;
       context.warn(`[RefreshToken] jwt.verify error="${verifyMsg}"`);
-      // "invalid signature" means the token was signed with a different AUTH_SECRET —
-      // this is a server misconfiguration (e.g. secret rotation across deployments),
-      // not a bad client token. Return 503 so the client does not auto-logout the user.
-      // This is consistent with how validateToken classifies the same error.
+      // "invalid signature" means the token was signed with a different key than the
+      // current AUTH_SECRET — typically because the server was rebuilt or the secret was
+      // rotated. Since isAuthSecretInsecure already guards against genuine misconfiguration
+      // (checked above), reaching this point means the server's secret IS valid but the
+      // client's token is stale. Return 401 so the client clears the stale session and
+      // prompts the user to log in again with the current deployment.
       if (verifyErr instanceof jwt.JsonWebTokenError && verifyMsg.includes('invalid signature')) {
-        return serviceUnavailable('invalid_auth_secret');
+        return unauthorized("توکن نامعتبر است.", "invalid_token");
       }
       return unauthorized("توکن نامعتبر است.", "invalid_token");
     }
