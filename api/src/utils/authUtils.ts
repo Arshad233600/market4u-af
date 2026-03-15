@@ -187,11 +187,12 @@ export const validateToken = (request: HttpRequest): AuthResult => {
             reason = 'token_expired';
         } else if (err instanceof jwt.JsonWebTokenError && verifyMsg.includes('invalid signature')) {
             // The token has a valid structure but its signature does not match the current
-            // AUTH_SECRET.  This is a server-side configuration issue (AUTH_SECRET was rotated
-            // or differs across deployments) rather than a bad client token.
-            // Returning 'invalid_auth_secret' (a MISCONFIGURED_REASON) causes authResponse to
-            // return HTTP 503 instead of 401, so the client is NOT automatically logged out.
-            reason = 'invalid_auth_secret';
+            // AUTH_SECRET — typically because the secret was rotated or differs across
+            // deployments.  The server IS properly configured (it passed the
+            // isAuthSecretInsecure guard above), so this is a stale-token problem, not a
+            // server misconfiguration.  Returning 'invalid_token' causes authResponse to
+            // return HTTP 401 so the client clears the stale session and prompts re-login.
+            reason = 'invalid_token';
         } else {
             reason = 'invalid_token';
         }
@@ -202,7 +203,7 @@ export const validateToken = (request: HttpRequest): AuthResult => {
 };
 
 /** Auth reasons that indicate server misconfiguration rather than a bad client token. */
-export const MISCONFIGURED_REASONS = new Set(['missing_auth_secret', 'insecure_default_secret', 'invalid_auth_secret']);
+export const MISCONFIGURED_REASONS = new Set(['missing_auth_secret', 'insecure_default_secret']);
 
 /**
  * Returns the appropriate HTTP error response for a failed AuthResult.
