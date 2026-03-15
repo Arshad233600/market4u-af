@@ -327,7 +327,7 @@ describe('upload() storage_not_configured', () => {
     }
   });
 
-  it('returns 503 with storage_not_configured when AZURE_STORAGE_CONNECTION_STRING is not set and no individual credentials are set', async () => {
+  it('returns 200 with data URL fallback when AZURE_STORAGE_CONNECTION_STRING is not set and no individual credentials are set', async () => {
     delete process.env.AZURE_STORAGE_CONNECTION_STRING;
     delete process.env.STORAGE_ACCOUNT_NAME;
     delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
@@ -336,10 +336,12 @@ describe('upload() storage_not_configured', () => {
     const req = makeRequest({ body: { fileName: 'photo.jpg', contentType: 'image/jpeg', base64: VALID_JPEG_B64 } });
     const res = await upload(req, makeContext());
 
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(200);
     const body = res.jsonBody as Record<string, unknown>;
-    expect(body.reason).toBe('storage_not_configured');
-    expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
+    expect(body.ok).toBe(true);
+    expect(body.fallback).toBe(true);
+    expect(body.url).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body.name).toBe('photo.jpg');
   });
 
   it('returns 200 and uses default container "ads-images" when container name env vars are both unset', async () => {
