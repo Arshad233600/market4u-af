@@ -52,6 +52,9 @@ CREATE INDEX IX_Ads_UserId ON Ads(UserId);
 CREATE INDEX IX_Ads_Category ON Ads(Category);
 CREATE INDEX IX_Ads_Status ON Ads(Status);
 CREATE INDEX IX_Ads_CreatedAt ON Ads(CreatedAt DESC);
+-- Composite index covering the most common listing query:
+--   WHERE Status = 'ACTIVE' AND IsDeleted = 0 ORDER BY CreatedAt DESC
+CREATE INDEX IX_Ads_Status_IsDeleted_CreatedAt ON Ads(Status, IsDeleted, CreatedAt DESC);
 
 CREATE TABLE AdImages (
     Id NVARCHAR(100) PRIMARY KEY,
@@ -139,3 +142,21 @@ CREATE TABLE ChatRequests (
 
 CREATE INDEX IX_ChatRequests_ToUserId ON ChatRequests(ToUserId);
 CREATE INDEX IX_ChatRequests_FromUserId ON ChatRequests(FromUserId);
+
+-- ============================================================
+-- Sample / Seed Data
+-- ============================================================
+
+-- Admin user (password: admin123)
+-- PasswordHash is bcrypt hash of 'admin123' with 10 rounds
+INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+VALUES ('u_admin_1', 'Admin User', 'admin@market4u.com', '+93700000001', '$2b$10$KOKNBFwWwSBh.R1RIwVL9Opr/86yjfBlTtwfE54sSXWl9daD6Ox2G', 'ADMIN', 1, GETUTCDATE());
+
+-- Regular test user (password: user123)
+-- PasswordHash is bcrypt hash of 'user123' with 10 rounds
+INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+VALUES ('u_user_1', 'Test User', 'user@market4u.com', '+93700000002', '$2b$10$ZF2L0E2mhJM1ycZp8xXVk.7E3oWaQZolGS7Ue3mFQ9.TQxbOuNqSm', 'USER', 1, GETUTCDATE());
+
+-- Guest user for unauthenticated ad posts
+INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, CreatedAt)
+VALUES ('guest_user_0', N'کاربر مهمان', 'guest@market4u.internal', NULL, '', 'GUEST', 0, GETUTCDATE());
