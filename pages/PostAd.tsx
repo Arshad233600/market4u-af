@@ -271,6 +271,11 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   // choose to re-authenticate rather than being silently logged out.
                   toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
                   onNavigate(Page.POST_AD);
+              } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
+                  // Server misconfiguration — the backend's AUTH_SECRET or service
+                  // is not configured correctly. Retrying or re-logging in won't help;
+                  // instruct the user to contact support.
+                  toastService.error('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
               } else {
                   authService.onAuthInvalid(reason);
                   toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
@@ -426,6 +431,10 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   // Do NOT logout immediately — show an error so the user can
                   // choose to re-authenticate rather than being silently logged out.
                   toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+                  onNavigate(Page.POST_AD);
+              } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
+                  // Server misconfiguration — retrying or re-logging in won't help.
+                  toastService.error('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
                   onNavigate(Page.POST_AD);
               } else {
                   // Clear the session for all other auth failures (expired, missing, etc.).

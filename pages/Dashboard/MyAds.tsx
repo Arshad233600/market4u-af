@@ -39,6 +39,9 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
         // choose to re-authenticate rather than being silently logged out.
         if (reason === 'invalid_token' || reason === 'invalid_auth_secret') {
           setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+        } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
+          // Server misconfiguration — retrying or re-logging in won't help.
+          setLoadError('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
         } else {
           // For all other auth failures (missing_token, token_expired, etc.) clear
           // the session so the dashboard guard in App.tsx redirects to login.
