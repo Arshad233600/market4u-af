@@ -427,14 +427,14 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
         .input("SubCategory", sql.NVarChar, subCategory ?? "")
         .input("Description", sql.NVarChar, description ?? "")
         .input("MainImageUrl", sql.NVarChar, mainImageUrl)
-        .input("Latitude", sql.Float, latitude ?? null)
-        .input("Longitude", sql.Float, longitude ?? null)
+        .input("Latitude", sql.Decimal(9, 6), latitude ?? null)
+        .input("Longitude", sql.Decimal(9, 6), longitude ?? null)
         .input("Condition", sql.NVarChar, condition ?? "used")
         .input("IsNegotiable", sql.Bit, isNegotiable ? 1 : 0)
         .input("DeliveryAvailable", sql.Bit, deliveryAvailable ? 1 : 0)
         .input("DynamicFields", sql.NVarChar, dynamicFields ? JSON.stringify(dynamicFields) : null)
         .input("Status", sql.NVarChar, "ACTIVE")
-        .input("CreatedAt", sql.DateTime, new Date())
+        .input("CreatedAt", sql.DateTime2, new Date())
         .query(`
           INSERT INTO Ads (Id, UserId, Title, Price, Location, Category, SubCategory, Description, MainImageUrl, Latitude, Longitude, Condition, IsNegotiable, DeliveryAvailable, DynamicFields, Status, CreatedAt)
           VALUES (@Id, @UserId, @Title, @Price, @Location, @Category, @SubCategory, @Description, @MainImageUrl, @Latitude, @Longitude, @Condition, @IsNegotiable, @DeliveryAvailable, @DynamicFields, @Status, @CreatedAt)
@@ -476,7 +476,7 @@ export async function postAd(request: HttpRequest, context: InvocationContext): 
             .input("Title", sql.NVarChar, "آگهی شما ثبت شد")
             .input("Message", sql.NVarChar, `آگهی "${title}" با موفقیت ثبت شد.`)
             .input("Type", sql.NVarChar, "success")
-            .input("CreatedAt", sql.DateTime, new Date())
+            .input("CreatedAt", sql.DateTime2, new Date())
             .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)")
           )
           .catch((notifErr: unknown) => {
@@ -556,7 +556,7 @@ export async function updateAd(request: HttpRequest, context: InvocationContext)
         .input("IsNegotiable", sql.Bit, isNegotiable ? 1 : 0)
         .input("DeliveryAvailable", sql.Bit, deliveryAvailable ? 1 : 0)
         .input("DynamicFields", sql.NVarChar, dynamicFields ? JSON.stringify(dynamicFields) : null)
-        .input("UpdatedAt", sql.DateTime, new Date())
+        .input("UpdatedAt", sql.DateTime2, new Date())
         .query(`
           UPDATE Ads
           SET Title = @Title,
@@ -626,7 +626,7 @@ export async function deleteAd(request: HttpRequest, context: InvocationContext)
       .request()
       .input("Id", sql.NVarChar, id)
       .input("UserId", sql.NVarChar, auth.userId)
-      .input("DeletedAt", sql.DateTime, new Date())
+      .input("DeletedAt", sql.DateTime2, new Date())
       .query("UPDATE Ads SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE Id = @Id AND UserId = @UserId");
 
     if (result.rowsAffected[0] === 0) {
@@ -671,7 +671,7 @@ export async function updateAdStatus(request: HttpRequest, context: InvocationCo
       .input("Id", sql.NVarChar, id)
       .input("UserId", sql.NVarChar, auth.userId)
       .input("Status", sql.NVarChar, status)
-      .input("UpdatedAt", sql.DateTime, new Date())
+      .input("UpdatedAt", sql.DateTime2, new Date())
       .query("UPDATE Ads SET Status = @Status, UpdatedAt = @UpdatedAt WHERE Id = @Id AND UserId = @UserId AND IsDeleted = 0");
 
     if (result.rowsAffected[0] === 0) {
@@ -749,13 +749,13 @@ export async function promoteAd(request: HttpRequest, context: InvocationContext
         .input("Type", sql.NVarChar, "PAYMENT_AD_PROMO")
         .input("Status", sql.NVarChar, "SUCCESS")
         .input("Description", sql.NVarChar, `ارتقای آگهی (${planLabel})`)
-        .input("CreatedAt", sql.DateTime, new Date())
+        .input("CreatedAt", sql.DateTime2, new Date())
         .query("INSERT INTO WalletTransactions (Id, UserId, Amount, Type, Status, Description, CreatedAt) VALUES (@Id, @UserId, @Amount, @Type, @Status, @Description, @CreatedAt)");
 
       // Mark ad as promoted
       await new sql.Request(transaction)
         .input("Id", sql.NVarChar, id)
-        .input("UpdatedAt", sql.DateTime, new Date())
+        .input("UpdatedAt", sql.DateTime2, new Date())
         .query("UPDATE Ads SET IsPromoted = 1, UpdatedAt = @UpdatedAt WHERE Id = @Id");
 
       await transaction.commit();

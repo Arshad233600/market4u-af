@@ -51,6 +51,7 @@ vi.mock('mssql', () => ({
   Float: 'Float',
   Bit: 'Bit',
   DateTime: 'DateTime',
+  DateTime2: 'DateTime2',
   ConnectionError: class ConnectionError extends Error {},
   RequestError: class RequestError extends Error {},
   Transaction: vi.fn().mockImplementation(function () { return mocks.mockTransaction; }),

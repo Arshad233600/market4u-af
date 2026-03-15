@@ -76,7 +76,7 @@ export async function addFavorite(request: HttpRequest, context: InvocationConte
       .input("Id", sql.NVarChar, id)
       .input("UserId", sql.NVarChar, auth.userId)
       .input("AdId", sql.NVarChar, adId)
-      .input("CreatedAt", sql.DateTime, new Date())
+      .input("CreatedAt", sql.DateTime2, new Date())
       .query("INSERT INTO Favorites (Id, UserId, AdId, CreatedAt) VALUES (@Id, @UserId, @AdId, @CreatedAt)");
 
     return { status: 201, jsonBody: { success: true, id } };

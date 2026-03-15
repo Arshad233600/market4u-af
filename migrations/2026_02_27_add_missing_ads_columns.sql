@@ -10,12 +10,12 @@ END
 
 IF COL_LENGTH('Ads', 'Latitude') IS NULL
 BEGIN
-    ALTER TABLE Ads ADD Latitude FLOAT NULL;
+    ALTER TABLE Ads ADD Latitude DECIMAL(9, 6) NULL;
 END
 
 IF COL_LENGTH('Ads', 'Longitude') IS NULL
 BEGIN
-    ALTER TABLE Ads ADD Longitude FLOAT NULL;
+    ALTER TABLE Ads ADD Longitude DECIMAL(9, 6) NULL;
 END
 
 IF COL_LENGTH('Ads', 'MainImageUrl') IS NULL

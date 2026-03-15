@@ -60,7 +60,7 @@ export async function topUpWallet(request: HttpRequest, context: InvocationConte
       .input("Status", sql.NVarChar, "SUCCESS")
       .input("Description", sql.NVarChar, description || "شارژ کیف پول")
       .input("ReferenceId", sql.NVarChar, referenceId || null)
-      .input("CreatedAt", sql.DateTime, new Date())
+      .input("CreatedAt", sql.DateTime2, new Date())
       .query(`
         INSERT INTO WalletTransactions (Id, UserId, Amount, Type, Status, Description, ReferenceId, CreatedAt)
         VALUES (@Id, @UserId, @Amount, @Type, @Status, @Description, @ReferenceId, @CreatedAt)

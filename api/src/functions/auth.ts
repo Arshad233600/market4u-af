@@ -297,7 +297,7 @@ export async function register(request: HttpRequest, context: InvocationContext)
       .input("Phone", sql.NVarChar, phone)
       .input("PasswordHash", sql.NVarChar, passwordHash)
       .input("Role", sql.NVarChar, "USER")
-      .input("CreatedAt", sql.DateTime, new Date())
+      .input("CreatedAt", sql.DateTime2, new Date())
       .query(`
         INSERT INTO Users (Id, Name, Email, Phone, PasswordHash, Role, IsVerified, IsDeleted, CreatedAt)
         VALUES (@Id, @Name, @Email, @Phone, @PasswordHash, @Role, 0, 0, @CreatedAt)
