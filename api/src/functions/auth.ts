@@ -482,7 +482,7 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
       // client's token is stale. Return 401 so the client clears the stale session and
       // prompts the user to log in again with the current deployment.
       if (verifyErr instanceof jwt.JsonWebTokenError && verifyMsg.includes('invalid signature')) {
-        return unauthorized("توکن نامعتبر است. لطفاً دوباره وارد شوید.", "invalid_token");
+        return unauthorized("توکن نامعتبر است.", "invalid_token");
       }
       return unauthorized("توکن نامعتبر است.", "invalid_token");
     }
