@@ -93,13 +93,13 @@ export async function deleteAccount(request: HttpRequest, context: InvocationCon
         // Soft-delete user's ads
         await pool.request()
             .input("UserId", sql.NVarChar, auth.userId)
-            .input("DeletedAt", sql.DateTime, deletedAt)
+            .input("DeletedAt", sql.DateTime2, deletedAt)
             .query("UPDATE Ads SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE UserId = @UserId AND IsDeleted = 0");
 
         // Soft-delete the user account
         await pool.request()
             .input("UserId", sql.NVarChar, auth.userId)
-            .input("DeletedAt", sql.DateTime, deletedAt)
+            .input("DeletedAt", sql.DateTime2, deletedAt)
             .query("UPDATE Users SET IsDeleted = 1, DeletedAt = @DeletedAt WHERE Id = @UserId");
 
         context.log(`Account soft-deleted: ${auth.userId}`);

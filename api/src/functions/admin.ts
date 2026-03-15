@@ -68,7 +68,7 @@ export async function adminApproveAd(request: HttpRequest, context: InvocationCo
     const result = await pool
       .request()
       .input("Id", sql.NVarChar, id)
-      .input("UpdatedAt", sql.DateTime, new Date())
+      .input("UpdatedAt", sql.DateTime2, new Date())
       .query("UPDATE Ads SET Status = 'ACTIVE', UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0");
 
     if (result.rowsAffected[0] === 0) {
@@ -91,7 +91,7 @@ export async function adminApproveAd(request: HttpRequest, context: InvocationCo
               .input("Title", sql.NVarChar, "آگهی شما تأیید شد")
               .input("Message", sql.NVarChar, `آگهی "${adTitle}" توسط مدیریت تأیید و منتشر شد.`)
               .input("Type", sql.NVarChar, "success")
-              .input("CreatedAt", sql.DateTime, new Date())
+              .input("CreatedAt", sql.DateTime2, new Date())
               .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)");
           }
         })
@@ -120,7 +120,7 @@ export async function adminRejectAd(request: HttpRequest, context: InvocationCon
     const result = await pool
       .request()
       .input("Id", sql.NVarChar, id)
-      .input("UpdatedAt", sql.DateTime, new Date())
+      .input("UpdatedAt", sql.DateTime2, new Date())
       .query("UPDATE Ads SET Status = 'REJECTED', UpdatedAt = @UpdatedAt WHERE Id = @Id AND IsDeleted = 0");
 
     if (result.rowsAffected[0] === 0) {
@@ -143,7 +143,7 @@ export async function adminRejectAd(request: HttpRequest, context: InvocationCon
               .input("Title", sql.NVarChar, "آگهی شما رد شد")
               .input("Message", sql.NVarChar, `آگهی "${adTitle}" توسط مدیریت رد شد. لطفاً آگهی را ویرایش و دوباره ارسال کنید.`)
               .input("Type", sql.NVarChar, "error")
-              .input("CreatedAt", sql.DateTime, new Date())
+              .input("CreatedAt", sql.DateTime2, new Date())
               .query("INSERT INTO Notifications (Id, UserId, Title, Message, Type, IsRead, CreatedAt) VALUES (@Id, @UserId, @Title, @Message, @Type, 0, @CreatedAt)");
           }
         })
@@ -203,7 +203,7 @@ export async function adminVerifyUser(request: HttpRequest, context: InvocationC
       .request()
       .input("UserId", sql.NVarChar, userId)
       .input("VerificationStatus", sql.NVarChar, status)
-      .input("UpdatedAt", sql.DateTime, new Date())
+      .input("UpdatedAt", sql.DateTime2, new Date())
       .query(
         status === "VERIFIED"
           ? `UPDATE Users

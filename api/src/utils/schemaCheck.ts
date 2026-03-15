@@ -43,8 +43,8 @@ export interface AdsSchemaResult {
 const COLUMN_DDL: Record<string, string> = {
   SubCategory:       "ALTER TABLE Ads ADD SubCategory NVARCHAR(100) NULL",
   MainImageUrl:      "ALTER TABLE Ads ADD MainImageUrl NVARCHAR(MAX) NULL",
-  Latitude:          "ALTER TABLE Ads ADD Latitude FLOAT NULL",
-  Longitude:         "ALTER TABLE Ads ADD Longitude FLOAT NULL",
+  Latitude:          "ALTER TABLE Ads ADD Latitude DECIMAL(9, 6) NULL",
+  Longitude:         "ALTER TABLE Ads ADD Longitude DECIMAL(9, 6) NULL",
   Condition:         "ALTER TABLE Ads ADD Condition NVARCHAR(50) NOT NULL DEFAULT 'used'",
   IsNegotiable:      "ALTER TABLE Ads ADD IsNegotiable BIT NOT NULL DEFAULT 0",
   DeliveryAvailable: "ALTER TABLE Ads ADD DeliveryAvailable BIT NOT NULL DEFAULT 0",

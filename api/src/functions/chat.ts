@@ -87,7 +87,7 @@ export async function sendChatRequest(request: HttpRequest, context: InvocationC
       .input("Id", sql.NVarChar, id)
       .input("FromUserId", sql.NVarChar, auth.userId)
       .input("ToUserId", sql.NVarChar, toUserId)
-      .input("CreatedAt", sql.DateTime, new Date())
+      .input("CreatedAt", sql.DateTime2, new Date())
       .query(`
         INSERT INTO ChatRequests (Id, FromUserId, ToUserId, Status, CreatedAt)
         VALUES (@Id, @FromUserId, @ToUserId, 'PENDING', @CreatedAt)
@@ -144,7 +144,7 @@ export async function acceptChatRequest(request: HttpRequest, context: Invocatio
         .input("FromUserId", sql.NVarChar, auth.userId)
         .input("ToUserId", sql.NVarChar, fromUserId)
         .input("Content", sql.NVarChar, "👋")
-        .input("CreatedAt", sql.DateTime, new Date())
+        .input("CreatedAt", sql.DateTime2, new Date())
         .query(`
           INSERT INTO Messages (Id, FromUserId, ToUserId, AdId, Content, IsRead, CreatedAt)
           VALUES (@Id, @FromUserId, @ToUserId, NULL, @Content, 0, @CreatedAt)

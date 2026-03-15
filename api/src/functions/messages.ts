@@ -175,7 +175,7 @@ export async function sendMessage(request: HttpRequest, context: InvocationConte
       .input("ToUserId", sql.NVarChar, toUserId)
       .input("AdId", sql.NVarChar, adId || null)
       .input("Content", sql.NVarChar, content.trim())
-      .input("CreatedAt", sql.DateTime, new Date())
+      .input("CreatedAt", sql.DateTime2, new Date())
       .query(`
         INSERT INTO Messages (Id, FromUserId, ToUserId, AdId, Content, IsRead, CreatedAt)
         VALUES (@Id, @FromUserId, @ToUserId, @AdId, @Content, 0, @CreatedAt)
