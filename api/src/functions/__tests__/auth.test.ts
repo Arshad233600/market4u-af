@@ -819,15 +819,19 @@ describe('refreshTokenHandler()', () => {
     expect(body.reason).toBe('invalid_token');
   });
 
-  it('returns 401 with reason=invalid_token when token was signed with a different secret', async () => {
+  it('returns 503 with reason=invalid_auth_secret when token was signed with a different secret', async () => {
     // Sign a token with a DIFFERENT secret than the mocked one — simulates a
-    // stale token after server rebuild or secret rotation.
+    // stale token after server rebuild or secret rotation. The refresh endpoint
+    // returns 503 (consistent with validateToken) so the client treats it as a
+    // server configuration issue and does NOT clear the user's session.
     const token = signTestToken({ uid: 'u_test_123' }, 'completely-different-secret-that-is-at-least-32-chars');
     const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
     const res = await refreshTokenHandler(req, makeContext());
-    expect(res.status).toBe(401);
-    const body = res.jsonBody as { reason?: string };
-    expect(body.reason).toBe('invalid_token');
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as { reason?: string; error?: string; category?: string };
+    expect(body.reason).toBe('invalid_auth_secret');
+    expect(body.error).toBe('misconfigured_auth');
+    expect(body.category).toBe('MISCONFIGURED_AUTH');
   });
 
   it('returns 401 with reason=invalid_token when token is missing uid claim', async () => {
