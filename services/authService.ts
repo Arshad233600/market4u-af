@@ -300,14 +300,29 @@ export const authService = {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (!response.ok) return null;
+      if (!response.ok) {
+        // 503 from refresh = server misconfiguration (e.g. AUTH_SECRET mismatch,
+        // storage not configured). Parse the reason and throw so callers can
+        // distinguish a config error from a simple token rejection (401).
+        if (response.status === 503) {
+          let reason = 'server_unavailable';
+          try {
+            const errBody = await response.json() as { reason?: string };
+            if (errBody.reason) reason = errBody.reason;
+          } catch { /* ignore parse failure */ }
+          throw new Error(`refresh_server_error:${reason}`);
+        }
+        return null;
+      }
       const body = await response.json().catch(() => null);
       const data = body?.data ?? body;
       const newToken: string | undefined = data?.token;
       if (!newToken) return null;
       safeStorage.setItem(STORAGE_KEY_TOKEN, newToken);
       return newToken;
-    } catch {
+    } catch (err) {
+      // Re-throw server misconfiguration errors so callers can handle them
+      if (err instanceof Error && err.message.startsWith('refresh_server_error:')) throw err;
       return null;
     }
   },

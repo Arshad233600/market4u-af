@@ -7,6 +7,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as sql from 'mssql';
+import jwt from 'jsonwebtoken';
 
 // ─── hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -134,6 +135,7 @@ function makeUserRecord(overrides: Partial<{
 // Deferred import so mocks are in place before the module is first evaluated
 let login: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
 let register: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
+let refreshTokenHandler: (r: HttpRequest, c: InvocationContext) => Promise<HttpResponseInit>;
 
 beforeEach(async () => {
   // mockReset clears call history AND the once-queue to prevent mock state leaking.
@@ -167,6 +169,7 @@ beforeEach(async () => {
   const mod = await import('../auth');
   login = mod.login;
   register = mod.register;
+  refreshTokenHandler = mod.refreshTokenHandler;
 });
 
 // ─── login ────────────────────────────────────────────────────────────────
@@ -763,5 +766,102 @@ describe('register() Users schema auto-migration', () => {
       ['IsDeleted'],
       expect.any(Function)
     );
+  });
+});
+
+// ─── refreshTokenHandler ─────────────────────────────────────────────────
+
+describe('refreshTokenHandler()', () => {
+  /** Helper: sign a JWT with the mocked secret for test requests. */
+  function signTestToken(payload: Record<string, unknown>, secret = 'test-auth-secret-value-that-is-at-least-32-chars-long'): string {
+    return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
+  }
+
+  it('returns 401 when Authorization header is missing', async () => {
+    const req = makeRequest({ headers: {} });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 when token is empty', async () => {
+    const req = makeRequest({ headers: { authorization: 'Bearer ' } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with a new token for a valid token', async () => {
+    const token = signTestToken({ uid: 'u_test_123' });
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(200);
+    const body = res.jsonBody as { success: boolean; data: { token: string } };
+    expect(body.success).toBe(true);
+    expect(body.data.token).toBeTruthy();
+  });
+
+  it('returns 200 for an expired token within the grace window (ignoreExpiration)', async () => {
+    // Sign a token that expired 1 hour ago (within the 30-day grace window)
+    const token = jwt.sign(
+      { uid: 'u_test_123', iat: Math.floor(Date.now() / 1000) - 3600 },
+      'test-auth-secret-value-that-is-at-least-32-chars-long',
+      { algorithm: 'HS256', expiresIn: '-1h' }
+    );
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 401 with reason=invalid_token for a malformed token', async () => {
+    const req = makeRequest({ headers: { authorization: 'Bearer not.a.valid.jwt' } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as { reason?: string };
+    expect(body.reason).toBe('invalid_token');
+  });
+
+  it('returns 503 with reason=invalid_auth_secret when token was signed with a different secret', async () => {
+    // Sign a token with a DIFFERENT secret than the mocked one
+    const token = signTestToken({ uid: 'u_test_123' }, 'completely-different-secret-that-is-at-least-32-chars');
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as { reason?: string; error?: string };
+    expect(body.reason).toBe('invalid_auth_secret');
+    expect(body.error).toBe('misconfigured_auth');
+  });
+
+  it('returns 401 with reason=invalid_token when token is missing uid claim', async () => {
+    const token = signTestToken({ sub: 'u_test_123' }); // uid is missing
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as { reason?: string };
+    expect(body.reason).toBe('invalid_token');
+  });
+
+  it('returns 401 with reason=token_too_old for a token older than grace window', async () => {
+    // iat 100 days ago => beyond 7+30 day window
+    const token = jwt.sign(
+      { uid: 'u_test_123', iat: Math.floor(Date.now() / 1000) - 100 * 24 * 3600 },
+      'test-auth-secret-value-that-is-at-least-32-chars-long',
+      { algorithm: 'HS256' }
+    );
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as { reason?: string };
+    expect(body.reason).toBe('token_too_old');
+  });
+
+  it('returns 503 when isAuthSecretInsecure is true', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    (authUtils as unknown as Record<string, unknown>).isAuthSecretInsecure = true;
+
+    const token = signTestToken({ uid: 'u_test_123' });
+    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
+    const res = await refreshTokenHandler(req, makeContext());
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as { reason?: string };
+    expect(body.reason).toBe('insecure_default_secret');
   });
 });

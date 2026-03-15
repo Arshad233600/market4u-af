@@ -122,7 +122,19 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
   let token = rawToken;
   if (rawToken && authService.isTokenExpired()) {
     if (isProtected && !refreshAttempted) {
-      const newToken = await tryRefreshToken();
+      let newToken: string | null = null;
+      try {
+        newToken = await tryRefreshToken();
+      } catch (refreshErr) {
+        // Refresh endpoint returned a server error (e.g. 503 — AUTH_SECRET misconfigured).
+        // Throw AuthError with the specific reason so the UI can show an appropriate
+        // message instead of the generic "session expired" prompt.
+        if (refreshErr instanceof Error && refreshErr.message.startsWith('refresh_server_error:')) {
+          const reason = refreshErr.message.replace('refresh_server_error:', '');
+          throw new AuthError(reason);
+        }
+        throw new AuthError('token_expired');
+      }
       if (newToken) {
         return request<T>(endpoint, method, body, retries, backoff, true, silent);
       }
@@ -232,7 +244,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       // when the storage backend has fallen back to in-memory (e.g. due to
       // browser tracking prevention blocking localStorage/sessionStorage).
       if (reason === 'token_expired' && !refreshAttempted) {
-        const newToken = await tryRefreshToken();
+        let newToken: string | null = null;
+        try {
+          newToken = await tryRefreshToken();
+        } catch (refreshErr) {
+          if (refreshErr instanceof Error && refreshErr.message.startsWith('refresh_server_error:')) {
+            throw new AuthError(refreshErr.message.replace('refresh_server_error:', ''));
+          }
+        }
         if (newToken) {
           // Refresh succeeded — retry with refreshAttempted=true to prevent infinite refresh loops.
           return request<T>(endpoint, method, body, retries, backoff, /* refreshAttempted */ true, silent);
@@ -256,7 +275,14 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
       // endpoint accepts the old token within the grace window.
       // Only attempt once (refreshAttempted guard) to prevent infinite loops.
       if (reason === 'invalid_token' && !refreshAttempted) {
-        const newToken = await tryRefreshToken();
+        let newToken: string | null = null;
+        try {
+          newToken = await tryRefreshToken();
+        } catch (refreshErr) {
+          if (refreshErr instanceof Error && refreshErr.message.startsWith('refresh_server_error:')) {
+            throw new AuthError(refreshErr.message.replace('refresh_server_error:', ''));
+          }
+        }
         if (newToken) {
           // Refresh succeeded — retry with refreshAttempted=true to prevent infinite refresh loops.
           return request<T>(endpoint, method, body, retries, backoff, /* refreshAttempted */ true, silent);

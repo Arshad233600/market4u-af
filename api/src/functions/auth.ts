@@ -473,7 +473,15 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
     try {
       payload = jwt.verify(token, secret, { algorithms: ['HS256'], ignoreExpiration: true }) as jwt.JwtPayload;
     } catch (verifyErr) {
-      context.warn(`[RefreshToken] jwt.verify error="${(verifyErr as Error).message}"`);
+      const verifyMsg = (verifyErr as Error).message;
+      context.warn(`[RefreshToken] jwt.verify error="${verifyMsg}"`);
+      // "invalid signature" means the token was signed with a different AUTH_SECRET —
+      // this is a server misconfiguration (e.g. secret rotation across deployments),
+      // not a bad client token. Return 503 so the client does not auto-logout the user.
+      // This is consistent with how validateToken classifies the same error.
+      if (verifyErr instanceof jwt.JsonWebTokenError && verifyMsg.includes('invalid signature')) {
+        return serviceUnavailable('invalid_auth_secret');
+      }
       return unauthorized("توکن نامعتبر است.", "invalid_token");
     }
 
@@ -495,6 +503,13 @@ export async function refreshTokenHandler(request: HttpRequest, context: Invocat
   } catch (err: unknown) {
     telemetry?.trackException({ exception: err instanceof Error ? err : new Error(String(err)) });
     context.error("RefreshToken Error", err);
+    // Classify the error so server misconfiguration (e.g. AUTH_SECRET issues) returns
+    // 503 instead of 401, preventing the client from treating a config problem as a
+    // bad token and auto-logging the user out.
+    const { status, category } = classifyAuthError(err);
+    if (status === 503) {
+      return serviceUnavailable(category.toLowerCase());
+    }
     return unauthorized("توکن نامعتبر است.", "invalid_token");
   }
 }
