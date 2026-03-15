@@ -11,6 +11,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { TRANSLATIONS } from '../translations';
 import LocationPicker from '../components/LocationPicker';
 import { toastService } from '../services/toastService';
+import { safeStorage } from '../utils/safeStorage';
 
 /**
  * Map an API error message (English or Persian) to a user-friendly Persian string.
@@ -217,12 +218,16 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
     if (e.target.files && e.target.files[0]) {
       // Pre-upload auth check: block upload if no valid token is available.
       if (!authService.getToken()) {
-          toastService.error('لطفاً ابتدا وارد شوید تا بتوانید عکس آپلود کنید.');
-          authService.onAuthInvalid('no_token_pre_upload');
-          // Navigate to POST_AD so the App.tsx auth guard sets pendingPage=POST_AD
-          // and redirects to LOGIN; after login the user returns to this page.
-          onNavigate(Page.POST_AD);
+        if (!safeStorage.isAvailable()) {
+          toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
           return;
+        }
+        toastService.error('لطفاً ابتدا وارد شوید تا بتوانید عکس آپلود کنید.');
+        authService.onAuthInvalid('no_token_pre_upload');
+        // Navigate to POST_AD so the App.tsx auth guard sets pendingPage=POST_AD
+        // and redirects to LOGIN; after login the user returns to this page.
+        onNavigate(Page.POST_AD);
+        return;
       }
 
       const files: File[] = Array.from(e.target.files);
