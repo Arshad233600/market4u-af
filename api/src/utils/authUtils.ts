@@ -38,11 +38,15 @@ export function getAuthSecretOrThrow(): string {
 
 /**
  * Known insecure placeholder values that must never be used in production.
- * These are the default values from .env.example and api/.env.example.
+ * These are the default values from .env.example, api/.env.example, and
+ * api/local.settings.json.example.
  * Tokens signed with a placeholder secret offer no real security and indicate
  * that AUTH_SECRET was never properly configured in Azure Application Settings.
- * Note: local.settings.json.example uses a different dev-only default that is
- * intentionally excluded from this list so local development works out of the box.
+ *
+ * This list MUST stay in sync with the placeholder check in
+ * .github/workflows/azure-static-web-apps.yml — any value present here but
+ * missing from the workflow passes CI yet causes all authenticated endpoints
+ * to return 503 in production.
  */
 const INSECURE_SECRET_PLACEHOLDERS = new Set([
   'change-this-to-a-random-string-min-32-characters-long',
@@ -50,6 +54,7 @@ const INSECURE_SECRET_PLACEHOLDERS = new Set([
   'your-secret-key',
   'your-secret-key-min-32-chars-long',
   'dev-local-replace-before-deploying-to-azure-production',
+  'local-dev-only-must-be-replaced-for-any-azure-deploy',
   'changeme',
   'secret',
 ]);

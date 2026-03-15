@@ -90,10 +90,16 @@ jobs:
           fi
           # Reject known insecure placeholder values that ship in example config files.
           # These are long enough to pass the length check but offer no real security.
+          # This list MUST stay in sync with INSECURE_SECRET_PLACEHOLDERS in
+          # api/src/utils/authUtils.ts — any value present at runtime but missing here
+          # passes CI yet causes all authenticated endpoints to return 503 in production.
           for placeholder in \
             "change-this-to-a-random-string-min-32-characters-long" \
             "CHANGE_ME_IN_AZURE" \
             "your-secret-key" \
+            "your-secret-key-min-32-chars-long" \
+            "dev-local-replace-before-deploying-to-azure-production" \
+            "local-dev-only-must-be-replaced-for-any-azure-deploy" \
             "changeme"; do
             if [ "$AUTH_SECRET" = "$placeholder" ]; then
               echo "::error::AUTH_SECRET is set to a known insecure placeholder value ('${placeholder}'). Deploying with a placeholder causes all authenticated endpoints to return 503."

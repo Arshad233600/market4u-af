@@ -126,6 +126,15 @@ describe('healthCheck() authSecret detection', () => {
     expect(data.authSecret).toBe('insecure_default');
   });
 
+  it('reports authSecret=insecure_default for local-dev-only placeholder (the local.settings.json.example default)', async () => {
+    process.env.AUTH_SECRET = 'local-dev-only-must-be-replaced-for-any-azure-deploy';
+    const { healthCheck } = await import('../health');
+    const res = await healthCheck(makeRequest(), makeContext());
+    const body = res.jsonBody as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data.authSecret).toBe('insecure_default');
+  });
+
   it('returns 503 (not 200) when authSecret is insecure_default and DB is connected', async () => {
     process.env.AUTH_SECRET = 'dev-local-replace-before-deploying-to-azure-production';
     // Even with DB connected, isHealthy must be false because authSecret != 'ok'
