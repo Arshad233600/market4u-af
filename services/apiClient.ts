@@ -301,13 +301,20 @@ async function request<T>(endpoint: string, method: string, body?: unknown, retr
     // stored token was signed with a different AUTH_SECRET than the one currently deployed
     // (e.g., after a secret rotation). Unlike missing/insecure-secret 503s (which are pure
     // server config errors), invalid_auth_secret means this user's specific token is no
-    // longer valid — they need to re-login to get a fresh token. Throw AuthError so that
-    // components handle it like any other auth failure (session cleared, login prompted)
-    // rather than surfacing it as a generic server error in the DevTools console.
+    // longer valid — they need to re-login to get a fresh token.
+    // Before giving up, attempt a silent token refresh: in a deployment-skew scenario the
+    // refresh endpoint may already be running with the new secret and can issue a valid
+    // token. If refresh fails, throw AuthError so components can prompt re-login.
     if (response.status === 503) {
       try {
         const body503 = await response.clone().json() as { error?: string; reason?: string };
         if (body503.error === 'misconfigured_auth' && body503.reason === 'invalid_auth_secret') {
+          if (!refreshAttempted) {
+            const newToken = await tryRefreshToken();
+            if (newToken) {
+              return request<T>(endpoint, method, body, retries, backoff, /* refreshAttempted */ true, silent);
+            }
+          }
           throw new AuthError('invalid_auth_secret');
         }
       } catch (e) {
