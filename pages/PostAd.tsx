@@ -265,6 +265,12 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               const reason = err.reason ?? 'upload_auth_error';
               if (reason === 'storage_blocked') {
                   toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
+              } else if (reason === 'invalid_auth_secret' || reason === 'invalid_token') {
+                  // apiClient already attempted a silent refresh before throwing.
+                  // Do NOT logout immediately — show an error so the user can
+                  // choose to re-authenticate rather than being silently logged out.
+                  toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+                  onNavigate(Page.POST_AD);
               } else {
                   authService.onAuthInvalid(reason);
                   toastService.error('نشست شما منقضی شده است. لطفاً دوباره وارد شوید.');
@@ -415,7 +421,7 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
               if (reason === 'storage_blocked') {
                   toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
                   onNavigate(Page.POST_AD);
-              } else if (reason === 'invalid_token') {
+              } else if (reason === 'invalid_token' || reason === 'invalid_auth_secret') {
                   // apiClient already attempted a silent refresh before throwing.
                   // Do NOT logout immediately — show an error so the user can
                   // choose to re-authenticate rather than being silently logged out.
