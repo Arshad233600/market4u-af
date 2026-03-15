@@ -96,6 +96,10 @@ export async function ensureChatRequestsTable(): Promise<void> {
  * the ALTER on fresh databases where the columns were already created as
  * NVARCHAR(MAX).
  *
+ * Concurrency: the module-level flag prevents redundant SQL calls within
+ * the same Function App instance.  Concurrent invocations that read false
+ * simultaneously will both execute the idempotent migration — harmless.
+ *
  * NOTE: All DDL identifiers are compile-time constants — no user input is
  * interpolated.
  */
@@ -104,7 +108,9 @@ export async function ensureImageUrlColumnsExpanded(): Promise<void> {
   if (_imageUrlColumnsExpanded) return;
   const pool = await getPool();
   await pool.request().query(`
-    -- Widen Ads.MainImageUrl if it has a bounded length (not already MAX)
+    -- Widen Ads.MainImageUrl if it has a bounded length (not already MAX).
+    -- In SQL Server INFORMATION_SCHEMA, CHARACTER_MAXIMUM_LENGTH = -1 means
+    -- the column is already (N)VARCHAR(MAX).
     IF EXISTS (
       SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_NAME = 'Ads' AND COLUMN_NAME = 'MainImageUrl'
@@ -112,7 +118,7 @@ export async function ensureImageUrlColumnsExpanded(): Promise<void> {
     )
       ALTER TABLE Ads ALTER COLUMN MainImageUrl NVARCHAR(MAX) NULL;
 
-    -- Widen AdImages.Url if it has a bounded length (not already MAX)
+    -- Widen AdImages.Url if it has a bounded length (not already MAX).
     IF EXISTS (
       SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_NAME = 'AdImages' AND COLUMN_NAME = 'Url'

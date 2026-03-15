@@ -91,6 +91,9 @@ export async function upload(request: HttpRequest, context: InvocationContext): 
         if (!resolveStorageConnectionString()) {
             context.warn('[upload] storage_not_configured: using data URL fallback');
             const dataUrl = `data:${contentType};base64,${base64}`;
+            if (dataUrl.length > 1_000_000) {
+                context.warn(`[upload] data URL fallback is large (${Math.round(dataUrl.length / 1024)} KB). Consider configuring Azure Blob Storage.`);
+            }
             return {
                 status: 200,
                 jsonBody: {
