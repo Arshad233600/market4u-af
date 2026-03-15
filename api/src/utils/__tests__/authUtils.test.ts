@@ -97,7 +97,7 @@ describe('validateToken()', () => {
     expect(result.reason).toBe('token_expired');
   });
 
-  it('returns isAuthenticated:false with reason invalid_auth_secret for wrong-secret token', () => {
+  it('returns isAuthenticated:false with reason invalid_token for wrong-secret token', () => {
     const wrongToken = jwt.sign({ uid: 'u_test' }, 'completely-different-secret-that-is-long-enough', {
       algorithm: 'HS256',
       expiresIn: '1h',
@@ -105,7 +105,7 @@ describe('validateToken()', () => {
     const req = makeRequest({ headers: { authorization: `Bearer ${wrongToken}` } });
     const result = validateToken(req);
     expect(result.isAuthenticated).toBe(false);
-    expect(result.reason).toBe('invalid_auth_secret');
+    expect(result.reason).toBe('invalid_token');
   });
 
   it('returns isAuthenticated:true and userId for a valid token', () => {
@@ -173,9 +173,9 @@ describe('authResponse()', () => {
     expect(res?.status).toBe(503);
   });
 
-  it('returns 503 for invalid_auth_secret (rotated secret misconfiguration)', () => {
+  it('returns 401 for invalid_auth_secret (no longer a misconfigured reason)', () => {
     const res = authResponse({ userId: null, isAuthenticated: false, reason: 'invalid_auth_secret' });
-    expect(res?.status).toBe(503);
+    expect(res?.status).toBe(401);
   });
 
   it('returns 401 for token_expired failure', () => {
@@ -190,12 +190,12 @@ describe('MISCONFIGURED_REASONS', () => {
   it('contains all known server-side misconfiguration reasons', () => {
     expect(MISCONFIGURED_REASONS.has('missing_auth_secret')).toBe(true);
     expect(MISCONFIGURED_REASONS.has('insecure_default_secret')).toBe(true);
-    expect(MISCONFIGURED_REASONS.has('invalid_auth_secret')).toBe(true);
   });
 
   it('does not contain client-side failure reasons', () => {
     expect(MISCONFIGURED_REASONS.has('missing_token')).toBe(false);
     expect(MISCONFIGURED_REASONS.has('invalid_token')).toBe(false);
     expect(MISCONFIGURED_REASONS.has('token_expired')).toBe(false);
+    expect(MISCONFIGURED_REASONS.has('invalid_auth_secret')).toBe(false);
   });
 });

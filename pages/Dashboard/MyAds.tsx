@@ -37,7 +37,7 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
         // For invalid_token: apiClient already attempted a silent refresh before
         // throwing. Do NOT logout immediately — show an error so the user can
         // choose to re-authenticate rather than being silently logged out.
-        if (reason === 'invalid_token' || reason === 'invalid_auth_secret') {
+        if (reason === 'invalid_token') {
           setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
         } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
           // Server misconfiguration — retrying or re-logging in won't help.
