@@ -65,9 +65,11 @@ beforeEach(async () => {
   mocks.mockGenerateSas.mockReset();
   mocks.mockGenerateSas.mockReturnValue('sig=fake-sas-token');
 
-  // Set valid storage env vars for the happy-path tests
+  // Set valid storage env vars for the happy-path tests.
+  // The account key must be at least 20 characters to avoid being rejected
+  // as a placeholder by isPlaceholderConnectionString().
   process.env.AZURE_STORAGE_CONNECTION_STRING =
-    'DefaultEndpointsProtocol=https;AccountName=testaccount;AccountKey=dGVzdGtleQ==;EndpointSuffix=core.windows.net';
+    'DefaultEndpointsProtocol=https;AccountName=testaccount;AccountKey=dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXQ=;EndpointSuffix=core.windows.net';
   process.env.AZURE_STORAGE_CONTAINER = 'test-container';
 
   const authUtils = await import('../../utils/authUtils');
@@ -130,6 +132,50 @@ describe('uploadSas() storage_not_configured', () => {
     expect(body.reason).toBe('storage_not_configured');
     expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
   });
+
+  it('returns 503 when connection string contains placeholder AccountKey=your_account_key', async () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING =
+      'DefaultEndpointsProtocol=https;AccountName=market4ustorage01;AccountKey=your_account_key;EndpointSuffix=core.windows.net';
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', fileType: 'image/jpeg' } });
+    const res = await uploadSas(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_not_configured');
+    expect(body.category).toBe('STORAGE_NOT_CONFIGURED');
+  });
+
+  it('returns 503 when connection string contains placeholder AccountKey=YOUR_KEY', async () => {
+    process.env.AZURE_STORAGE_CONNECTION_STRING =
+      'DefaultEndpointsProtocol=https;AccountName=testaccount;AccountKey=YOUR_KEY;EndpointSuffix=core.windows.net';
+    delete process.env.STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_NAME;
+    delete process.env.AZURE_STORAGE_ACCOUNT_KEY;
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', fileType: 'image/jpeg' } });
+    const res = await uploadSas(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_not_configured');
+  });
+
+  it('returns 503 when individual account key env var is a placeholder', async () => {
+    delete process.env.AZURE_STORAGE_CONNECTION_STRING;
+    process.env.STORAGE_ACCOUNT_NAME = 'realaccount';
+    process.env.AZURE_STORAGE_ACCOUNT_KEY = 'YOUR_KEY';
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', fileType: 'image/jpeg' } });
+    const res = await uploadSas(req, makeContext());
+
+    expect(res.status).toBe(503);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.reason).toBe('storage_not_configured');
+  });
 });
 
 // ─── auth checks ──────────────────────────────────────────────────────────
@@ -150,6 +196,23 @@ describe('uploadSas() auth', () => {
     const req = makeRequest({ body: { fileName: 'photo.jpg', fileType: 'image/jpeg' } });
     const res = await uploadSas(req, makeContext());
     expect(res.status).toBe(401);
+  });
+
+  it('returns 401 when auth.userId is null (authResponse returned null)', async () => {
+    const authUtils = await import('../../utils/authUtils');
+    vi.mocked(authUtils.validateToken).mockReturnValueOnce({
+      userId: null,
+      isAuthenticated: false,
+      reason: 'missing_token',
+    });
+    // authResponse returns null (no pre-built error), but userId is still null
+    vi.mocked(authUtils.authResponse).mockReturnValueOnce(null);
+
+    const req = makeRequest({ body: { fileName: 'photo.jpg', fileType: 'image/jpeg' } });
+    const res = await uploadSas(req, makeContext());
+    expect(res.status).toBe(401);
+    const body = res.jsonBody as Record<string, unknown>;
+    expect(body.category).toBe('AUTH_REQUIRED');
   });
 });
 
@@ -172,5 +235,11 @@ describe('uploadSas() request validation', () => {
     const req = makeRequest({ body: { fileName: 'file.bin', fileType: 'application/octet-stream' } });
     const res = await uploadSas(req, makeContext());
     expect(res.status).toBe(400);
+  });
+
+  it('accepts image/gif as a valid file type', async () => {
+    const req = makeRequest({ body: { fileName: 'animation.gif', fileType: 'image/gif' } });
+    const res = await uploadSas(req, makeContext());
+    expect(res.status).toBe(200);
   });
 });

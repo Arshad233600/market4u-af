@@ -3,11 +3,12 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions } from "@azure/storage-blob";
 import * as appInsights from "applicationinsights";
 import { validateToken, authResponse } from "../utils/authUtils";
+import { isPlaceholderConnectionString } from "../blob";
 
 // App Insights is initialized once in index.ts before all function modules are loaded.
 const telemetry = appInsights.defaultClient;
 
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 /**
  * Resolves Azure Storage account credentials at request time (not module load
@@ -15,6 +16,15 @@ const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
  */
 function resolveStorageCredentials(): { accountName: string; accountKey: string; containerName: string } | null {
     const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+    // Reject known placeholder connection strings (same guard used by upload.ts
+    // via resolveStorageConnectionString) so the SAS endpoint returns the clear
+    // 503 storage_not_configured instead of generating a SAS token with invalid
+    // credentials that silently fails on the client.
+    if (connectionString && isPlaceholderConnectionString(connectionString)) {
+        return null;
+    }
+
     let accountName = process.env.STORAGE_ACCOUNT_NAME || process.env.AZURE_STORAGE_ACCOUNT_NAME;
     let accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
 
@@ -27,6 +37,11 @@ function resolveStorageCredentials(): { accountName: string; accountKey: string;
 
     if (!accountName || !accountKey) return null;
 
+    // Also reject placeholder account keys provided via individual env vars
+    if (isPlaceholderConnectionString(`AccountKey=${accountKey}`)) {
+        return null;
+    }
+
     const containerName = process.env.AZURE_STORAGE_CONTAINER || process.env.STORAGE_CONTAINER_NAME || "ads-images";
     return { accountName, accountKey, containerName };
 }
@@ -36,7 +51,10 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
 
     const auth = validateToken(request);
     const authErr = authResponse(auth);
-    if (authErr) return authErr;
+    if (authErr || !auth.userId) {
+        context.warn(`[uploadSas] auth_failed reason=${auth.reason ?? "unknown"} requestId=${auth.requestId ?? "none"}`);
+        return authErr ?? { status: 401, jsonBody: { error: "Unauthorized", category: "AUTH_REQUIRED", reason: auth.reason, requestId: auth.requestId } };
+    }
 
     // Guard: fail fast with 503 when storage credentials are not configured, so
     // the client can distinguish a permanent server configuration error from a
@@ -64,7 +82,7 @@ export async function uploadSas(request: HttpRequest, context: InvocationContext
         // 1. Validation
         if (!fileName) return { status: 400, jsonBody: { error: "نام فایل الزامی است." } };
         if (!ALLOWED_MIME_TYPES.includes(fileType)) {
-            return { status: 400, jsonBody: { error: "فرمت فایل مجاز نیست. فقط JPG, PNG, WEBP." } };
+            return { status: 400, jsonBody: { error: "فرمت فایل مجاز نیست. فقط JPG, PNG, WEBP, GIF." } };
         }
 
         // 2. Telemetry Tracking
