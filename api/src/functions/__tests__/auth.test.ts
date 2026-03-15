@@ -7,6 +7,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import * as sql from 'mssql';
+import jwt from 'jsonwebtoken';
 
 // ─── hoisted mock state ────────────────────────────────────────────────────
 const mocks = vi.hoisted(() => {
@@ -773,8 +774,6 @@ describe('register() Users schema auto-migration', () => {
 describe('refreshTokenHandler()', () => {
   /** Helper: sign a JWT with the mocked secret for test requests. */
   function signTestToken(payload: Record<string, unknown>, secret = 'test-auth-secret-value-that-is-at-least-32-chars-long'): string {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const jwt = require('jsonwebtoken');
     return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' });
   }
 
@@ -801,7 +800,6 @@ describe('refreshTokenHandler()', () => {
   });
 
   it('returns 200 for an expired token within the grace window (ignoreExpiration)', async () => {
-    const jwt = require('jsonwebtoken');
     // Sign a token that expired 1 hour ago (within the 30-day grace window)
     const token = jwt.sign(
       { uid: 'u_test_123', iat: Math.floor(Date.now() / 1000) - 3600 },
@@ -842,7 +840,6 @@ describe('refreshTokenHandler()', () => {
   });
 
   it('returns 401 with reason=token_too_old for a token older than grace window', async () => {
-    const jwt = require('jsonwebtoken');
     // iat 100 days ago => beyond 7+30 day window
     const token = jwt.sign(
       { uid: 'u_test_123', iat: Math.floor(Date.now() / 1000) - 100 * 24 * 3600 },
