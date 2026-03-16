@@ -11,6 +11,7 @@ import { ChatConversation, ChatMessage, ChatRequest, UserSuggestion } from '../.
 import { authService } from '../../services/authService';
 import { toastService } from '../../services/toastService';
 import { safeStorage } from '../../utils/safeStorage';
+import { AuthError } from '../../services/apiClient';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -135,7 +136,11 @@ const Messages: React.FC = () => {
           }
 
           setConversations(data);
-      } catch {
+      } catch (err) {
+          if (err instanceof AuthError) {
+              authService.onAuthInvalid(err.reason ?? 'auth_error');
+              return;
+          }
           setConversations([]);
       }
   };
@@ -260,6 +265,10 @@ const Messages: React.FC = () => {
                 loadConvos();
             }
           } catch (error) {
+            if (error instanceof AuthError) {
+                authService.onAuthInvalid(error.reason ?? 'auth_error');
+                return;
+            }
             console.error("Failed to send message:", error);
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'FAILED' } : m));
           }

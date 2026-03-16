@@ -322,7 +322,10 @@ export const azureService = {
     try {
         await apiClient.put('/user/profile', data);
         return true;
-    } catch { return false; }
+    } catch (err) {
+        if (err instanceof AuthError) throw err;
+        return false;
+    }
   },
 
   uploadVerificationDocs: async (_frontImage: File, _backImage: File): Promise<boolean> => {
@@ -470,7 +473,10 @@ export const azureService = {
     try {
         await apiClient.delete(`/ads/${id}`);
         return true;
-    } catch { return false; }
+    } catch (err) {
+        if (err instanceof AuthError) throw err;
+        return false;
+    }
   },
 
   deleteAccount: async (): Promise<boolean> => {
@@ -481,7 +487,10 @@ export const azureService = {
       try {
           await apiClient.delete('/user/account');
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
 
   getDashboardStats: async (): Promise<DashboardStats> => {
@@ -546,7 +555,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>(`/ads/user/${id}`);
           return mapAdsToProducts(data);
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   // TODO: implement real reviews API when backend support is added
@@ -560,7 +572,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow>(`/ads/${id}`);
           return mapAdToProduct(data);
-      } catch { return null; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return null;
+      }
   },
 
   getRelatedProducts: async (cat: string, id: string) => {
@@ -571,7 +586,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>(`/ads?category=${encodeURIComponent(cat)}`);
           return mapAdsToProducts(data).filter(p => p.id !== id).slice(0, 4);
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   searchAds: async (filters: SearchFilters): Promise<Product[]> => {
@@ -641,7 +659,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>(`/ads?q=${encodeURIComponent(q)}`);
           return mapAdsToProducts(data).map(p => p.title).slice(0, 5);
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
 
   searchUsers: async (q: string): Promise<UserSuggestion[]> => {
@@ -685,7 +706,10 @@ export const azureService = {
           const data = await apiClient.get<UserSearchRow[]>(`/users/search?q=${encodeURIComponent(q)}`);
           if (!Array.isArray(data)) return [];
           return data.map(u => ({ id: u.Id, name: u.Name, province: u.Province || '', avatarUrl: u.AvatarUrl || '' })).slice(0, 5);
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   getWalletTransactions: async () => {
@@ -704,7 +728,10 @@ export const azureService = {
               status: tx.Status as WalletTransaction['status'],
               description: tx.Description || ''
           }));
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   topUpWallet: async (amount: number, desc: string) => { 
@@ -742,7 +769,10 @@ export const azureService = {
       try {
           await apiClient.post('/wallet/top-up', { amount, description: desc });
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
   
   // --- REAL-TIME CHAT IMPLEMENTATION (LOCAL STORAGE) ---
@@ -767,7 +797,10 @@ export const azureService = {
               lastMessageTime: new Date(item.LastMessageTime).toLocaleTimeString('fa-AF', { hour: '2-digit', minute: '2-digit' }),
               unreadCount: item.UnreadCount || 0
           }));
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   getMessages: async (id: string): Promise<ChatMessage[]> => {
@@ -789,7 +822,10 @@ export const azureService = {
               status: 'SENT' as const,
               isDeleted: msg.Content === ''
           }));
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
   
   sendMessage: async (id: string, text: string): Promise<ChatMessage> => {
@@ -880,7 +916,8 @@ export const azureService = {
       try {
           const ad = await apiClient.get<AdRow>(`/ads/${productId}`);
           return String(ad.UserId || '');
-      } catch {
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
           return '';
       }
   },
@@ -903,7 +940,10 @@ export const azureService = {
       try {
           await apiClient.delete(`/messages/${messageId}`);
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
 
   // --- CHAT REQUESTS ---
@@ -946,7 +986,10 @@ export const azureService = {
       try {
           await apiClient.post('/chat/requests', { toUserId });
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
 
   getChatRequests: async (): Promise<ChatRequest[]> => {
@@ -957,7 +1000,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<ChatRequest[]>('/chat/requests');
           return Array.isArray(data) ? data : [];
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
 
   acceptChatRequest: async (requestId: string, fromUserId?: string, fromUserName?: string): Promise<string> => {
@@ -998,7 +1044,10 @@ export const azureService = {
       try {
           const data = await apiClient.post<{ conversationId: string }>(`/chat/requests/${requestId}/accept`, {});
           return data.conversationId;
-      } catch { return ''; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return '';
+      }
   },
 
   rejectChatRequest: async (requestId: string): Promise<boolean> => {
@@ -1013,7 +1062,10 @@ export const azureService = {
       try {
           await apiClient.post(`/chat/requests/${requestId}/reject`, {});
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
 
   updateAdStatus: async (id: string, status: AdStatus) => {
@@ -1026,7 +1078,10 @@ export const azureService = {
       try {
           await apiClient.patch(`/ads/${id}/status`, { status });
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
   
   promoteAd: async (id: string, plan: string) => {
@@ -1077,7 +1132,10 @@ export const azureService = {
       try {
           await apiClient.post(`/ads/${id}/promote`, { plan });
           return true;
-      } catch { return false; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return false;
+      }
   },
 
   reportAd: async (_id: string, _reason: string) => true,
@@ -1102,7 +1160,10 @@ export const azureService = {
               try {
                   await apiClient.delete(`/favorites/${id}`);
                   return true;
-              } catch { return false; }
+              } catch (err) {
+                  if (err instanceof AuthError) throw err;
+                  return false;
+              }
           }
           return false;
       }
@@ -1118,7 +1179,10 @@ export const azureService = {
       try {
           const data = await apiClient.get<AdRow[]>('/favorites');
           return mapAdsToProducts(data).map(p => ({ ...p, isFavorite: true }));
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
 
   // --- NOTIFICATIONS ---
@@ -1164,7 +1228,10 @@ export const azureService = {
       if (!authService.getToken() || authService.isTokenExpired()) return;
       try {
           await apiClient.patch('/notifications/read', id ? { id } : {});
-      } catch { /* silent – non-critical */ }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          /* silent – non-critical */
+      }
   },
 
   // --- SETTINGS ---
@@ -1184,7 +1251,10 @@ export const azureService = {
      try {
          const data = await apiClient.get<AdRow[]>('/admin/ads/pending');
          return mapAdsToProducts(data);
-     } catch { return []; }
+     } catch (err) {
+         if (err instanceof AuthError) throw err;
+         return [];
+     }
   },
   
   adminGetPendingVerifications: async (): Promise<User[]> => {
@@ -1194,7 +1264,10 @@ export const azureService = {
       }
       try {
           return await apiClient.get('/admin/users/pending-verification');
-      } catch { return []; }
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
+          return [];
+      }
   },
 
   adminApproveAd: async (id: string): Promise<boolean> => {
@@ -1288,7 +1361,8 @@ export const azureService = {
       try {
           const data = await apiClient.get<Array<{ type: string; id: string; title: string; detail?: string; date: string }>>('/dashboard/activities');
           return Array.isArray(data) ? data : [];
-      } catch {
+      } catch (err) {
+          if (err instanceof AuthError) throw err;
           return [];
       }
   }

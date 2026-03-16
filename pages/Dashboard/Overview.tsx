@@ -7,6 +7,7 @@ import {
 import { azureService } from '../../services/azureService';
 import { DashboardStats, Page } from '../../types';
 import { authService } from '../../services/authService';
+import { AuthError } from '../../services/apiClient';
 
 interface OverviewProps {
   onNavigate: (page: Page) => void;
@@ -91,9 +92,21 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
         const s = await azureService.getDashboardStats();
         if (!cancelled) setStats(s);
       } catch (err) {
-        // For all errors (network outage, server error, auth errors),
+        if (err instanceof AuthError) {
+          const reason = err.reason ?? 'auth_error';
+          if (reason === 'invalid_token') {
+            // Token was rejected by the server — clear stale session so the
+            // dashboard guard in App.tsx redirects to login.
+            authService.onAuthInvalid(reason);
+          } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
+            if (!cancelled) setLoadError('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
+          } else {
+            authService.onAuthInvalid(reason);
+          }
+          return;
+        }
+        // For all non-auth errors (network outage, server error, etc.),
         // show an error message with a retry option instead of an infinite spinner.
-        // The session is never invalidated automatically.
         if (!cancelled) {
           const msg = err instanceof Error ? err.message : 'خطای ناشناخته';
           setLoadError(msg);
