@@ -32,6 +32,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
     } catch (err) {
       if (err instanceof AuthError) {
         authService.onAuthInvalid(err.reason ?? 'invalid_token');
+        return;
       }
       setIsFavorite(!newState);
       console.error("Failed to toggle favorite");
