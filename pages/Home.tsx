@@ -11,6 +11,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { toastService } from '../services/toastService';
 import { findClosestProvince } from '../utils/locationUtils';
 import { safeStorage } from '../utils/safeStorage';
+import { AuthError } from '../services/apiClient';
+import { authService } from '../services/authService';
 
 interface HomeProps {
   onProductClick: (product: Product) => void;
@@ -173,7 +175,11 @@ const Home: React.FC<HomeProps> = ({ onProductClick, searchQuery, onNavigate, on
         try {
             const data = await azureService.searchAds(filters);
             setProducts(data);
-        } catch {
+        } catch (err) {
+            if (err instanceof AuthError) {
+              authService.onAuthInvalid(err.reason ?? 'invalid_token');
+              return;
+            }
             setProducts([]);
         } finally {
             setLoading(false);

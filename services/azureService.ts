@@ -643,11 +643,8 @@ export const azureService = {
       const data = await apiClient.get<AdRow[]>(`/ads${qs ? '?' + qs : ''}`);
       return mapAdsToProducts(data);
     } catch (err: unknown) {
-      if (err instanceof AuthError) {
-        console.warn('[azureService.searchAds] 401 on public /ads endpoint – expired token or configuration issue. Returning empty list as fallback.');
-        return [];
-      }
-      throw err;
+      if (err instanceof AuthError) throw err;
+      return [];
     }
   },
 
@@ -1155,13 +1152,14 @@ export const azureService = {
           await apiClient.post(`/favorites/${id}`, {});
           return true;
       } catch (err: unknown) {
+          if (err instanceof AuthError) throw err;
           // 409 = already favorited, so remove it
           if (err instanceof Error && (err.message.includes('409') || err.message.includes('Already'))) {
               try {
                   await apiClient.delete(`/favorites/${id}`);
                   return true;
-              } catch (err) {
-                  if (err instanceof AuthError) throw err;
+              } catch (delErr) {
+                  if (delErr instanceof AuthError) throw delErr;
                   return false;
               }
           }
