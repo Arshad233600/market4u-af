@@ -35,10 +35,10 @@ const MyAds: React.FC<MyAdsProps> = ({ onEdit }) => {
       if (err instanceof AuthError) {
         const reason = err.reason ?? 'unauthorized';
         // For invalid_token: apiClient already attempted a silent refresh before
-        // throwing. Do NOT logout immediately — show an error so the user can
-        // choose to re-authenticate rather than being silently logged out.
+        // throwing. Token was rejected by the server — clear the stale session so
+        // the dashboard guard in App.tsx redirects to login.
         if (reason === 'invalid_token') {
-          setLoadError('خطای احراز هویت. لطفاً دوباره وارد شوید.');
+          authService.onAuthInvalid(reason);
         } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
           // Server misconfiguration — retrying or re-logging in won't help.
           setLoadError('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
