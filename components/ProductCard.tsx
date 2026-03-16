@@ -6,6 +6,8 @@ import { APP_STRINGS } from '../constants';
 import { azureService } from '../services/azureService';
 import OptimizedImage from './OptimizedImage';
 import { getRelativeTime } from '../utils/dateUtils';
+import { AuthError } from '../services/apiClient';
+import { authService } from '../services/authService';
 
 const CONDITION_LABELS: Record<ProductCondition, { label: string; color: string }> = {
   new: { label: 'نو', color: 'bg-ui-success/15 text-ui-success' },
@@ -27,7 +29,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
     setIsFavorite(newState);
     try {
       await azureService.toggleFavorite(product.id);
-    } catch {
+    } catch (err) {
+      if (err instanceof AuthError) {
+        authService.onAuthInvalid(err.reason ?? 'invalid_token');
+        return;
+      }
       setIsFavorite(!newState);
       console.error("Failed to toggle favorite");
     }
