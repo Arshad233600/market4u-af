@@ -3,6 +3,8 @@ import Icon from '../src/components/ui/Icon';
 import ProductCard from '../components/ProductCard';
 import { Product } from '../types';
 import { azureService } from '../services/azureService';
+import { AuthError } from '../services/apiClient';
+import { authService } from '../services/authService';
 
 interface FavoritesProps {
     onProductClick: (product: Product) => void;
@@ -19,6 +21,10 @@ const Favorites: React.FC<FavoritesProps> = ({ onProductClick, onBack }) => {
                 const data = await azureService.getFavorites();
                 setFavorites(data);
             } catch (error) {
+                if (error instanceof AuthError) {
+                    authService.onAuthInvalid(error.reason ?? 'auth_error');
+                    return;
+                }
                 console.error(error);
             } finally {
                 setLoading(false);

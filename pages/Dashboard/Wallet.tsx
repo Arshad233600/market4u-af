@@ -9,6 +9,8 @@ import { WalletTransaction } from '../../types';
 import { APP_STRINGS } from '../../constants';
 import PaymentGatewayModal from '../../components/PaymentGatewayModal';
 import { toastService } from '../../services/toastService';
+import { AuthError } from '../../services/apiClient';
+import { authService } from '../../services/authService';
 
 const WalletPage: React.FC = () => {
   const [balance, setBalance] = useState(0);
@@ -29,7 +31,11 @@ const WalletPage: React.FC = () => {
       const txs = await azureService.getWalletTransactions();
       setBalance(stats.walletBalance);
       setTransactions(txs);
-    } catch {
+    } catch (err) {
+      if (err instanceof AuthError) {
+        authService.onAuthInvalid(err.reason ?? 'auth_error');
+        return;
+      }
       // API unavailable - keep default empty state
     }
   }, []);
