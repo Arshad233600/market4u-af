@@ -267,8 +267,9 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   toastService.error('مرورگر شما دسترسی به حافظه را مسدود کرده. لطفاً کوکی‌ها را فعال کنید و دوباره تلاش کنید.');
               } else if (reason === 'invalid_token') {
                   // apiClient already attempted a silent refresh before throwing.
-                  // Do NOT logout immediately — show an error so the user can
-                  // choose to re-authenticate rather than being silently logged out.
+                  // Token was rejected by the server — clear the stale session so
+                  // the App.tsx auth guard redirects to login.
+                  authService.onAuthInvalid(reason);
                   toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
                   onNavigate(Page.POST_AD);
               } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
@@ -428,8 +429,9 @@ const PostAd: React.FC<PostAdProps> = ({ onNavigate, existingAd }) => {
                   onNavigate(Page.POST_AD);
               } else if (reason === 'invalid_token') {
                   // apiClient already attempted a silent refresh before throwing.
-                  // Do NOT logout immediately — show an error so the user can
-                  // choose to re-authenticate rather than being silently logged out.
+                  // Token was rejected by the server — clear the stale session so
+                  // the App.tsx auth guard redirects to login.
+                  authService.onAuthInvalid(reason);
                   toastService.error('خطای احراز هویت. لطفاً دوباره وارد شوید.');
                   onNavigate(Page.POST_AD);
               } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
