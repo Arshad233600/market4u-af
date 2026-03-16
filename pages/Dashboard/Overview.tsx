@@ -99,6 +99,8 @@ const Overview: React.FC<OverviewProps> = ({ onNavigate, onLogout }) => {
             // dashboard guard in App.tsx redirects to login.
             authService.onAuthInvalid(reason);
           } else if (reason === 'insecure_default_secret' || reason === 'server_unavailable') {
+            // Server misconfiguration — re-login won't help because login also
+            // fails with the same issue. Show a support message instead.
             if (!cancelled) setLoadError('سرویس احراز هویت در دسترس نیست. لطفاً با پشتیبانی تماس بگیرید.');
           } else {
             authService.onAuthInvalid(reason);
